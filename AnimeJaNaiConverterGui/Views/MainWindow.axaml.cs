@@ -53,7 +53,7 @@ namespace AnimeJaNaiConverterGui.Views
                 Title = "Open ONNX Model File",
                 AllowMultiple = false,
                 FileTypeFilter = new FilePickerFileType[] { new("ONNX Model File") { Patterns = new[] { "*.onnx" }, MimeTypes = new[] { "*/*" } }, FilePickerFileTypes.All },
-                SuggestedStartLocation = await storageProvider.TryGetFolderFromPathAsync(new Uri(@"C:\mpv-upscale-2x_animejanai\vapoursynth64\plugins\models\animejanai")),
+                SuggestedStartLocation = await storageProvider.TryGetFolderFromPathAsync(new Uri(Path.GetFullPath(@".\mpv-upscale-2x_animejanai\vapoursynth64\plugins\models\animejanai"))),
             });
 
             if (files.Count >= 1)

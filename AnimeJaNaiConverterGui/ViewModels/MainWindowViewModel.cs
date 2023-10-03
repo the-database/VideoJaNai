@@ -78,28 +78,28 @@ namespace AnimeJaNaiConverterGui.ViewModels
             }
         }
 
-        private string _inputFilePath = @"<local path>"; // TODO remove
+        private string _inputFilePath = string.Empty;
         public string InputFilePath
         {
             get => _inputFilePath;
             set => this.RaiseAndSetIfChanged(ref _inputFilePath, value);
         }
 
-        private string _inputFolderPath = @"<local path>"; // TODO
+        private string _inputFolderPath = string.Empty;
         public string InputFolderPath
         {
             get => _inputFolderPath;
             set => this.RaiseAndSetIfChanged(ref _inputFolderPath, value);
         }
 
-        private string _outputFilePath = @"<local path>"; // TODO remove
+        private string _outputFilePath = string.Empty;
         public string OutputFilePath
         {
             get => _outputFilePath;
             set => this.RaiseAndSetIfChanged(ref _outputFilePath, value);
         }
 
-        private string _outputFolderPath = @"<local path>";
+        private string _outputFolderPath = string.Empty;
         public string OutputFolderPath
         {
             get => _outputFolderPath;
@@ -136,10 +136,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
 
         public void AddModel()
         {
-            UpscaleSettings.Add(new UpscaleModel
-            {
-                OnnxModelPath = @"C:\Users\<user>\Documents\programming\AnimeJaNaiConverterGui\AnimeJaNaiConverterGui\bin\Debug\net6.0\mpv-upscale-2x_animejanai\vapoursynth64\plugins\models\animejanai\2x_AnimeJaNai_V2_Compact_36k.onnx"
-            });
+            UpscaleSettings.Add(new UpscaleModel());
             UpdateModelHeaders();
         }
 
