@@ -1,0 +1,139 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AnimeJaNaiConverterGui.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="AnimeJaNaiConverterGui.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="AnimeJaNaiConverterGui">
+
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Auto">
+      <StackPanel Margin="20">
+        <TabControl SelectedIndex="{Binding SelectedTabIndex}">
+          <TabItem Header="Single Video Upscale" VerticalContentAlignment="Center">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
+                <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Video</TextBlock>
+                <TextBox Margin="0,0,5,0" Text="{Binding InputFilePath}" IsReadOnly="False" MinWidth="300" />
+                <Button Content="Select File" Click="OpenInputFileButtonClick" />
+              </StackPanel>
+
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Video</TextBlock>
+                <TextBox Margin="0,0,5,0" Text="{Binding OutputFilePath}" IsReadOnly="False" MinWidth="300" />
+                <Button Content="Select File" Click="OpenOutputFileButtonClick" />
+              </StackPanel>
+            </StackPanel>
+          </TabItem>
+          <TabItem Header="Batch Video Upscale" VerticalAlignment="Center">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
+                <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Folder</TextBlock>
+                <TextBox Margin="0,0,5,0" Text="{Binding InputFolderPath}" IsReadOnly="False" MinWidth="300" />
+                <Button Content="Select Folder" Click="OpenInputFolderButtonClick" />
+              </StackPanel>
+            
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Folder</TextBlock>
+                <TextBox Margin="0,0,5,0" Text="{Binding OutputFolderPath}" IsReadOnly="False" MinWidth="300" />
+                <Button Content="Select Folder" Click="OpenOutputFolderButtonClick" />
+              </StackPanel>
+            </StackPanel>
+          </TabItem>
+        </TabControl>
+
+        <StackPanel Orientation="Horizontal" Margin="10,20,0,10">
+          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Output Video Settings</TextBlock>
+          <TextBox Margin="0,0,5,0" Text="{Binding FfmpegVideoSettings}" IsReadOnly="False" MinWidth="300" />
+        </StackPanel>
+
+
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,20,0,10">
+          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Presets</TextBlock>
+          <ToggleButton IsChecked="{Binding FfmpegHevcNvencSelected}" Content="NVENC HEVC" Command="{Binding SetFfmpegHevcNvenc}" />
+          <ToggleButton IsChecked="{Binding FfmpegX265Selected}" Content="x265 (CPU)" Command="{Binding SetFfmpegX265}" />
+          <ToggleButton IsChecked="{Binding FfmpegX264Selected}" Content="x264 (CPU)" Command="{Binding SetFfmpegX264}" />
+          <ToggleButton IsChecked="{Binding FfmpegLosslessSelected}" Content="Lossless (CPU)" Command="{Binding SetFfmpegLossless}" />
+          <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0" xml:space="preserve">
+            NVENC HEVC: HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.
+            x265 (CPU): x265 compression (https://ffmpeg.org/ffmpeg-codecs.html#libx265), more efficient compression but slower to encode.
+            x265 (CPU): x264 compression (https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb), OK compression, faster to encode.
+            Lossless (CPU): FFV1 lossless compression, fastest to encode but extremely large filesize.
+          </TextBlock>
+        </StackPanel>
+        
+        
+        <StackPanel Orientation="Horizontal" Margin="10,20,0,0">
+          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Show More Upscale Settings</TextBlock>
+          <CheckBox IsChecked="{Binding ShowAdvancedSettings}" />
+        </StackPanel>
+
+        <Border Margin="0,10,0,0"
+                  CornerRadius="5"
+                  BorderBrush="Gray" BorderThickness="1"
+                  Padding="5">
+          <StackPanel>
+        <ItemsControl ItemsSource="{Binding UpscaleSettings}" >
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:UpscaleModel">
+              <Border Margin="0,10,0,0"
+                  CornerRadius="5"
+                  BorderBrush="Gray" BorderThickness="1"
+                  Padding="5">
+                <StackPanel>
+                  <TextBlock FontSize="16" FontWeight="Bold" Margin="10,20,0,20" Text="{Binding ModelHeader}" />
+                  <StackPanel Orientation="Horizontal" Margin="10,0,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ShowAdvancedSettings}}">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Height Before Upscale</TextBlock>
+                    <TextBox Margin="0,0,5,0" Text="{Binding ResizeHeightBeforeUpscale}" IsReadOnly="False" />
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
+                    <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Resize the video to this height before running this model, set to 0 to disable.</TextBlock>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Margin="10,0,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ShowAdvancedSettings}">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Factor Before Upscale</TextBlock>
+                    <TextBox Margin="0,0,5,0" Text="{Binding ResizeFactorBeforeUpscale}" IsReadOnly="False" />
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">x</TextBlock>
+                    <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                      Resize the video by this factor before running this model. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half.</TextBlock>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">ONNX model path</TextBlock>
+                    <TextBox Margin="0,0,5,0" Text="{Binding OnnxModelPath}" IsReadOnly="False" MinWidth="300" />
+                    <Button Content="Select File" Click="OpenOnnxFileButtonClick" />
+                    <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">File path of the ONNX model to run.</TextBlock>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
+                    <TextBlock Text="{Binding $parent[vm:MainWindowViewModel].InputFilePath}" />
+                  <Button Content="Remove" 
+                          Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).DeleteModel}"
+                          CommandParameter="{Binding}"
+                          />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Button Margin="0,10,0,0" Content="Add Model" Command="{Binding AddModel}" />
+
+        <StackPanel Orientation="Horizontal" Margin="10,20,0,10" IsVisible="{Binding ShowAdvancedSettings}">
+          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Enable RIFE 2x Interpolation</TextBlock>
+          <CheckBox IsChecked="{Binding EnableRife}" />
+          <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Whether or not to run RIFE video frame interpolation.</TextBlock>
+        </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Button Margin="0,40,0,0" Content="Upscale" FontWeight="Bold" Background="Green" IsEnabled="{Binding Valid}" Command="{Binding RunUpscale}"></Button>
+        
+        
+      </StackPanel>
+    </ScrollViewer>
+</Window>
