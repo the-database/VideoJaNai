@@ -1,0 +1,23 @@
+{
+  "$type": "AnimeJaNaiConverterGui.ViewModels.MainWindowViewModel, AnimeJaNaiConverterGui",
+  "SelectedTabIndex": 0,
+  "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
+  "InputFilePath": "",
+  "InputFolderPath": "",
+  "OutputFilePath": "",
+  "OutputFolderPath": "",
+  "UpscaleSettings": {
+    "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+    "$values": [
+      {
+        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+        "ModelHeader": "Model 1",
+        "ResizeHeightBeforeUpscale": 0,
+        "ResizeFactorBeforeUpscale": 1.0,
+        "OnnxModelPath": ""
+      }
+    ]
+  },
+  "EnableRife": false,
+  "ShowAdvancedSettings": false
+}
