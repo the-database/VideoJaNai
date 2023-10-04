@@ -218,7 +218,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         public void SetupAnimeJaNaiConfSlot1()
         {
             var confPath = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\portable_config\shaders\animejanai_v2.conf");
-
+            HashSet<string> filesNeedingEngine = new();
             var configText = new StringBuilder(@"[global]
 logging=yes
 [slot_1]
@@ -227,6 +227,7 @@ logging=yes
             for (var i = 0; i < UpscaleSettings.Count; i++)
             {
                 var targetCopyPath = @$".\mpv-upscale-2x_animejanai\vapoursynth64\plugins\models\animejanai\{Path.GetFileName(UpscaleSettings[i].OnnxModelPath)}";
+
                 if (Path.GetFullPath(targetCopyPath) != Path.GetFullPath(UpscaleSettings[i].OnnxModelPath))
                 {
                     File.Copy(UpscaleSettings[i].OnnxModelPath, targetCopyPath, true);
@@ -243,12 +244,27 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
             File.WriteAllText(confPath, configText.ToString());
         }
 
+        public void CheckEngines(string inputFilePath)
+        {
+            for (var i = 0; i < UpscaleSettings.Count; i++)
+            {
+                var enginePath = @$".\mpv-upscale-2x_animejanai\vapoursynth64\plugins\models\animejanai\{Path.GetFileNameWithoutExtension(UpscaleSettings[i].OnnxModelPath)}.engine";
+
+                if (!File.Exists(enginePath))
+                {
+                    GenerateEngine(inputFilePath);
+                }
+            }
+
+        }
+
         public void RunUpscale()
         {
             SetupAnimeJaNaiConfSlot1();
 
             if (SelectedTabIndex == 0)
             {
+                CheckEngines(InputFilePath);
                 RunUpscaleSingle(InputFilePath, OutputFilePath);
             }
             else
@@ -258,6 +274,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
 
                 foreach (var file in files)
                 {
+                    CheckEngines(file);
                     var outputFilePath = Path.Combine(OutputFolderPath, Path.GetFileName(file));
                     RunUpscaleSingle(file, outputFilePath);
                 }
@@ -272,8 +289,26 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
             using (var process = new Process())
             {
                 process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = $@" /C ..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_v2_encode.vpy - | ffmpeg -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {FfmpegVideoSettings} -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
-                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.Arguments = $@" /K ..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_v2_encode.vpy - | ffmpeg -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {FfmpegVideoSettings} -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
+                process.StartInfo.RedirectStandardOutput = false;
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.CreateNoWindow = false;
+                process.StartInfo.WorkingDirectory = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\portable_config\shaders");
+
+                process.Start();
+                ChildProcessTracker.AddProcess(process);
+                process.WaitForExit();
+            }
+        }
+
+        public void GenerateEngine(string inputFilePath)
+        {
+            // Create a new process to run the CMD command
+            using (var process = new Process())
+            {
+                process.StartInfo.FileName = "cmd.exe";
+                process.StartInfo.Arguments = $@" /K ..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ./animejanai_v2_encode.vpy -p .";
+                process.StartInfo.RedirectStandardOutput = false;
                 process.StartInfo.UseShellExecute = false;
                 process.StartInfo.CreateNoWindow = false;
                 process.StartInfo.WorkingDirectory = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\portable_config\shaders");
