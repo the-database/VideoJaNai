@@ -8,15 +8,17 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reactive;
+using System.Runtime.Serialization;
 using System.Text;
 
 namespace AnimeJaNaiConverterGui.ViewModels
 {
+    [DataContract]
     public class MainWindowViewModel : ViewModelBase
     {
         public MainWindowViewModel() 
         {
-            AddModel();
+            //AddModel();
 
             this.WhenAnyValue(x => x.InputFilePath, x => x.OutputFilePath, 
                 x => x.InputFolderPath, x => x.OutputFolderPath,
@@ -27,6 +29,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         }
 
         private int _selectedTabIndex;
+        [DataMember]
         public int SelectedTabIndex
         {
             get => _selectedTabIndex;
@@ -38,20 +41,6 @@ namespace AnimeJaNaiConverterGui.ViewModels
                 }
             }
         }
-
-        private string _consoleText;
-        public string ConsoleText
-        {
-            get => _consoleText;
-            set
-            {
-                if (_consoleText != value)
-                {
-                    this.RaiseAndSetIfChanged(ref _consoleText, value);
-                }
-            }
-        }
-
 
         private static readonly string _ffmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\"";
         private static readonly string _ffmpegX264 = "libx264 -crf 13 -preset slow";
@@ -66,6 +55,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         public bool FfmpegLosslessSelected => FfmpegVideoSettings == _ffmpegLossless;
 
         private string _ffmpegVideoSettings = _ffmpegHevcNvenc;
+        [DataMember]
         public string FfmpegVideoSettings
         {
             get => _ffmpegVideoSettings;
@@ -79,6 +69,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         }
 
         private string _inputFilePath = string.Empty;
+        [DataMember]
         public string InputFilePath
         {
             get => _inputFilePath;
@@ -86,6 +77,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         }
 
         private string _inputFolderPath = string.Empty;
+        [DataMember]
         public string InputFolderPath
         {
             get => _inputFolderPath;
@@ -93,6 +85,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         }
 
         private string _outputFilePath = string.Empty;
+        [DataMember]
         public string OutputFilePath
         {
             get => _outputFilePath;
@@ -100,6 +93,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         }
 
         private string _outputFolderPath = string.Empty;
+        [DataMember]
         public string OutputFolderPath
         {
             get => _outputFolderPath;
@@ -107,6 +101,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         }
 
         private AvaloniaList<UpscaleModel> _upscaleSettings = new();
+        [DataMember]
         public AvaloniaList<UpscaleModel> UpscaleSettings
         {
             get => _upscaleSettings;
@@ -114,6 +109,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         }
 
         private bool _enableRife = false;
+        [DataMember]
         public bool EnableRife
         {
             get => _enableRife;
@@ -121,6 +117,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         }
 
         private bool _showAdvancedSettings = false;
+        [DataMember]
         public bool ShowAdvancedSettings
         {
             get => _showAdvancedSettings;
@@ -128,6 +125,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         }
 
         private bool _valid = false;
+        [IgnoreDataMember]
         public bool Valid
         {
             get => _valid;
@@ -320,9 +318,11 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
         }
     }
 
+    [DataContract]
     public class UpscaleModel : ReactiveObject
     {
         private string _modelHeader = string.Empty;
+        [DataMember]
         public string ModelHeader
         {
             get => _modelHeader;
@@ -330,6 +330,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
         }
 
         private int _resizeHeightBeforeUpscale = 0;
+        [DataMember]
         public int ResizeHeightBeforeUpscale
         {
             get => _resizeHeightBeforeUpscale; 
@@ -337,6 +338,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
         }
 
         private double _resizeFactorBeforeUpscale = 1.0;
+        [DataMember]
         public double ResizeFactorBeforeUpscale
         {
             get => _resizeFactorBeforeUpscale;
@@ -344,6 +346,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
         }
 
         private string _onnxModelPath = string.Empty;
+        [DataMember]
         public string OnnxModelPath
         {
             get => _onnxModelPath;

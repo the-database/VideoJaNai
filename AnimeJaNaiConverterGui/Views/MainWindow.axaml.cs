@@ -2,17 +2,22 @@ using AnimeJaNaiConverterGui.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using Avalonia.ReactiveUI;
+using ReactiveUI;
 using System;
 using System.IO;
 
 namespace AnimeJaNaiConverterGui.Views
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : ReactiveWindow<MainWindowViewModel>
     {
         public MainWindow()
         {
-            InitializeComponent();
+            //InitializeComponent();
+            AvaloniaXamlLoader.Load(this);
+            this.WhenActivated(disposable => { });
         }
 
         private async void OpenInputFileButtonClick(object? sender, RoutedEventArgs e)
