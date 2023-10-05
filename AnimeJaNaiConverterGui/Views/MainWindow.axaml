@@ -17,70 +17,91 @@
 
     <ScrollViewer HorizontalScrollBarVisibility="Auto">
       <StackPanel Margin="20">
+        <Border Margin="0,10,0,0"
+          CornerRadius="5"
+          BorderBrush="Gray" BorderThickness="1"
+          Padding="5">
+          <StackPanel>
+          
         <TabControl SelectedIndex="{Binding SelectedTabIndex}">
-          <TabItem Header="Single Video Upscale" VerticalContentAlignment="Center">
+          <TabItem Header="Single Video Upscale" VerticalContentAlignment="Center" FontSize="18">
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Video</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding InputFilePath}" IsReadOnly="False" Width="500" />
+                <TextBox Margin="0,0,5,0" Text="{Binding InputFilePath}" IsReadOnly="False" Width="800" />
                 <Button Content="Select File" Click="OpenInputFileButtonClick" />
               </StackPanel>
 
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Video</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding OutputFilePath}" IsReadOnly="False" Width="500" />
+                <TextBox Margin="0,0,5,0" Text="{Binding OutputFilePath}" IsReadOnly="False" Width="800" />
                 <Button Content="Select File" Click="OpenOutputFileButtonClick" />
               </StackPanel>
             </StackPanel>
           </TabItem>
-          <TabItem Header="Batch Video Upscale" VerticalAlignment="Center">
+          <TabItem Header="Batch Video Upscale" VerticalAlignment="Center" FontSize="18">
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Folder</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding InputFolderPath}" IsReadOnly="False" Width="500" />
+                <TextBox Margin="0,0,5,0" Text="{Binding InputFolderPath}" IsReadOnly="False" Width="800" />
                 <Button Content="Select Folder" Click="OpenInputFolderButtonClick" />
               </StackPanel>
             
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Folder</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding OutputFolderPath}" IsReadOnly="False" Width="500" />
+                <TextBox Margin="0,0,5,0" Text="{Binding OutputFolderPath}" IsReadOnly="False" Width="800" />
                 <Button Content="Select Folder" Click="OpenOutputFolderButtonClick" />
               </StackPanel>
             </StackPanel>
           </TabItem>
         </TabControl>
 
-        <StackPanel Orientation="Horizontal" Margin="10,20,0,10">
-          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Output Video Settings</TextBlock>
-          <TextBox Margin="0,0,5,0" Text="{Binding FfmpegVideoSettings}" IsReadOnly="False" Width="500" />
-        </StackPanel>
-
-
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,20,0,10">
-          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Presets</TextBlock>
-          <ToggleButton IsChecked="{Binding FfmpegHevcNvencSelected}" Content="NVENC HEVC" Command="{Binding SetFfmpegHevcNvenc}" />
-          <ToggleButton IsChecked="{Binding FfmpegX265Selected}" Content="x265 (CPU)" Command="{Binding SetFfmpegX265}" />
-          <ToggleButton IsChecked="{Binding FfmpegX264Selected}" Content="x264 (CPU)" Command="{Binding SetFfmpegX264}" />
-          <ToggleButton IsChecked="{Binding FfmpegLosslessSelected}" Content="Lossless (CPU)" Command="{Binding SetFfmpegLossless}" />
-          <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0" xml:space="preserve">
-            NVENC HEVC: HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.
-            x265 (CPU): x265 compression (https://ffmpeg.org/ffmpeg-codecs.html#libx265), more efficient compression but slower to encode.
-            x265 (CPU): x264 compression (https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb), OK compression, faster to encode.
-            Lossless (CPU): FFV1 lossless compression, fastest to encode but extremely large filesize.
-          </TextBlock>
-        </StackPanel>
-        
-        
         <StackPanel Orientation="Horizontal" Margin="10,20,0,0">
-          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Show More Upscale Settings</TextBlock>
-          <CheckBox IsChecked="{Binding ShowAdvancedSettings}" />
+          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Overwrite Existing Videos</TextBlock>
+          <CheckBox IsChecked="{Binding OverwriteExistingVideos}" />
+          <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">If unchecked, upscaling will be skipped if the video already exists in the output path. If checked, any videos that already exist in the output path will be overwritten without warning. Use with caution.</TextBlock>
         </StackPanel>
+          </StackPanel>
+          </Border>
 
-        <Border Margin="0,10,0,0"
+        <!-- Encoding -->
+        <Border Margin="0,20,0,0"
+          CornerRadius="5"
+          BorderBrush="Gray" BorderThickness="1"
+          Padding="5">
+          <StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="10,20,0,10">
+            <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Output Video Settings</TextBlock>
+            <TextBox Margin="0,0,5,0" Text="{Binding FfmpegVideoSettings}" IsReadOnly="False" Width="800" />
+          </StackPanel>
+
+
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,20,0,10">
+            <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Presets</TextBlock>
+            <ToggleButton IsChecked="{Binding FfmpegHevcNvencSelected}" Content="NVENC HEVC" Command="{Binding SetFfmpegHevcNvenc}" />
+            <ToggleButton IsChecked="{Binding FfmpegX265Selected}" Content="x265 (CPU)" Command="{Binding SetFfmpegX265}" />
+            <ToggleButton IsChecked="{Binding FfmpegX264Selected}" Content="x264 (CPU)" Command="{Binding SetFfmpegX264}" />
+            <ToggleButton IsChecked="{Binding FfmpegLosslessSelected}" Content="Lossless (CPU)" Command="{Binding SetFfmpegLossless}" />
+            <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0" xml:space="preserve">
+              NVENC HEVC: HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.
+              x265 (CPU): x265 compression (https://ffmpeg.org/ffmpeg-codecs.html#libx265), more efficient compression but slower to encode.
+              x265 (CPU): x264 compression (https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb), OK compression, faster to encode.
+              Lossless (CPU): FFV1 lossless compression, fastest to encode but extremely large filesize.
+            </TextBlock>
+          </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- Upscaling -->
+        <Border Margin="0,20,0,0"
                   CornerRadius="5"
                   BorderBrush="Gray" BorderThickness="1"
                   Padding="5">
           <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="10,20,0,0">
+              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Show More Upscale Settings</TextBlock>
+              <CheckBox IsChecked="{Binding ShowAdvancedSettings}" />
+            </StackPanel>
         <ItemsControl ItemsSource="{Binding UpscaleSettings}" >
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:UpscaleModel">
@@ -104,8 +125,8 @@
                       Resize the video by this factor before running this model. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half.</TextBlock>
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
-                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">ONNX model path</TextBlock>
-                    <TextBox Margin="0,0,5,0" Text="{Binding OnnxModelPath}" IsReadOnly="False" Width="500" />
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">ONNX Model Path</TextBlock>
+                    <TextBox Margin="0,0,5,0" Text="{Binding OnnxModelPath}" IsReadOnly="False" Width="800" />
                     <Button Content="Select File" Click="OpenOnnxFileButtonClick" />
                     <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">File path of the ONNX model to run.</TextBlock>
                   </StackPanel>
@@ -128,12 +149,29 @@
           <CheckBox IsChecked="{Binding EnableRife}" />
           <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Whether or not to run RIFE video frame interpolation.</TextBlock>
         </StackPanel>
+
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
+          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Upscaling Backend</TextBlock>
+          <ToggleButton IsChecked="{Binding TensorRtSelected}" Content="TensorRT" Command="{Binding SetTensorRtSelected}" />
+          <ToggleButton IsChecked="{Binding DirectMlSelected}" Content="DirectML" Command="{Binding SetDirectMlSelected}" />
+          <ToggleButton IsChecked="{Binding NcnnSelected}" Content="NCNN" Command="{Binding SetNcnnSelected}" />
+          <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0" xml:space="preserve">
+          TensorRT: Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models.
+          DirectML: Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only.
+          NCNN: Compatible with NVIDIA, AMD, and Intel GPUs but typically slower than DirectML. Supports fp32 ONNX models only.
+        </TextBlock>
+        </StackPanel>
+
           </StackPanel>
         </Border>
 
         <Button Margin="0,40,0,0" Content="Upscale" FontWeight="Bold" Background="Green" IsEnabled="{Binding Valid}" Command="{Binding RunUpscale}"></Button>
         
+        <TextBlock Margin="0,20,0,0" Text="{Binding ValidationText}" />
         
+        <ScrollViewer x:Name="ConsoleScrollViewer" Margin="0,20,0,0" Height="500" HorizontalScrollBarVisibility="Auto" Background="#111111">
+          <SelectableTextBlock x:Name="ConsoleTextBlock" Margin="20" Text="{Binding ConsoleText}" FontFamily="Consolas" Foreground="Gray" PropertyChanged="ConsoleTextBlock_PropertyChanged" />
+        </ScrollViewer>
       </StackPanel>
     </ScrollViewer>
 </Window>

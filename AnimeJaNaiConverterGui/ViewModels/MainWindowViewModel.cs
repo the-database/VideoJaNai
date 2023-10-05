@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reactive;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace AnimeJaNaiConverterGui.ViewModels
 {
@@ -18,8 +19,6 @@ namespace AnimeJaNaiConverterGui.ViewModels
     {
         public MainWindowViewModel() 
         {
-            //AddModel();
-
             this.WhenAnyValue(x => x.InputFilePath, x => x.OutputFilePath, 
                 x => x.InputFolderPath, x => x.OutputFolderPath,
                 x => x.SelectedTabIndex).Subscribe(x =>
@@ -41,6 +40,41 @@ namespace AnimeJaNaiConverterGui.ViewModels
                 }
             }
         }
+
+        private string _validationText;
+        public string ValidationText
+        {
+            get => _validationText;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _validationText, value);
+            }
+        }
+
+        private string _consoleText;
+        public string ConsoleText
+        {
+            get => _consoleText;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _consoleText, value);
+            }
+        }
+
+        private bool _overwriteExistingVideos;
+        [DataMember]
+        public bool OverwriteExistingVideos
+        {
+            get => _overwriteExistingVideos;
+            set
+            {
+                
+                this.RaiseAndSetIfChanged(ref _overwriteExistingVideos, value);
+                
+            }
+        }
+
+        private string _overwriteCommand => OverwriteExistingVideos ? "-y" : "";
 
         private static readonly string _ffmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\"";
         private static readonly string _ffmpegX264 = "libx264 -crf 13 -preset slow";
@@ -65,6 +99,39 @@ namespace AnimeJaNaiConverterGui.ViewModels
                 this.RaisePropertyChanged(nameof(FfmpegX264Selected));
                 this.RaisePropertyChanged(nameof(FfmpegHevcNvencSelected));
                 this.RaisePropertyChanged(nameof(FfmpegLosslessSelected));
+            }
+        }
+
+        private bool _tensorRtSelected = true;
+        [DataMember]
+        public bool TensorRtSelected
+        {
+            get => _tensorRtSelected;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
+            }
+        }
+
+        private bool _directMlSelected = false;
+        [DataMember]
+        public bool DirectMlSelected
+        {
+            get => _directMlSelected;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _directMlSelected, value);
+            }
+        }
+
+        private bool _ncnnSelected = false;
+        [DataMember]
+        public bool NcnnSelected
+        {
+            get => _ncnnSelected;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _ncnnSelected, value);
             }
         }
 
@@ -180,24 +247,57 @@ namespace AnimeJaNaiConverterGui.ViewModels
             FfmpegVideoSettings = _ffmpegLossless;
         }
 
+        public void SetTensorRtSelected()
+        {
+            TensorRtSelected = true;
+            DirectMlSelected = false;
+            NcnnSelected = false;
+        }
+
+        public void SetDirectMlSelected()
+        {
+            DirectMlSelected = true;
+            TensorRtSelected = false;
+            NcnnSelected = false;
+        }
+
+        public void SetNcnnSelected()
+        {
+            NcnnSelected = true;
+            TensorRtSelected = false;
+            DirectMlSelected = false;
+        }
+
         public void Validate()
         {
+            var valid = true;
+            var validationText = new List<string>();
             if (SelectedTabIndex == 0)
             {
-                var fileModeIsValid = File.Exists(InputFilePath) && !string.IsNullOrWhiteSpace(OutputFilePath);
-                if (!fileModeIsValid)
+                if (!File.Exists(InputFilePath))
                 {
-                    Valid = false;
-                    return;
+                    valid = false;
+                    validationText.Add("Input Video is required.");
+                }
+
+                if (string.IsNullOrWhiteSpace(OutputFilePath))
+                {
+                    valid = false;
+                    validationText.Add("Output Video is required.");
                 }
             }
             else
             {
-                var folderModeIsValid = Directory.Exists(InputFolderPath) && !string.IsNullOrWhiteSpace(OutputFolderPath);
-                if (!folderModeIsValid)
+                if (!Directory.Exists(InputFolderPath))
                 {
-                    Valid = false;
-                    return;
+                    valid = false;
+                    validationText.Add("Input Folder is required.");
+                }
+
+                if (string.IsNullOrWhiteSpace(OutputFolderPath))
+                {
+                    valid = false;
+                    validationText.Add("Output Folder is required.");
                 }
             }
 
@@ -205,20 +305,23 @@ namespace AnimeJaNaiConverterGui.ViewModels
             {
                 if (!File.Exists(upscaleModel.OnnxModelPath))
                 {
-                    Valid = false;
-                    return;
+                    valid = false;
+                    validationText.Add("ONNX Model Path is required.");
                 }
             }
 
-            Valid = true;
+            Valid = valid;
+            ValidationText = string.Join("\n", validationText);
         }
 
         public void SetupAnimeJaNaiConfSlot1()
         {
             var confPath = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\portable_config\shaders\animejanai_v2.conf");
+            var backend = DirectMlSelected ? "DirectML" : NcnnSelected ? "NCNN" : "TensorRT";
             HashSet<string> filesNeedingEngine = new();
-            var configText = new StringBuilder(@"[global]
+            var configText = new StringBuilder($@"[global]
 logging=yes
+backend={backend}
 [slot_1]
 ");
 
@@ -242,28 +345,35 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
             File.WriteAllText(confPath, configText.ToString());
         }
 
-        public void CheckEngines(string inputFilePath)
+        public async Task CheckEngines(string inputFilePath)
         {
+            if (!TensorRtSelected)
+            {
+                return;
+            }
+
             for (var i = 0; i < UpscaleSettings.Count; i++)
             {
                 var enginePath = @$".\mpv-upscale-2x_animejanai\vapoursynth64\plugins\models\animejanai\{Path.GetFileNameWithoutExtension(UpscaleSettings[i].OnnxModelPath)}.engine";
 
                 if (!File.Exists(enginePath))
                 {
-                    GenerateEngine(inputFilePath);
+                    await GenerateEngine(inputFilePath);
                 }
             }
 
         }
 
-        public void RunUpscale()
+        public async Task RunUpscale()
         {
+            ConsoleText = "";
+            Valid = false;
             SetupAnimeJaNaiConfSlot1();
 
             if (SelectedTabIndex == 0)
             {
-                CheckEngines(InputFilePath);
-                RunUpscaleSingle(InputFilePath, OutputFilePath);
+                await CheckEngines(InputFilePath);
+                await RunUpscaleSingle(InputFilePath, OutputFilePath);
             }
             else
             {
@@ -272,49 +382,72 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
 
                 foreach (var file in files)
                 {
-                    CheckEngines(file);
+                    await CheckEngines(file);
                     var outputFilePath = Path.Combine(OutputFolderPath, Path.GetFileName(file));
-                    RunUpscaleSingle(file, outputFilePath);
+                    await RunUpscaleSingle(file, outputFilePath);
                 }
             }
 
-            return;
+            Valid = true;
         }
 
-        public void RunUpscaleSingle(string inputFilePath, string outputFilePath)
+        public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
-            // Create a new process to run the CMD command
-            using (var process = new Process())
-            {
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = $@" /C ..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_v2_encode.vpy - | ffmpeg -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {FfmpegVideoSettings} -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
-                process.StartInfo.RedirectStandardOutput = false;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = false;
-                process.StartInfo.WorkingDirectory = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\portable_config\shaders");
-
-                process.Start();
-                ChildProcessTracker.AddProcess(process);
-                process.WaitForExit();
-            }
+            var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_v2_encode.vpy - | ffmpeg {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {FfmpegVideoSettings} -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
+            ConsoleText += $@"Upscaling with command: {cmd}";
+            await RunCommand($@" /C {cmd}");
         }
 
-        public void GenerateEngine(string inputFilePath)
+        public async Task GenerateEngine(string inputFilePath)
         {
-            // Create a new process to run the CMD command
-            using (var process = new Process())
-            {
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = $@" /C ..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ./animejanai_v2_encode.vpy -p .";
-                process.StartInfo.RedirectStandardOutput = false;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = false;
-                process.StartInfo.WorkingDirectory = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\portable_config\shaders");
+            var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ./animejanai_v2_encode.vpy -p .";
+            ConsoleText += $"Generating TensorRT engine with command: {cmd}";
+            await RunCommand($@" /C {cmd}");
+        }
 
-                process.Start();
-                ChildProcessTracker.AddProcess(process);
-                process.WaitForExit();
-            }
+        public async Task RunCommand(string command)
+        {
+            await Task.Run(async () =>
+            {
+                // Create a new process to run the CMD command
+                using (var process = new Process())
+                {
+                    process.StartInfo.FileName = "cmd.exe";
+                    process.StartInfo.Arguments = command;
+                    process.StartInfo.RedirectStandardError = true;
+                    process.StartInfo.RedirectStandardError = true;
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.CreateNoWindow = true;
+                    process.StartInfo.WorkingDirectory = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\portable_config\shaders");
+
+                    // Create a StreamWriter to write the output to a log file
+                    using (var outputFile = new StreamWriter("error.log", append: true))
+                    {
+                        process.ErrorDataReceived += (sender, e) =>
+                        {
+                            if (!string.IsNullOrEmpty(e.Data))
+                            {
+                                outputFile.WriteLine(e.Data); // Write the output to the log file
+                                ConsoleText += e.Data + "\n";
+                            }
+                        };
+
+                        process.OutputDataReceived += (sender, e) =>
+                        {
+                            if (!string.IsNullOrEmpty(e.Data))
+                            {
+                                outputFile.WriteLine(e.Data); // Write the output to the log file
+                                ConsoleText += e.Data + "\n";
+                            }
+                        };
+
+                        process.Start();
+                        process.BeginErrorReadLine(); // Start asynchronous reading of the output
+                        await process.WaitForExitAsync();
+                    }
+                    ChildProcessTracker.AddProcess(process);
+                }
+            });
         }
     }
 
