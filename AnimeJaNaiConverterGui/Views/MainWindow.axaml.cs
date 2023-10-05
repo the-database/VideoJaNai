@@ -1,13 +1,12 @@
 using AnimeJaNaiConverterGui.ViewModels;
+using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Avalonia.ReactiveUI;
 using ReactiveUI;
 using System;
-using System.Collections.Generic;
 using System.IO;
 
 namespace AnimeJaNaiConverterGui.Views
@@ -19,6 +18,30 @@ namespace AnimeJaNaiConverterGui.Views
             //InitializeComponent();
             AvaloniaXamlLoader.Load(this);
             this.WhenActivated(disposable => { });
+            Resized += MainWindow_Resized; ;
+        }
+
+        private void ConsoleTextBlock_PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+        {
+            if (e.Property.Name == "Text")
+            {
+                var consoleScrollViewer = this.FindControl<ScrollViewer>("ConsoleScrollViewer");
+                if (consoleScrollViewer != null)
+                {
+                    consoleScrollViewer.ScrollToEnd();
+                }
+            }
+        }
+
+        private void MainWindow_Resized(object? sender, WindowResizedEventArgs e)
+        {
+            // Set the ScrollViewer width based on the new parent window's width
+            var consoleScrollViewer = this.FindControl<ScrollViewer>("ConsoleScrollViewer");
+            if (consoleScrollViewer != null)
+            {
+                consoleScrollViewer.Width = Width - 40; // Adjust the width as needed
+            }
+            
         }
 
         private async void OpenInputFileButtonClick(object? sender, RoutedEventArgs e)
