@@ -22,13 +22,13 @@
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Video</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding InputFilePath}" IsReadOnly="False" MinWidth="300" />
+                <TextBox Margin="0,0,5,0" Text="{Binding InputFilePath}" IsReadOnly="False" Width="500" />
                 <Button Content="Select File" Click="OpenInputFileButtonClick" />
               </StackPanel>
 
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Video</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding OutputFilePath}" IsReadOnly="False" MinWidth="300" />
+                <TextBox Margin="0,0,5,0" Text="{Binding OutputFilePath}" IsReadOnly="False" Width="500" />
                 <Button Content="Select File" Click="OpenOutputFileButtonClick" />
               </StackPanel>
             </StackPanel>
@@ -37,13 +37,13 @@
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Folder</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding InputFolderPath}" IsReadOnly="False" MinWidth="300" />
+                <TextBox Margin="0,0,5,0" Text="{Binding InputFolderPath}" IsReadOnly="False" Width="500" />
                 <Button Content="Select Folder" Click="OpenInputFolderButtonClick" />
               </StackPanel>
             
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Folder</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding OutputFolderPath}" IsReadOnly="False" MinWidth="300" />
+                <TextBox Margin="0,0,5,0" Text="{Binding OutputFolderPath}" IsReadOnly="False" Width="500" />
                 <Button Content="Select Folder" Click="OpenOutputFolderButtonClick" />
               </StackPanel>
             </StackPanel>
@@ -52,7 +52,7 @@
 
         <StackPanel Orientation="Horizontal" Margin="10,20,0,10">
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Output Video Settings</TextBlock>
-          <TextBox Margin="0,0,5,0" Text="{Binding FfmpegVideoSettings}" IsReadOnly="False" MinWidth="300" />
+          <TextBox Margin="0,0,5,0" Text="{Binding FfmpegVideoSettings}" IsReadOnly="False" Width="500" />
         </StackPanel>
 
 
@@ -105,7 +105,7 @@
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">ONNX model path</TextBlock>
-                    <TextBox Margin="0,0,5,0" Text="{Binding OnnxModelPath}" IsReadOnly="False" MinWidth="300" />
+                    <TextBox Margin="0,0,5,0" Text="{Binding OnnxModelPath}" IsReadOnly="False" Width="500" />
                     <Button Content="Select File" Click="OpenOnnxFileButtonClick" />
                     <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">File path of the ONNX model to run.</TextBlock>
                   </StackPanel>

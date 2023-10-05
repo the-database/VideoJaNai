@@ -7,6 +7,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.ReactiveUI;
 using ReactiveUI;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace AnimeJaNaiConverterGui.Views
@@ -94,6 +95,13 @@ namespace AnimeJaNaiConverterGui.Views
             var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "Save Video File",
+                DefaultExtension = "mkv",
+                FileTypeChoices = new FilePickerFileType[]
+                {
+                    new("MKV file (*.mkv)") { Patterns = new[] { "*.mkv" } },
+                    new("MP4 file (*.mp4)") { Patterns = new[] { "*.mp4" } },
+                    new("All files (*.*)") { Patterns = new[] { "*" } },
+                },
             });
 
             if (file is not null)
