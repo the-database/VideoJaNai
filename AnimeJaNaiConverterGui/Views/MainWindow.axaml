@@ -28,13 +28,13 @@
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Video</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding InputFilePath}" IsReadOnly="False" Width="800" />
+                <TextBox x:Name="InputFileNameTextBox" Margin="0,0,5,0" Text="{Binding InputFilePath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
                 <Button Content="Select File" Click="OpenInputFileButtonClick" />
               </StackPanel>
 
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Video</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding OutputFilePath}" IsReadOnly="False" Width="800" />
+                <TextBox x:Name="OutputFileNameTextBox" Margin="0,0,5,0" Text="{Binding OutputFilePath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
                 <Button Content="Select File" Click="OpenOutputFileButtonClick" />
               </StackPanel>
             </StackPanel>
@@ -43,13 +43,13 @@
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Folder</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding InputFolderPath}" IsReadOnly="False" Width="800" />
+                <TextBox x:Name="InputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding InputFolderPath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
                 <Button Content="Select Folder" Click="OpenInputFolderButtonClick" />
               </StackPanel>
             
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Folder</TextBlock>
-                <TextBox Margin="0,0,5,0" Text="{Binding OutputFolderPath}" IsReadOnly="False" Width="800" />
+                <TextBox x:Name="OutputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding OutputFolderPath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
                 <Button Content="Select Folder" Click="OpenOutputFolderButtonClick" />
               </StackPanel>
             </StackPanel>
