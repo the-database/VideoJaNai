@@ -165,11 +165,15 @@
           </StackPanel>
         </Border>
 
-        <Button Margin="0,40,0,0" Content="Upscale" FontWeight="Bold" Background="Green" IsEnabled="{Binding Valid}" Command="{Binding RunUpscale}"></Button>
-        
+        <StackPanel Orientation="Horizontal">
+          <Button Margin="0,40,0,0" Content="Upscale" FontWeight="Bold" Background="Green" IsEnabled="{Binding UpscaleEnabled}" Command="{Binding RunUpscale}"></Button>
+          <Button Margin="10,40,0,0" Content="Cancel" FontWeight="Bold" Background="Red" IsEnabled="{Binding Upscaling}" Command="{Binding CancelUpscale}"></Button>
+        </StackPanel>
+
+
         <TextBlock Margin="0,20,0,0" Text="{Binding ValidationText}" />
         
-        <ScrollViewer x:Name="ConsoleScrollViewer" Margin="0,20,0,0" Height="500" HorizontalScrollBarVisibility="Auto" Background="#111111">
+        <ScrollViewer x:Name="ConsoleScrollViewer" Margin="0,20,0,0" Height="500" HorizontalScrollBarVisibility="Auto" Background="#111111" PropertyChanged="ConsoleScrollViewer_PropertyChanged">
           <SelectableTextBlock x:Name="ConsoleTextBlock" Margin="20" Text="{Binding ConsoleText}" FontFamily="Consolas" Foreground="Gray" PropertyChanged="ConsoleTextBlock_PropertyChanged" />
         </ScrollViewer>
       </StackPanel>

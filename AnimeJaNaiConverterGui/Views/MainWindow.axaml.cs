@@ -16,12 +16,15 @@ namespace AnimeJaNaiConverterGui.Views
 {
     public partial class MainWindow : ReactiveWindow<MainWindowViewModel>
     {
+        private bool _autoScrollConsole = true;
+
         public MainWindow()
         {
             //InitializeComponent();
             AvaloniaXamlLoader.Load(this);
             this.WhenActivated(disposable => { });
             Resized += MainWindow_Resized;
+            Closing += MainWindow_Closing;
 
             var inputFileNameTextBox = this.FindControl<TextBox>("InputFileNameTextBox");
             var outputFileNameTextBox = this.FindControl<TextBox>("OutputFileNameTextBox");
@@ -34,6 +37,28 @@ namespace AnimeJaNaiConverterGui.Views
             outputFolderNameTextBox?.AddHandler(DragDrop.DropEvent, SetOutputFolderPath);
         }
 
+        private void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+                vm.CancelUpscale();
+            }
+        }
+
+        private void ConsoleScrollViewer_PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+        {
+            if (e.Property.Name == "Offset")
+            {
+                var consoleScrollViewer = this.FindControl<ScrollViewer>("ConsoleScrollViewer");
+
+                if (e.NewValue is Vector newVector)
+                {
+                    _autoScrollConsole = newVector.Y == consoleScrollViewer?.ScrollBarMaximum.Y;
+                }
+            }
+            
+        }
+
         private void ConsoleTextBlock_PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
         {
             if (e.Property.Name == "Text")
@@ -41,7 +66,10 @@ namespace AnimeJaNaiConverterGui.Views
                 var consoleScrollViewer = this.FindControl<ScrollViewer>("ConsoleScrollViewer");
                 if (consoleScrollViewer != null)
                 {
-                    consoleScrollViewer.ScrollToEnd();
+                    if (_autoScrollConsole)
+                    {
+                        consoleScrollViewer.ScrollToEnd();
+                    }
                 }
             }
         }
