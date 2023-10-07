@@ -156,7 +156,7 @@
           <ToggleButton IsChecked="{Binding DirectMlSelected}" Content="DirectML" Command="{Binding SetDirectMlSelected}" />
           <ToggleButton IsChecked="{Binding NcnnSelected}" Content="NCNN" Command="{Binding SetNcnnSelected}" />
           <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0" xml:space="preserve">
-          TensorRT: Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models.
+          TensorRT: Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. The initial engine generation may require several minutes but only needs to be done once.
           DirectML: Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only.
           NCNN: Compatible with NVIDIA, AMD, and Intel GPUs but typically slower than DirectML. Supports fp32 ONNX models only.
         </TextBlock>
