@@ -1,13 +1,16 @@
 using AnimeJaNaiConverterGui.ViewModels;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Avalonia.ReactiveUI;
 using ReactiveUI;
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 
 namespace AnimeJaNaiConverterGui.Views
 {
@@ -18,7 +21,17 @@ namespace AnimeJaNaiConverterGui.Views
             //InitializeComponent();
             AvaloniaXamlLoader.Load(this);
             this.WhenActivated(disposable => { });
-            Resized += MainWindow_Resized; ;
+            Resized += MainWindow_Resized;
+
+            var inputFileNameTextBox = this.FindControl<TextBox>("InputFileNameTextBox");
+            var outputFileNameTextBox = this.FindControl<TextBox>("OutputFileNameTextBox");
+            var inputFolderNameTextBox = this.FindControl<TextBox>("InputFolderNameTextBox");
+            var outputFolderNameTextBox = this.FindControl<TextBox>("OutputFolderNameTextBox");
+
+            inputFileNameTextBox?.AddHandler(DragDrop.DropEvent, SetInputFilePath);
+            outputFileNameTextBox?.AddHandler(DragDrop.DropEvent, SetOutputFilePath);
+            inputFolderNameTextBox?.AddHandler(DragDrop.DropEvent, SetInputFolderPath);
+            outputFolderNameTextBox?.AddHandler(DragDrop.DropEvent, SetOutputFolderPath);
         }
 
         private void ConsoleTextBlock_PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
@@ -65,6 +78,78 @@ namespace AnimeJaNaiConverterGui.Views
                 //var fileContent = await streamReader.ReadToEndAsync();
                 if (DataContext is MainWindowViewModel vm) {
                     vm.InputFilePath = files[0].TryGetLocalPath() ?? "";
+                }
+            }
+        }
+
+        public void SetInputFilePath(object? sender, DragEventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+                var files = e.Data.GetFiles().ToList();
+
+
+                if (files.Count > 0)
+                {
+                    var filePath = files[0].TryGetLocalPath();
+                    if (File.Exists(filePath))
+                    {
+                        vm.InputFilePath = filePath;
+                    }
+                }
+            }
+        }
+
+        public void SetOutputFilePath(object? sender, DragEventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+                var files = e.Data.GetFiles().ToList();
+
+
+                if (files.Count > 0)
+                {
+                    var filePath = files[0].TryGetLocalPath();
+                    if (File.Exists(filePath))
+                    {
+                        vm.OutputFilePath = filePath;
+                    }
+                }
+            }
+        }
+
+        public void SetInputFolderPath(object? sender, DragEventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+                var files = e.Data.GetFiles().ToList();
+
+
+                if (files.Count > 0)
+                {
+                    var filePath = files[0].TryGetLocalPath();
+                    if (Directory.Exists(filePath))
+                    {
+                        vm.InputFolderPath = filePath;
+                    }
+                }
+            }
+        }
+
+        public void SetOutputFolderPath(object? sender, DragEventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+                var files = e.Data.GetFiles().ToList();
+
+
+                if (files.Count > 0)
+                {
+                    var filePath = files[0].TryGetLocalPath();
+                    if (Directory.Exists(filePath))
+                    {
+                        vm.OutputFolderPath = filePath;
+                    }
                 }
             }
         }
