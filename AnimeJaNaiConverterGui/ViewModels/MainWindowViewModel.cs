@@ -10,6 +10,7 @@ using System.Linq;
 using System.Reactive;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AnimeJaNaiConverterGui.ViewModels
@@ -26,6 +27,9 @@ namespace AnimeJaNaiConverterGui.ViewModels
                 Validate();
             });
         }
+
+        private CancellationTokenSource _cancellationTokenSource;
+        private Process? _runningProcess = null;
 
         private int _selectedTabIndex;
         [DataMember]
@@ -196,8 +200,26 @@ namespace AnimeJaNaiConverterGui.ViewModels
         public bool Valid
         {
             get => _valid;
-            set => this.RaiseAndSetIfChanged(ref _valid, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _valid, value);
+                this.RaisePropertyChanged(nameof(UpscaleEnabled));
+            }
         }
+
+        private bool _upscaling = false;
+        [IgnoreDataMember] 
+        public bool Upscaling
+        {
+            get => _upscaling;
+            set 
+            {
+                this.RaiseAndSetIfChanged(ref _upscaling, value);
+                this.RaisePropertyChanged(nameof(UpscaleEnabled));
+            }
+        }
+
+        public bool UpscaleEnabled => Valid && !Upscaling;
 
         public void AddModel()
         {
@@ -366,29 +388,74 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
 
         public async Task RunUpscale()
         {
-            ConsoleText = "";
-            Valid = false;
-            SetupAnimeJaNaiConfSlot1();
+            _cancellationTokenSource = new CancellationTokenSource();
+            var ct = _cancellationTokenSource.Token;
 
-            if (SelectedTabIndex == 0)
+            var task = Task.Run(async () =>
             {
-                await CheckEngines(InputFilePath);
-                await RunUpscaleSingle(InputFilePath, OutputFilePath);
-            }
-            else
-            {
-                var videoFileExtensions = new HashSet<string>{ ".mp4", ".avi", ".mkv", ".mov", ".wmv" };
-                var files = Directory.GetFiles(InputFolderPath).Where(file => videoFileExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)).ToList();
+                ct.ThrowIfCancellationRequested();
+                ConsoleText = "";
+                Upscaling = true;
+                SetupAnimeJaNaiConfSlot1();
 
-                foreach (var file in files)
+                if (SelectedTabIndex == 0)
                 {
-                    await CheckEngines(file);
-                    var outputFilePath = Path.Combine(OutputFolderPath, Path.GetFileName(file));
-                    await RunUpscaleSingle(file, outputFilePath);
+                    ct.ThrowIfCancellationRequested();
+                    await CheckEngines(InputFilePath);
+                    ct.ThrowIfCancellationRequested();
+                    await RunUpscaleSingle(InputFilePath, OutputFilePath);
+                    ct.ThrowIfCancellationRequested();
+                }
+                else
+                {
+                    var videoFileExtensions = new HashSet<string> { ".mp4", ".avi", ".mkv", ".mov", ".wmv" };
+                    var files = Directory.GetFiles(InputFolderPath).Where(file => videoFileExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)).ToList();
+
+                    foreach (var file in files)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        await CheckEngines(file);
+                        ct.ThrowIfCancellationRequested();
+                        var outputFilePath = Path.Combine(OutputFolderPath, Path.GetFileName(file));
+                        ct.ThrowIfCancellationRequested();
+                        await RunUpscaleSingle(file, outputFilePath);
+                        ct.ThrowIfCancellationRequested();
+                    }
+                }
+
+                Valid = true;
+            }, ct);
+
+            try
+            {
+                await task;
+            }
+            catch (OperationCanceledException e)
+            {
+                Console.WriteLine($"{nameof(OperationCanceledException)} thrown with message: {e.Message}");
+                Upscaling = false;
+            }
+            finally
+            {
+                _cancellationTokenSource.Dispose();
+                Upscaling = false;
+            }
+        }
+
+        public void CancelUpscale()
+        {
+            try
+            {
+                _cancellationTokenSource?.Cancel();
+                if (_runningProcess != null && !_runningProcess.HasExited)
+                {
+                    // Kill the process
+                    _runningProcess.Kill(true);
+                    _runningProcess = null; // Clear the reference to the terminated process
                 }
             }
-
-            Valid = true;
+            catch { }
+            
         }
 
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
@@ -407,47 +474,45 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
 
         public async Task RunCommand(string command)
         {
-            await Task.Run(async () =>
+            // Create a new process to run the CMD command
+            using (var process = new Process())
             {
-                // Create a new process to run the CMD command
-                using (var process = new Process())
+                _runningProcess = process;
+                process.StartInfo.FileName = "cmd.exe";
+                process.StartInfo.Arguments = command;
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.CreateNoWindow = true;
+                process.StartInfo.WorkingDirectory = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\portable_config\shaders");
+
+                // Create a StreamWriter to write the output to a log file
+                using (var outputFile = new StreamWriter("error.log", append: true))
                 {
-                    process.StartInfo.FileName = "cmd.exe";
-                    process.StartInfo.Arguments = command;
-                    process.StartInfo.RedirectStandardError = true;
-                    process.StartInfo.RedirectStandardError = true;
-                    process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.CreateNoWindow = true;
-                    process.StartInfo.WorkingDirectory = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\portable_config\shaders");
-
-                    // Create a StreamWriter to write the output to a log file
-                    using (var outputFile = new StreamWriter("error.log", append: true))
+                    process.ErrorDataReceived += (sender, e) =>
                     {
-                        process.ErrorDataReceived += (sender, e) =>
+                        if (!string.IsNullOrEmpty(e.Data))
                         {
-                            if (!string.IsNullOrEmpty(e.Data))
-                            {
-                                outputFile.WriteLine(e.Data); // Write the output to the log file
-                                ConsoleText += e.Data + "\n";
-                            }
-                        };
+                            outputFile.WriteLine(e.Data); // Write the output to the log file
+                            ConsoleText += e.Data + "\n";
+                        }
+                    };
 
-                        process.OutputDataReceived += (sender, e) =>
+                    process.OutputDataReceived += (sender, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
                         {
-                            if (!string.IsNullOrEmpty(e.Data))
-                            {
-                                outputFile.WriteLine(e.Data); // Write the output to the log file
-                                ConsoleText += e.Data + "\n";
-                            }
-                        };
+                            outputFile.WriteLine(e.Data); // Write the output to the log file
+                            ConsoleText += e.Data + "\n";
+                        }
+                    };
 
-                        process.Start();
-                        process.BeginErrorReadLine(); // Start asynchronous reading of the output
-                        await process.WaitForExitAsync();
-                    }
-                    ChildProcessTracker.AddProcess(process);
+                    process.Start();
+                    process.BeginErrorReadLine(); // Start asynchronous reading of the output
+                    await process.WaitForExitAsync();
                 }
-            });
+                ChildProcessTracker.AddProcess(process);
+            }
         }
     }
 
