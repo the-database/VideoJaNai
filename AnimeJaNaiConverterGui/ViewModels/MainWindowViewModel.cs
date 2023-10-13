@@ -480,7 +480,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                 _runningProcess = process;
                 process.StartInfo.FileName = "cmd.exe";
                 process.StartInfo.Arguments = command;
-                process.StartInfo.RedirectStandardOutput = false;
+                process.StartInfo.RedirectStandardOutput = true;
                 process.StartInfo.RedirectStandardError = true;
                 process.StartInfo.UseShellExecute = false;
                 process.StartInfo.CreateNoWindow = true;
@@ -508,6 +508,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                     };
 
                     process.Start();
+                    process.BeginOutputReadLine();
                     process.BeginErrorReadLine(); // Start asynchronous reading of the output
                     await process.WaitForExitAsync();
                 }
