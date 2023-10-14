@@ -28,7 +28,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
             });
         }
 
-        private CancellationTokenSource _cancellationTokenSource;
+        private CancellationTokenSource? _cancellationTokenSource;
         private Process? _runningProcess = null;
 
         private int _selectedTabIndex;
@@ -45,7 +45,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
             }
         }
 
-        private string _validationText;
+        private string _validationText = string.Empty;
         public string ValidationText
         {
             get => _validationText;
@@ -55,7 +55,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
             }
         }
 
-        private string _consoleText;
+        private string _consoleText = string.Empty;
         public string ConsoleText
         {
             get => _consoleText;
@@ -139,12 +139,20 @@ namespace AnimeJaNaiConverterGui.ViewModels
             }
         }
 
-        private int _finalResizeHeight = 0;
+        private string _finalResizeHeight = 0.ToString();
         [DataMember]
-        public int FinalResizeHeight
+        public string FinalResizeHeight
         {
             get => _finalResizeHeight;
             set => this.RaiseAndSetIfChanged(ref _finalResizeHeight, value);
+        }
+
+        private string _finalResizeFactor = 1.ToString();
+        [DataMember]
+        public string FinalResizeFactor
+        {
+            get => _finalResizeFactor;
+            set => this.RaiseAndSetIfChanged(ref _finalResizeFactor, value);
         }
 
         private string _inputFilePath = string.Empty;
@@ -371,6 +379,8 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
 
             var rife = EnableRife ? "yes" : "no";
             configText.AppendLine($"chain_1_rife={rife}");
+            configText.AppendLine($"chain_1_final_resize_height={FinalResizeHeight}");
+            configText.AppendLine($"chain_1_final_resize_factor={FinalResizeFactor}");
 
             File.WriteAllText(confPath, configText.ToString());
         }
@@ -469,14 +479,14 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
             var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_v2_encode.vpy - | ffmpeg {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {FfmpegVideoSettings} -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
-            ConsoleText += $@"Upscaling with command: {cmd}";
+            ConsoleText += $"Upscaling with command: {cmd}\n";
             await RunCommand($@" /C {cmd}");
         }
 
         public async Task GenerateEngine(string inputFilePath)
         {
             var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ./animejanai_v2_encode.vpy -p .";
-            ConsoleText += $"Generating TensorRT engine with command: {cmd}";
+            ConsoleText += $"Generating TensorRT engine with command: {cmd}\n";
             await RunCommand($@" /C {cmd}");
         }
 
@@ -536,17 +546,17 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
             set => this.RaiseAndSetIfChanged(ref _modelHeader, value);
         }
 
-        private int _resizeHeightBeforeUpscale = 0;
+        private string _resizeHeightBeforeUpscale = 0.ToString();
         [DataMember]
-        public int ResizeHeightBeforeUpscale
+        public string ResizeHeightBeforeUpscale
         {
             get => _resizeHeightBeforeUpscale; 
             set => this.RaiseAndSetIfChanged(ref _resizeHeightBeforeUpscale, value);
         }
 
-        private double _resizeFactorBeforeUpscale = 1.0;
+        private string _resizeFactorBeforeUpscale = 1.0.ToString();
         [DataMember]
-        public double ResizeFactorBeforeUpscale
+        public string ResizeFactorBeforeUpscale
         {
             get => _resizeFactorBeforeUpscale;
             set => this.RaiseAndSetIfChanged(ref _resizeFactorBeforeUpscale, value);

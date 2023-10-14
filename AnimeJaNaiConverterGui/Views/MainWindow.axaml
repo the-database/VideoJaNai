@@ -3,6 +3,7 @@
         xmlns:vm="using:AnimeJaNaiConverterGui.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:hypertext="clr-namespace:HyperText.Avalonia.Controls;assembly=HyperText.Avalonia"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="AnimeJaNaiConverterGui.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -17,6 +18,7 @@
 
     <ScrollViewer HorizontalScrollBarVisibility="Auto">
       <StackPanel Margin="20">
+        <TextBlock FontWeight="Bold" Text="Video Paths"></TextBlock>
         <Border Margin="0,10,0,0"
           CornerRadius="5"
           BorderBrush="Gray" BorderThickness="1"
@@ -65,7 +67,8 @@
           </Border>
 
         <!-- Encoding -->
-        <Border Margin="0,20,0,0"
+        <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="Encode Settings"></TextBlock>
+        <Border Margin="0,10,0,0"
           CornerRadius="5"
           BorderBrush="Gray" BorderThickness="1"
           Padding="5">
@@ -83,18 +86,18 @@
             <ToggleButton IsChecked="{Binding FfmpegX265Selected}" Content="x265 (CPU)" Command="{Binding SetFfmpegX265}" />
             <ToggleButton IsChecked="{Binding FfmpegX264Selected}" Content="x264 (CPU)" Command="{Binding SetFfmpegX264}" />
             <ToggleButton IsChecked="{Binding FfmpegLosslessSelected}" Content="Lossless (CPU)" Command="{Binding SetFfmpegLossless}" />
-            <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0" xml:space="preserve">
-              NVENC HEVC: HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.
-              x265 (CPU): x265 compression (https://ffmpeg.org/ffmpeg-codecs.html#libx265), more efficient compression but slower to encode.
-              x265 (CPU): x264 compression (https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb), OK compression, faster to encode.
-              Lossless (CPU): FFV1 lossless compression, fastest to encode but extremely large filesize.
-            </TextBlock>
+            <SelectableTextBlock FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>NVENC HEVC</Bold>: HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.  
+<Bold>x265 (CPU)</Bold>: x265 compression (<hypertext:Hyperlink Url="https://ffmpeg.org/ffmpeg-codecs.html#libx265" />), more efficient compression but slower to encode.
+<Bold>x265 (CPU)</Bold>: x264 compression (<hypertext:Hyperlink Url="https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb" />), OK compression, faster to encode.
+<Bold>Lossless (CPU)</Bold>: FFV1 lossless compression, usually fastest to encode but extremely large filesize, and may be slower if bottlenecked by a slow storage drive.
+            </SelectableTextBlock>
           </StackPanel>
           </StackPanel>
         </Border>
 
         <!-- Upscaling -->
-        <Border Margin="0,20,0,0"
+        <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="Upscale Settings"></TextBlock>
+        <Border Margin="0,10,0,0"
                   CornerRadius="5"
                   BorderBrush="Gray" BorderThickness="1"
                   Padding="5">
@@ -122,8 +125,9 @@
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Factor Before Upscale</TextBlock>
                     <TextBox Margin="0,0,5,0" Text="{Binding ResizeFactorBeforeUpscale}" IsReadOnly="False" />
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">x</TextBlock>
-                    <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-                      Resize the video by this factor before running this model. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half.</TextBlock>
+                    <TextBlock Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                      Resize the video by this factor before running this model. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half. This setting is ignored if Resize Height Before Upscale is specified.
+                    </TextBlock>
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">ONNX Model Path</TextBlock>
@@ -143,20 +147,29 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <Button Margin="10,10,0,0" Content="Add Model" Command="{Binding AddModel}" />
+        <Button Margin="10,10,0,20" Content="Add Model" Command="{Binding AddModel}" />
 
-        <StackPanel Orientation="Horizontal" Margin="10,20,0,10" IsVisible="{Binding ShowAdvancedSettings}">
+        <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowAdvancedSettings}">
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Enable RIFE 2x Interpolation</TextBlock>
           <CheckBox IsChecked="{Binding EnableRife}" />
           <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Whether or not to run RIFE video frame interpolation.</TextBlock>
         </StackPanel>
 
-        <StackPanel Orientation="Horizontal" Margin="10,20,0,10">
+        <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Height</TextBlock>
-          <TextBox Margin="0,0,5,0" Text="{Binding FinalResizeHeight}" IsReadOnly="False" />
+          <NumericUpDown Margin="0,0,5,0" Text="{Binding FinalResizeHeight, FallbackValue=0}" AllowSpin="False" ShowButtonSpinner="False"  />
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
           <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
             Resize the video to this height after running all models, set to 0 to disable.
+          </TextBlock>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowAdvancedSettings}">
+          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Factor</TextBlock>
+          <TextBox Margin="0,0,5,0" Text="{Binding FinalResizeFactor, FallbackValue=1}" IsReadOnly="False" />
+          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">x</TextBlock>
+          <TextBlock Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+            Resize the video by this factor after running all models. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half. This setting is ignored if Final Resize Height is specified.
           </TextBlock>
         </StackPanel>
 
@@ -165,13 +178,11 @@
           <ToggleButton IsChecked="{Binding TensorRtSelected}" Content="TensorRT" Command="{Binding SetTensorRtSelected}" />
           <ToggleButton IsChecked="{Binding DirectMlSelected}" Content="DirectML" Command="{Binding SetDirectMlSelected}" />
           <ToggleButton IsChecked="{Binding NcnnSelected}" Content="NCNN" Command="{Binding SetNcnnSelected}" />
-          <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0" xml:space="preserve">
-          TensorRT: Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. The initial engine generation may require several minutes but only needs to be done once.
-          DirectML: Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only.
-          NCNN: Compatible with NVIDIA, AMD, and Intel GPUs but typically slower than DirectML. Supports fp32 ONNX models only.
+          <TextBlock Width="900" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>TensorRT</Bold>: Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.
+<Bold>DirectML</Bold>: Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only.
+<Bold>NCNN</Bold>: Compatible with NVIDIA, AMD, and Intel GPUs but typically slower than DirectML. Supports fp32 ONNX models only.
         </TextBlock>
-        </StackPanel>
-
+        </StackPanel>            
           </StackPanel>
         </Border>
 
@@ -182,8 +193,9 @@
 
 
         <TextBlock Margin="0,20,0,0" Text="{Binding ValidationText}" />
-        
-        <ScrollViewer x:Name="ConsoleScrollViewer" Margin="0,20,0,0" Height="500" HorizontalScrollBarVisibility="Auto" Background="#111111" PropertyChanged="ConsoleScrollViewer_PropertyChanged">
+
+        <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="Console"></TextBlock>
+        <ScrollViewer x:Name="ConsoleScrollViewer" Margin="0,10,0,0" Height="500" HorizontalScrollBarVisibility="Auto" Background="#111111" PropertyChanged="ConsoleScrollViewer_PropertyChanged">
           <SelectableTextBlock x:Name="ConsoleTextBlock" Margin="20" Text="{Binding ConsoleText}" FontFamily="Consolas" Foreground="Gray" PropertyChanged="ConsoleTextBlock_PropertyChanged" />
         </ScrollViewer>
       </StackPanel>
