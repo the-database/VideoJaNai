@@ -6,7 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="AnimeJaNaiConverterGui.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/logo.ico"
         Title="AnimeJaNaiConverterGui">
 
     <Design.DataContext>
@@ -73,6 +73,7 @@
           <StackPanel Orientation="Horizontal" Margin="10,20,0,10">
             <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Output Video Settings</TextBlock>
             <TextBox Margin="0,0,5,0" Text="{Binding FfmpegVideoSettings}" IsReadOnly="False" Width="800" />
+            <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Video encoding settings to pass to FFmpeg. Choose a preset below or edit the text to use custom settings.</TextBlock>
           </StackPanel>
 
 
@@ -148,6 +149,15 @@
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Enable RIFE 2x Interpolation</TextBlock>
           <CheckBox IsChecked="{Binding EnableRife}" />
           <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Whether or not to run RIFE video frame interpolation.</TextBlock>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="10,20,0,10">
+          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Height</TextBlock>
+          <TextBox Margin="0,0,5,0" Text="{Binding FinalResizeHeight}" IsReadOnly="False" />
+          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
+          <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+            Resize the video to this height after running all models, set to 0 to disable.
+          </TextBlock>
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
