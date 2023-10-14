@@ -139,6 +139,14 @@ namespace AnimeJaNaiConverterGui.ViewModels
             }
         }
 
+        private int _finalResizeHeight = 0;
+        [DataMember]
+        public int FinalResizeHeight
+        {
+            get => _finalResizeHeight;
+            set => this.RaiseAndSetIfChanged(ref _finalResizeHeight, value);
+        }
+
         private string _inputFilePath = string.Empty;
         [DataMember]
         public string InputFilePath
