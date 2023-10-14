@@ -160,16 +160,16 @@
           <NumericUpDown Margin="0,0,5,0" Text="{Binding FinalResizeHeight, FallbackValue=0}" AllowSpin="False" ShowButtonSpinner="False"  />
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
           <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-            Resize the video to this height after running all models, set to 0 to disable.
+            Resize the video to this height after running all models, set to 0 to disable. Note that the final video width and height must be divisble by 2 or the output video will be invalid.
           </TextBlock>
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowAdvancedSettings}">
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Factor</TextBlock>
-          <TextBox Margin="0,0,5,0" Text="{Binding FinalResizeFactor, FallbackValue=1}" IsReadOnly="False" />
+          <TextBox Margin="0,0,5,0" VerticalAlignment="Center" Text="{Binding FinalResizeFactor, FallbackValue=1}" IsReadOnly="False" />
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">x</TextBlock>
           <TextBlock Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-            Resize the video by this factor after running all models. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half. This setting is ignored if Final Resize Height is specified.
+            Resize the video by this factor after running all models. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half. This setting is ignored if Final Resize Height is specified. Note that the final video width and height must be divisble by 2 or the output video will be invalid.
           </TextBlock>
         </StackPanel>
 
