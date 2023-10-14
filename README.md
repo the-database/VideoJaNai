@@ -1,12 +1,10 @@
 
-# AnimeJaNaiConverterGui
+# <img src="logo.png" width="24"></img> AnimeJaNaiConverterGui
 [![Discord](https://img.shields.io/discord/1121653618173546546?label=Discord&logo=Discord&logoColor=white)](https://discord.gg/EeFfZUBvxj)
-
-<img src="logo.png" width="128"></img>
 ## Overview
 This project provides a Windows GUI for upscaling with ONNX compact models and frame interpolation with RIFE. By utilizing NVIDIA TensorRT and Vapoursynth, it provides the fastest possible inference speeds. DirectML and NCNN backends are also available for AMD and Intel graphics cards.
 
-![image](https://github.com/the-database/AnimeJaNaiConverterGui/assets/25811902/91f42ad1-288e-4e76-9670-7830fe97b7a6)
+![image](https://github.com/the-database/AnimeJaNaiConverterGui/assets/25811902/d2ba1480-0be4-442b-b6f8-f02cb13b4457)
 
 
 ## Resources
