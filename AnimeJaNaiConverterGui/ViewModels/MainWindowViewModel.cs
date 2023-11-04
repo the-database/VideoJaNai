@@ -3,6 +3,7 @@ using DynamicData;
 using ReactiveUI;
 using Salaros.Configuration;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -58,13 +59,18 @@ namespace AnimeJaNaiConverterGui.ViewModels
             }
         }
 
-        private string _consoleText = string.Empty;
-        public string ConsoleText
+        public string ConsoleText => string.Join("\n", ConsoleQueue);
+
+        private static readonly int CONSOLE_QUEUE_CAPACITY = 1000;
+
+        private ConcurrentQueue<string> _consoleQueue = new();
+        public ConcurrentQueue<string> ConsoleQueue
         {
-            get => _consoleText;
+            get => this._consoleQueue;
             set
             {
-                this.RaiseAndSetIfChanged(ref _consoleText, value);
+                this.RaiseAndSetIfChanged(ref _consoleQueue, value);
+                this.RaisePropertyChanged(nameof(ConsoleText));
             }
         }
 
@@ -531,7 +537,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
             var task = Task.Run(async () =>
             {
                 ct.ThrowIfCancellationRequested();
-                ConsoleText = "";
+                ConsoleQueueClear();
                 Upscaling = true;
                 SetupAnimeJaNaiConfSlot1();
 
@@ -604,14 +610,14 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
             var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_v2_encode.vpy - | ffmpeg {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {FfmpegVideoSettings} -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
-            ConsoleText += $"Upscaling with command: {cmd}\n";
+            ConsoleQueueEnqueue($"Upscaling with command: {cmd}");
             await RunCommand($@" /C {cmd}");
         }
 
         public async Task GenerateEngine(string inputFilePath)
         {
             var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ./animejanai_v2_encode.vpy -p .";
-            ConsoleText += $"Generating TensorRT engine with command: {cmd}\n";
+            ConsoleQueueEnqueue($"Generating TensorRT engine with command: {cmd}");
             await RunCommand($@" /C {cmd}");
         }
 
@@ -637,7 +643,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                         if (!string.IsNullOrEmpty(e.Data))
                         {
                             outputFile.WriteLine(e.Data); // Write the output to the log file
-                            ConsoleText += e.Data + "\n";
+                            ConsoleQueueEnqueue(e.Data);
                         }
                     };
 
@@ -646,7 +652,8 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                         if (!string.IsNullOrEmpty(e.Data))
                         {
                             outputFile.WriteLine(e.Data); // Write the output to the log file
-                            ConsoleText += e.Data + "\n";
+
+                            ConsoleQueueEnqueue(e.Data);
                         }
                     };
 
@@ -657,6 +664,22 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                 }
                 ChildProcessTracker.AddProcess(process);
             }
+        }
+
+        private void ConsoleQueueClear()
+        {
+            ConsoleQueue.Clear();
+            this.RaisePropertyChanged(nameof(ConsoleText));
+        }
+
+        private void ConsoleQueueEnqueue(string value)
+        {
+            while (ConsoleQueue.Count > CONSOLE_QUEUE_CAPACITY)
+            {
+                ConsoleQueue.TryDequeue(out var _);
+            }
+            ConsoleQueue.Enqueue(value);
+            this.RaisePropertyChanged(nameof(ConsoleText));
         }
     }
 
