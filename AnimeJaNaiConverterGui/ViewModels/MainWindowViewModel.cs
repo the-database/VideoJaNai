@@ -17,11 +17,14 @@ namespace AnimeJaNaiConverterGui.ViewModels
     [DataContract]
     public class MainWindowViewModel : ViewModelBase
     {
-        public MainWindowViewModel() 
+        public static readonly List<string> VIDEO_EXTENSIONS = new() { ".mkv", ".mp4", ".mpg", ".mpeg", ".avi", ".mov", ".wmv" };
+
+        public MainWindowViewModel()
         {
-            this.WhenAnyValue(x => x.InputFilePath, x => x.OutputFilename, 
+            this.WhenAnyValue(
+                x => x.InputFilePath, x => x.OutputFilename,
                 x => x.InputFolderPath, x => x.OutputFolderPath,
-                x => x.SelectedTabIndex).Subscribe(x =>
+                x => x.SelectedTabIndex, x => x.OverwriteExistingVideos).Subscribe(x =>
             {
                 Validate();
             });
@@ -72,9 +75,9 @@ namespace AnimeJaNaiConverterGui.ViewModels
             get => _overwriteExistingVideos;
             set
             {
-                
+
                 this.RaiseAndSetIfChanged(ref _overwriteExistingVideos, value);
-                
+
             }
         }
 
@@ -97,7 +100,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
         public string FfmpegVideoSettings
         {
             get => _ffmpegVideoSettings;
-            set  {
+            set {
                 this.RaiseAndSetIfChanged(ref _ffmpegVideoSettings, value);
                 this.RaisePropertyChanged(nameof(FfmpegX265Selected));
                 this.RaisePropertyChanged(nameof(FfmpegX264Selected));
@@ -179,10 +182,6 @@ namespace AnimeJaNaiConverterGui.ViewModels
             set => this.RaiseAndSetIfChanged(ref _outputFilename, value);
         }
 
-        public string OutputFilePath => Path.Join(
-                                                    Path.GetFullPath(OutputFolderPath),
-                                                    OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(InputFilePath)));
-
         private string _outputFolderPath = string.Empty;
         [DataMember]
         public string OutputFolderPath
@@ -234,6 +233,13 @@ namespace AnimeJaNaiConverterGui.ViewModels
         }
 
         public string LeftStatus => !Valid ? ValidationText.Replace("\n", " ") : $"{InputStatusText} selected for upscaling.";
+        //public string LeftStatus
+        //{
+        //    get 
+        //    {
+        //        return !Valid ? ValidationText.Replace("\n", " ") : $"{InputStatusText} selected for upscaling.";
+        //    }
+        //}
 
         private bool _valid = false;
         [IgnoreDataMember]
@@ -244,6 +250,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
             {
                 this.RaiseAndSetIfChanged(ref _valid, value);
                 this.RaisePropertyChanged(nameof(UpscaleEnabled));
+                this.RaisePropertyChanged(nameof(LeftStatus));
             }
         }
 
@@ -256,6 +263,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
             {
                 this.RaiseAndSetIfChanged(ref _upscaling, value);
                 this.RaisePropertyChanged(nameof(UpscaleEnabled));
+                this.RaisePropertyChanged(nameof(LeftStatus));
             }
         }
 
@@ -330,168 +338,84 @@ namespace AnimeJaNaiConverterGui.ViewModels
             DirectMlSelected = false;
         }
 
-        private void CheckInputs()
+        private int CheckInputs()
         {
-            //if (Valid && !Upscaling)
-            //{
-            //    var overwriteText = OverwriteExistingVideos ? "overwritten" : "skipped";
 
-            //    // input file
-            //    if (SelectedTabIndex == 0)
-            //    {
-            //        StringBuilder status = new();
-            //        var skipFiles = 0;
+            InputStatusText = "0 video files";
 
+            if (Valid && !Upscaling)
+            {
+                var overwriteText = OverwriteExistingVideos ? "overwritten" : "skipped";
 
+                // input file
+                if (SelectedTabIndex == 0)
+                {
+                    StringBuilder status = new();
+                    var skipFiles = 0;
 
-            //        if (IMAGE_EXTENSIONS.Any(x => InputFilePath.ToLower().EndsWith(x)))
-            //        {
-            //            var outputFilePath = Path.ChangeExtension(
-            //                                    Path.Join(
-            //                                        Path.GetFullPath(OutputFolderPath),
-            //                                        OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(InputFilePath))),
-            //                                    ImageFormat);
-            //            if (File.Exists(outputFilePath))
-            //            {
-            //                status.Append($" (1 image already exists and will be {overwriteText})");
-            //                if (!OverwriteExistingVideos)
-            //                {
-            //                    skipFiles++;
-            //                }
-            //            }
-            //        }
-            //        else if (ARCHIVE_EXTENSIONS.Any(x => InputFilePath.ToLower().EndsWith(x)))
-            //        {
-            //            var outputFilePath = Path.ChangeExtension(
-            //                                    Path.Join(
-            //                                        Path.GetFullPath(OutputFolderPath),
-            //                                        OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(InputFilePath))),
-            //                                    "cbz");
-            //            if (File.Exists(outputFilePath))
-            //            {
-            //                status.Append($" (1 archive already exists and will be {overwriteText})");
-            //                if (!OverwriteExistingVideos)
-            //                {
-            //                    skipFiles++;
-            //                }
-            //            }
-            //        }
-            //        else
-            //        {
-            //            // TODO ???
-            //        }
+                    var outputFilePath = Path.Join(
+                                                    Path.GetFullPath(OutputFolderPath),
+                                                    OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(InputFilePath))); 
 
-            //        var s = skipFiles > 0 ? "s" : "";
-            //        if (IMAGE_EXTENSIONS.Any(x => InputFilePath.ToLower().EndsWith(x)))
-            //        {
-            //            status.Insert(0, $"{1 - skipFiles} image{s}");
-            //        }
-            //        else if (ARCHIVE_EXTENSIONS.Any(x => InputFilePath.ToLower().EndsWith(x)))
-            //        {
-            //            status.Insert(0, $"{1 - skipFiles} archive{s}");
-            //        }
-            //        else
-            //        {
-            //            status.Insert(0, "0 files");
-            //        }
+                    if (File.Exists(outputFilePath))
+                    {
+                        status.Append($" (1 video file already exists and will be {overwriteText})");
+                        if (!OverwriteExistingVideos)
+                        {
+                            skipFiles++;
+                        }
+                    }
 
-            //        InputStatusText = status.ToString();
-            //        ProgressCurrentFile = 0;
-            //        ProgressTotalFiles = 1 - skipFiles;
-            //        ProgressCurrentFileInArchive = 0;
-            //        ProgressTotalFilesInCurrentArchive = 0;
-            //        ShowArchiveProgressBar = false;
-            //    }
-            //    else  // input folder
-            //    {
-            //        List<string> statuses = new();
-            //        var existImageCount = 0;
-            //        var existArchiveCount = 0;
-            //        var totalFileCount = 0;
+                    var s = skipFiles > 0 ? "s" : "";
+                    status.Insert(0, $"{1 - skipFiles} video file{s}");
 
-            //        if (UpscaleImages)
-            //        {
-            //            var images = Directory.EnumerateFiles(InputFolderPath, "*.*", SearchOption.AllDirectories)
-            //                .Where(file => IMAGE_EXTENSIONS.Any(ext => file.ToLower().EndsWith(ext)));
-            //            var imagesCount = 0;
+                    InputStatusText = status.ToString();
+                    return 1 - skipFiles;
+                }
+                else  // input folder
+                {
+                    List<string> statuses = new();
+                    var existFileCount = 0;
+                    var totalFileCount = 0;
+                    
+                    var videos = Directory.EnumerateFiles(InputFolderPath, "*.*", SearchOption.AllDirectories)
+                        .Where(file => VIDEO_EXTENSIONS.Any(ext => file.ToLower().EndsWith(ext)));
+                    var filesCount = 0;
 
-            //            foreach (var inputImagePath in images)
-            //            {
-            //                var outputImagePath = Path.ChangeExtension(
-            //                                        Path.Join(
-            //                                            Path.GetFullPath(OutputFolderPath),
-            //                                            OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(inputImagePath))),
-            //                                        ImageFormat);
-            //                // if out file exists, exist count ++
-            //                // if overwrite image OR out file doesn't exist, count image++
-            //                var fileExists = File.Exists(outputImagePath);
+                    foreach (var inputVideoPath in videos)
+                    {
+                        var outputFilePath = Path.Join(
+                                                    Path.GetFullPath(OutputFolderPath),
+                                                    OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(inputVideoPath)));
 
-            //                if (fileExists)
-            //                {
-            //                    existImageCount++;
-            //                }
+                        // if out file exists, exist count ++
+                        // if overwrite image OR out file doesn't exist, count image++
+                        var fileExists = File.Exists(outputFilePath);
 
-            //                if (!fileExists || OverwriteExistingVideos)
-            //                {
-            //                    imagesCount++;
-            //                }
-            //            }
+                        if (fileExists)
+                        {
+                            existFileCount++;
+                        }
 
-            //            var imageS = imagesCount == 1 ? "" : "s";
-            //            var existImageS = existImageCount == 1 ? "" : "s";
+                        if (!fileExists || OverwriteExistingVideos)
+                        {
+                            filesCount++;
+                        }
+                    }
 
-            //            statuses.Add($"{imagesCount} image{imageS} ({existImageCount} image{existImageS} already exist and will be {overwriteText})");
-            //            totalFileCount += imagesCount;
-            //        }
-            //        if (UpscaleArchives)
-            //        {
-            //            var archives = Directory.EnumerateFiles(InputFolderPath, "*.*", SearchOption.AllDirectories)
-            //                .Where(file => ARCHIVE_EXTENSIONS.Any(ext => file.ToLower().EndsWith(ext)));
-            //            var archivesCount = 0;
+                    var videoS = filesCount == 1 ? "" : "s";
+                    var existVideoS = existFileCount == 1 ? "" : "s";
+                    var existS = existFileCount == 1 ? "s" : "";
 
-            //            foreach (var inputArchivePath in archives)
-            //            {
-            //                var outputArchivePath = Path.ChangeExtension(
-            //                                            Path.Join(
-            //                                                Path.GetFullPath(OutputFolderPath),
-            //                                                OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(inputArchivePath))),
-            //                                            "cbz");
-            //                var fileExists = File.Exists(outputArchivePath);
+                    statuses.Add($"{filesCount} video file{videoS} ({existFileCount} video file{existVideoS} already exist{existS} and will be {overwriteText})");
+                    totalFileCount += filesCount;
+                    
+                    InputStatusText = $"{string.Join(" and ", statuses)}";
+                    return totalFileCount;
+                }
+            }
 
-            //                if (fileExists)
-            //                {
-            //                    existArchiveCount++;
-            //                }
-
-            //                if (!fileExists || OverwriteExistingVideos)
-            //                {
-            //                    archivesCount++;
-            //                }
-            //            }
-
-            //            var archiveS = archivesCount == 1 ? "" : "s";
-            //            var existArchiveS = existArchiveCount == 1 ? "" : "s";
-            //            statuses.Add($"{archivesCount} archive{archiveS} ({existArchiveCount} archive{existArchiveS} already exist and will be {overwriteText})");
-            //            totalFileCount += archivesCount;
-            //        }
-
-            //        if (!UpscaleArchives && !UpscaleImages)
-            //        {
-            //            InputStatusText = "0 files";
-            //        }
-            //        else
-            //        {
-            //            InputStatusText = $"{string.Join(" and ", statuses)}";
-            //        }
-
-            //        ProgressCurrentFile = 0;
-            //        ProgressTotalFiles = totalFileCount;
-            //        ProgressCurrentFileInArchive = 0;
-            //        ProgressTotalFilesInCurrentArchive = 0;
-            //        ShowArchiveProgressBar = false;
-
-            //    }
-            //}
+            return 0;
         }
 
         public void Validate()
@@ -537,7 +461,12 @@ namespace AnimeJaNaiConverterGui.ViewModels
             }
 
             Valid = valid;
-            CheckInputs();
+            var numFilesToUpscale = CheckInputs();
+            if (numFilesToUpscale == 0)
+            {
+                Valid = false;
+                validationText.Add($"{InputStatusText} selected for upscaling. At least one file must be selected.");
+            }
             ValidationText = string.Join("\n", validationText);
         }
 
@@ -611,21 +540,24 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                     ct.ThrowIfCancellationRequested();
                     await CheckEngines(InputFilePath);
                     ct.ThrowIfCancellationRequested();
-                    var outputFilePath = Path.Combine(OutputFolderPath, OutputFilename);
-                    await RunUpscaleSingle(InputFilePath, OutputFilePath);
+                    var outputFilePath = Path.Join(
+                                Path.GetFullPath(OutputFolderPath),
+                                OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(InputFilePath)));
+                    await RunUpscaleSingle(InputFilePath, outputFilePath);
                     ct.ThrowIfCancellationRequested();
                 }
                 else
                 {
-                    var videoFileExtensions = new HashSet<string> { ".mp4", ".avi", ".mkv", ".mov", ".wmv" };
-                    var files = Directory.GetFiles(InputFolderPath).Where(file => videoFileExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)).ToList();
+                    var files = Directory.GetFiles(InputFolderPath).Where(file => VIDEO_EXTENSIONS.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)).ToList();
 
                     foreach (var file in files)
                     {
                         ct.ThrowIfCancellationRequested();
                         await CheckEngines(file);
                         ct.ThrowIfCancellationRequested();
-                        var outputFilePath = Path.Combine(OutputFolderPath, Path.GetFileName(file));
+                        var outputFilePath = Path.Join(
+                                Path.GetFullPath(OutputFolderPath),
+                                OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(file)));
                         ct.ThrowIfCancellationRequested();
                         await RunUpscaleSingle(file, outputFilePath);
                         ct.ThrowIfCancellationRequested();
@@ -638,6 +570,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
             try
             {
                 await task;
+                Validate();
             }
             catch (OperationCanceledException e)
             {
@@ -662,6 +595,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                     _runningProcess.Kill(true);
                     _runningProcess = null; // Clear the reference to the terminated process
                 }
+                Validate();
             }
             catch { }
             
