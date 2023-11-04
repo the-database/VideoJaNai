@@ -19,7 +19,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
     {
         public MainWindowViewModel() 
         {
-            this.WhenAnyValue(x => x.InputFilePath, x => x.OutputFilePath, 
+            this.WhenAnyValue(x => x.InputFilePath, x => x.OutputFilename, 
                 x => x.InputFolderPath, x => x.OutputFolderPath,
                 x => x.SelectedTabIndex).Subscribe(x =>
             {
@@ -171,13 +171,17 @@ namespace AnimeJaNaiConverterGui.ViewModels
             set => this.RaiseAndSetIfChanged(ref _inputFolderPath, value);
         }
 
-        private string _outputFilePath = string.Empty;
+        private string _outputFilename = "%filename%-animejanai.mkv";
         [DataMember]
-        public string OutputFilePath
+        public string OutputFilename
         {
-            get => _outputFilePath;
-            set => this.RaiseAndSetIfChanged(ref _outputFilePath, value);
+            get => _outputFilename;
+            set => this.RaiseAndSetIfChanged(ref _outputFilename, value);
         }
+
+        public string OutputFilePath => Path.Join(
+                                                    Path.GetFullPath(OutputFolderPath),
+                                                    OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(InputFilePath)));
 
         private string _outputFolderPath = string.Empty;
         [DataMember]
@@ -501,12 +505,6 @@ namespace AnimeJaNaiConverterGui.ViewModels
                     valid = false;
                     validationText.Add("Input Video is required.");
                 }
-
-                if (string.IsNullOrWhiteSpace(OutputFilePath))
-                {
-                    valid = false;
-                    validationText.Add("Output Video is required.");
-                }
             }
             else
             {
@@ -515,12 +513,18 @@ namespace AnimeJaNaiConverterGui.ViewModels
                     valid = false;
                     validationText.Add("Input Folder is required.");
                 }
+            }
 
-                if (string.IsNullOrWhiteSpace(OutputFolderPath))
-                {
-                    valid = false;
-                    validationText.Add("Output Folder is required.");
-                }
+            if (string.IsNullOrWhiteSpace(OutputFolderPath))
+            {
+                valid = false;
+                validationText.Add("Output Folder is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(OutputFilename))
+            {
+                valid = false;
+                validationText.Add("Output Filename is required.");
             }
 
             foreach (var upscaleModel in UpscaleSettings)
@@ -607,6 +611,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                     ct.ThrowIfCancellationRequested();
                     await CheckEngines(InputFilePath);
                     ct.ThrowIfCancellationRequested();
+                    var outputFilePath = Path.Combine(OutputFolderPath, OutputFilename);
                     await RunUpscaleSingle(InputFilePath, OutputFilePath);
                     ct.ThrowIfCancellationRequested();
                 }

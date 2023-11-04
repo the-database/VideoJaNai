@@ -7,11 +7,33 @@
         xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         mc:Ignorable="d" d:DesignWidth="1920" d:DesignHeight="1080"
         Width="1920" Height="1080"
+        WindowStartupLocation="CenterScreen"
         x:Class="AnimeJaNaiConverterGui.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/logo.ico"
         Title="AnimeJaNaiConverterGui">
 
+  <Window.Styles>
+    <Style Selector="TabControl[TabStripPlacement=Top]">
+      <!-- Override styled behaviour -->
+      <Setter Property="Padding" Value="0"/>
+    </Style>
+    <Style Selector="TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Border.border">
+
+      <Setter Property="Margin" Value="0,10,0,0" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="BorderBrush" Value="#33888888" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="10" />
+    </Style>
+  </Window.Styles>
+  
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
@@ -67,11 +89,8 @@
       
     <ScrollViewer HorizontalScrollBarVisibility="Auto">
       <StackPanel Margin="20">
-        <TextBlock FontWeight="Bold" Text="Video Paths"></TextBlock>
-        <Border Margin="0,10,0,0"
-          CornerRadius="5"
-          BorderBrush="#33888888" BorderThickness="1"
-          Padding="5">
+        <TextBlock FontWeight="Bold" Text="Video Input and Output"></TextBlock>
+        <Border Classes="border">
           <StackPanel>
           
         <TabControl SelectedIndex="{Binding SelectedTabIndex}">
@@ -82,19 +101,17 @@
                 <TextBlock Margin="5,0,5,0">Single Video Upscale</TextBlock>
               </StackPanel>
             </TabItem.Header>
-            <StackPanel>
-              <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
-                <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Video</TextBlock>
-                <TextBox x:Name="InputFileNameTextBox" Margin="0,0,5,0" Text="{Binding InputFilePath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
-                <Button Content="Select File" Click="OpenInputFileButtonClick" />
+            
+            <Border Classes="border">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Video</TextBlock>
+                  <TextBox x:Name="InputFileNameTextBox" Margin="0,0,5,0" Text="{Binding InputFilePath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
+                  <Button Content="Select File" Click="OpenInputFileButtonClick" />
+                </StackPanel>
               </StackPanel>
-
-              <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Video</TextBlock>
-                <TextBox x:Name="OutputFileNameTextBox" Margin="0,0,5,0" Text="{Binding OutputFilePath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
-                <Button Content="Select File" Click="OpenOutputFileButtonClick" />
-              </StackPanel>
-            </StackPanel>
+            </Border>
+            
           </TabItem>
           <TabItem VerticalAlignment="Center" FontSize="16">
             <TabItem.Header>
@@ -103,44 +120,61 @@
                 <TextBlock Margin="5,0,5,0">Batch Video Upscale</TextBlock>
               </StackPanel>
               </TabItem.Header>
-            <StackPanel>
-              <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
-                <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Folder</TextBlock>
-                <TextBox x:Name="InputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding InputFolderPath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
-                <Button Content="Select Folder" Click="OpenInputFolderButtonClick" />
-              </StackPanel>
             
-              <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Folder</TextBlock>
-                <TextBox x:Name="OutputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding OutputFolderPath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
-                <Button Content="Select Folder" Click="OpenOutputFolderButtonClick" />
-              </StackPanel>
-            </StackPanel>
+              <Border Classes="border">
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Folder</TextBlock>
+                    <TextBox x:Name="InputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding InputFolderPath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
+                    <Button Content="Select Folder" Click="OpenInputFolderButtonClick" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
           </TabItem>
         </TabControl>
 
-        <StackPanel Orientation="Horizontal" Margin="10,20,0,0">
-          <CheckBox IsChecked="{Binding OverwriteExistingVideos}" Content="Allow Videos in Output Path to be Overwritten" />
-          <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">If unchecked, upscaling will be skipped if the video already exists in the output path. If checked, any videos that already exist in the output path will be overwritten without warning. Use with caution.</TextBlock>
-        </StackPanel>
+            <Border Classes="border">
+
+              <StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Folder</TextBlock>
+                  <TextBox x:Name="OutputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding OutputFolderPath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
+                  <Button Content="Select Folder" Click="OpenOutputFolderButtonClick" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
+                  <TextBlock Margin="0,0,5,0">Output Filename</TextBlock>
+                  <TextBox Text="{Binding OutputFilename}" Margin="0,0,5,0" IsReadOnly="False" Width="600" DragDrop.AllowDrop="True" />
+                  <SelectableTextBlock Foreground="Gray" Width="400" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                    The filename of the upscaled video, including the desired file extension. <Run FontFamily="Consolas">%filename%</Run> is the input filename without extension. 
+                  </SelectableTextBlock>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="10,0,0,0">
+                  <CheckBox IsChecked="{Binding OverwriteExistingVideos}" Content="Allow Videos in Output Path to be Overwritten" />
+                  <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">If unchecked, upscaling will be skipped for videos that already exist in the output path. If checked, any videos that already exist in the output path will be overwritten without warning. Use with caution.</TextBlock>
+                </StackPanel>
+                
+              </StackPanel>
+
+            </Border>
+
           </StackPanel>
           </Border>
 
         <!-- Encoding -->
         <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="Encode Settings"></TextBlock>
-        <Border Margin="0,10,0,0"
-          CornerRadius="5"
-          BorderBrush="#33888888" BorderThickness="1"
-          Padding="5">
+        <Border Classes="border">
           <StackPanel>
-          <StackPanel Orientation="Horizontal" Margin="10,20,0,10">
+          <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
             <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Output Video Settings</TextBlock>
             <TextBox Margin="0,0,5,0" Text="{Binding FfmpegVideoSettings}" IsReadOnly="False" Width="800" />
             <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Video encoding settings to pass to FFmpeg. Choose a preset below or edit the text to use custom settings.</TextBlock>
           </StackPanel>
 
 
-          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,20,0,10">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
             <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Presets</TextBlock>
             <ToggleButton IsChecked="{Binding FfmpegHevcNvencSelected}" Content="NVENC HEVC" Command="{Binding SetFfmpegHevcNvenc}" />
             <ToggleButton IsChecked="{Binding FfmpegX265Selected}" Content="x265 (CPU)" Command="{Binding SetFfmpegX265}" />
@@ -157,30 +191,24 @@
 
         <!-- Upscaling -->
         <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="Upscale Settings"></TextBlock>
-        <Border Margin="0,10,0,0"
-                  CornerRadius="5"
-                  BorderBrush="#33888888" BorderThickness="1"
-                  Padding="5">
+        <Border Classes="border">
           <StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="10,20,0,0">
+            <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
               <CheckBox  IsChecked="{Binding ShowAdvancedSettings}" Content="Show More Upscale Settings" />
             </StackPanel>
         <ItemsControl ItemsSource="{Binding UpscaleSettings}" >
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:UpscaleModel">
-              <Border Margin="0,10,0,0"
-                  CornerRadius="5"
-                  BorderBrush="#33888888" BorderThickness="1"
-                  Padding="5">
+              <Border Classes="border">
                 <StackPanel>
-                  <TextBlock FontSize="16" FontWeight="Bold" Margin="10,20,0,20" Text="{Binding ModelHeader}" />
-                  <StackPanel Orientation="Horizontal" Margin="10,0,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ShowAdvancedSettings}}">
+                  <TextBlock FontSize="16" FontWeight="Bold" Margin="10,10,0,10" Text="{Binding ModelHeader}" />
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ShowAdvancedSettings}}">
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Height Before Upscale</TextBlock>
                     <TextBox Margin="0,0,5,0" Text="{Binding ResizeHeightBeforeUpscale}" IsReadOnly="False" />
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
                     <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Resize the video to this height before running this model, set to 0 to disable.</TextBlock>
                   </StackPanel>
-                  <StackPanel Orientation="Horizontal" Margin="10,0,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ShowAdvancedSettings}">
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ShowAdvancedSettings}">
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Factor Before Upscale</TextBlock>
                     <TextBox Margin="0,0,5,0" Text="{Binding ResizeFactorBeforeUpscale}" IsReadOnly="False" />
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">x</TextBlock>
@@ -188,25 +216,35 @@
                       Resize the video by this factor before running this model. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half. This setting is ignored if Resize Height Before Upscale is specified.
                     </TextBlock>
                   </StackPanel>
-                  <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">ONNX Model Path</TextBlock>
                     <TextBox Margin="0,0,5,0" Text="{Binding OnnxModelPath}" IsReadOnly="False" Width="800" />
                     <Button Content="Select File" Click="OpenOnnxFileButtonClick" />
                     <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">File path of the ONNX model to run.</TextBlock>
                   </StackPanel>
-                  <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
-                    <TextBlock Text="{Binding $parent[vm:MainWindowViewModel].InputFilePath}" />
-                  <Button Content="Remove" 
-                          Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).DeleteModel}"
-                          CommandParameter="{Binding}"
-                          />
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                    <Button Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).DeleteModel}"
+                            CommandParameter="{Binding}"
+                            >
+                        <StackPanel Orientation="Horizontal">
+                          <materialIcons:MaterialIcon Kind="MinusCircle" />
+                          <TextBlock Margin="5,0,0,0">Remove Model</TextBlock>
+                        </StackPanel>
+                      </Button>
                   </StackPanel>
                 </StackPanel>
               </Border>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <Button Margin="10,10,0,20" Content="Add Model" Command="{Binding AddModel}" />
+        <Button Margin="10,20,0,20" Command="{Binding AddModel}">
+          <StackPanel Orientation="Horizontal">
+            <materialIcons:MaterialIcon Kind="PlusCircle" />
+            <TextBlock Margin="5,0,0,0">Add Model</TextBlock>
+          </StackPanel>
+        </Button>
+            
+            
 
         <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowAdvancedSettings}">
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Enable RIFE 2x Interpolation</TextBlock>

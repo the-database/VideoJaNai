@@ -32,12 +32,10 @@ namespace AnimeJaNaiConverterGui.Views
             Closing += MainWindow_Closing;
 
             var inputFileNameTextBox = this.FindControl<TextBox>("InputFileNameTextBox");
-            var outputFileNameTextBox = this.FindControl<TextBox>("OutputFileNameTextBox");
             var inputFolderNameTextBox = this.FindControl<TextBox>("InputFolderNameTextBox");
             var outputFolderNameTextBox = this.FindControl<TextBox>("OutputFolderNameTextBox");
 
             inputFileNameTextBox?.AddHandler(DragDrop.DropEvent, SetInputFilePath);
-            outputFileNameTextBox?.AddHandler(DragDrop.DropEvent, SetOutputFilePath);
             inputFolderNameTextBox?.AddHandler(DragDrop.DropEvent, SetInputFolderPath);
             outputFolderNameTextBox?.AddHandler(DragDrop.DropEvent, SetOutputFolderPath);
         }
@@ -147,24 +145,6 @@ namespace AnimeJaNaiConverterGui.Views
             }
         }
 
-        public void SetOutputFilePath(object? sender, DragEventArgs e)
-        {
-            if (DataContext is MainWindowViewModel vm)
-            {
-                var files = e.Data.GetFiles().ToList();
-
-
-                if (files.Count > 0)
-                {
-                    var filePath = files[0].TryGetLocalPath();
-                    if (File.Exists(filePath))
-                    {
-                        vm.OutputFilePath = filePath;
-                    }
-                }
-            }
-        }
-
         public void SetInputFolderPath(object? sender, DragEventArgs e)
         {
             if (DataContext is MainWindowViewModel vm)
@@ -237,38 +217,6 @@ namespace AnimeJaNaiConverterGui.Views
                         vm.Validate();
                     }
                     
-                }
-            }
-        }
-
-        private async void OpenOutputFileButtonClick(object? sender, RoutedEventArgs e)
-        {
-            // Get top level from the current control. Alternatively, you can use Window reference instead.
-            var topLevel = TopLevel.GetTopLevel(this);
-
-            // Start async operation to open the dialog.
-            var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-            {
-                Title = "Save Video File",
-                DefaultExtension = "mkv",
-                FileTypeChoices = new FilePickerFileType[]
-                {
-                    new("MKV file (*.mkv)") { Patterns = new[] { "*.mkv" } },
-                    new("MP4 file (*.mp4)") { Patterns = new[] { "*.mp4" } },
-                    new("All files (*.*)") { Patterns = new[] { "*" } },
-                },
-            });
-
-            if (file is not null)
-            {
-                //// Open reading stream from the first file.
-                //await using var stream = await files[0].OpenReadAsync();
-                //using var streamReader = new StreamReader(stream);
-                //// Reads all the content of file as a text.
-                //var fileContent = await streamReader.ReadToEndAsync();
-                if (DataContext is MainWindowViewModel vm)
-                {
-                    vm.OutputFilePath = file.TryGetLocalPath() ?? "";
                 }
             }
         }
