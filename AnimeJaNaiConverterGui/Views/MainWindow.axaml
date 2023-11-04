@@ -4,7 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:hypertext="clr-namespace:HyperText.Avalonia.Controls;assembly=HyperText.Avalonia"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        mc:Ignorable="d" d:DesignWidth="1920" d:DesignHeight="1080"
+        Width="1920" Height="1080"
         x:Class="AnimeJaNaiConverterGui.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/logo.ico"
@@ -16,17 +18,70 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
+    <DockPanel>
+
+      <StackPanel DockPanel.Dock="Bottom">
+
+        <StackPanel Orientation="Horizontal">
+          <Button Margin="20,10,0,10" FontWeight="Bold" Background="Green" IsEnabled="{Binding UpscaleEnabled}" Command="{Binding RunUpscale}">
+            <StackPanel Orientation="Horizontal">
+              <materialIcons:MaterialIcon Kind="PlayCircle" />
+              <TextBlock Margin="5,0,0,0">Upscale</TextBlock>
+            </StackPanel>
+
+          </Button>
+          <Button Margin="20,10,0,10" FontWeight="Bold" Background="Red" IsEnabled="{Binding Upscaling}" Command="{Binding CancelUpscale}">
+            <StackPanel Orientation="Horizontal">
+              <materialIcons:MaterialIcon Kind="StopCircle" />
+              <TextBlock Margin="5,0,0,0">Cancel</TextBlock>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding ShowConsole}" >
+          <TextBlock Margin="20,10,0,0" FontWeight="Bold" Text="Console"></TextBlock>
+          <ScrollViewer x:Name="ConsoleScrollViewer" Margin="0,10,0,0" Background="#111111" Height="500" Width="500" HorizontalScrollBarVisibility="Auto" Foreground="Gray"  PropertyChanged="ConsoleScrollViewer_PropertyChanged">
+            <SelectableTextBlock x:Name="ConsoleTextBlock" Margin="20" Text="{Binding ConsoleText}" FontFamily="Consolas" PropertyChanged="ConsoleTextBlock_PropertyChanged" />
+          </ScrollViewer>
+        </StackPanel>
+
+        <DockPanel Margin="0" Height="30" DockPanel.Dock="Bottom" HorizontalAlignment="Stretch">
+
+          <TextBlock Margin="10,10,10,0" DockPanel.Dock="Left" FontSize="10" Text="{Binding LeftStatus}" />
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+            
+
+            <ToggleButton IsChecked="{Binding ShowConsole}" FontSize="10" Margin="5,0,5,0">
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Kind="Console" VerticalAlignment="Center" />
+                <TextBlock Margin="5,0,5,0" VerticalAlignment="Center">Console</TextBlock>
+              </StackPanel>
+
+            </ToggleButton>
+          </StackPanel>
+
+          <Rectangle />
+        </DockPanel>
+      </StackPanel>
+      
+      
     <ScrollViewer HorizontalScrollBarVisibility="Auto">
       <StackPanel Margin="20">
         <TextBlock FontWeight="Bold" Text="Video Paths"></TextBlock>
         <Border Margin="0,10,0,0"
           CornerRadius="5"
-          BorderBrush="Gray" BorderThickness="1"
+          BorderBrush="#33888888" BorderThickness="1"
           Padding="5">
           <StackPanel>
           
         <TabControl SelectedIndex="{Binding SelectedTabIndex}">
-          <TabItem Header="Single Video Upscale" VerticalContentAlignment="Center" FontSize="18">
+          <TabItem VerticalContentAlignment="Center" FontSize="16">
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Kind="File" />
+                <TextBlock Margin="5,0,5,0">Single Video Upscale</TextBlock>
+              </StackPanel>
+            </TabItem.Header>
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Video</TextBlock>
@@ -41,7 +96,13 @@
               </StackPanel>
             </StackPanel>
           </TabItem>
-          <TabItem Header="Batch Video Upscale" VerticalAlignment="Center" FontSize="18">
+          <TabItem VerticalAlignment="Center" FontSize="16">
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Kind="Folder" />
+                <TextBlock Margin="5,0,5,0">Batch Video Upscale</TextBlock>
+              </StackPanel>
+              </TabItem.Header>
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
                 <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Folder</TextBlock>
@@ -59,9 +120,8 @@
         </TabControl>
 
         <StackPanel Orientation="Horizontal" Margin="10,20,0,0">
-          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Overwrite Existing Videos</TextBlock>
-          <CheckBox IsChecked="{Binding OverwriteExistingVideos}" />
-          <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">If unchecked, upscaling will be skipped if the video already exists in the output path. If checked, any videos that already exist in the output path will be overwritten without warning. Use with caution.</TextBlock>
+          <CheckBox IsChecked="{Binding OverwriteExistingVideos}" Content="Allow Videos in Output Path to be Overwritten" />
+          <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">If unchecked, upscaling will be skipped if the video already exists in the output path. If checked, any videos that already exist in the output path will be overwritten without warning. Use with caution.</TextBlock>
         </StackPanel>
           </StackPanel>
           </Border>
@@ -70,13 +130,13 @@
         <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="Encode Settings"></TextBlock>
         <Border Margin="0,10,0,0"
           CornerRadius="5"
-          BorderBrush="Gray" BorderThickness="1"
+          BorderBrush="#33888888" BorderThickness="1"
           Padding="5">
           <StackPanel>
           <StackPanel Orientation="Horizontal" Margin="10,20,0,10">
             <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Output Video Settings</TextBlock>
             <TextBox Margin="0,0,5,0" Text="{Binding FfmpegVideoSettings}" IsReadOnly="False" Width="800" />
-            <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Video encoding settings to pass to FFmpeg. Choose a preset below or edit the text to use custom settings.</TextBlock>
+            <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Video encoding settings to pass to FFmpeg. Choose a preset below or edit the text to use custom settings.</TextBlock>
           </StackPanel>
 
 
@@ -86,11 +146,11 @@
             <ToggleButton IsChecked="{Binding FfmpegX265Selected}" Content="x265 (CPU)" Command="{Binding SetFfmpegX265}" />
             <ToggleButton IsChecked="{Binding FfmpegX264Selected}" Content="x264 (CPU)" Command="{Binding SetFfmpegX264}" />
             <ToggleButton IsChecked="{Binding FfmpegLosslessSelected}" Content="Lossless (CPU)" Command="{Binding SetFfmpegLossless}" />
-            <SelectableTextBlock FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>NVENC HEVC</Bold>: HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.  
+            <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>NVENC HEVC</Bold>: HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.  
 <Bold>x265 (CPU)</Bold>: x265 compression (<hypertext:Hyperlink Url="https://ffmpeg.org/ffmpeg-codecs.html#libx265" />), more efficient compression but slower to encode.
 <Bold>x265 (CPU)</Bold>: x264 compression (<hypertext:Hyperlink Url="https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb" />), OK compression, faster to encode.
 <Bold>Lossless (CPU)</Bold>: FFV1 lossless compression, usually fastest to encode but extremely large filesize, and may be slower if bottlenecked by a slow storage drive.
-            </SelectableTextBlock>
+            </TextBlock>
           </StackPanel>
           </StackPanel>
         </Border>
@@ -99,19 +159,18 @@
         <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="Upscale Settings"></TextBlock>
         <Border Margin="0,10,0,0"
                   CornerRadius="5"
-                  BorderBrush="Gray" BorderThickness="1"
+                  BorderBrush="#33888888" BorderThickness="1"
                   Padding="5">
           <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="10,20,0,0">
-              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Show More Upscale Settings</TextBlock>
-              <CheckBox IsChecked="{Binding ShowAdvancedSettings}" />
+              <CheckBox  IsChecked="{Binding ShowAdvancedSettings}" Content="Show More Upscale Settings" />
             </StackPanel>
         <ItemsControl ItemsSource="{Binding UpscaleSettings}" >
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:UpscaleModel">
               <Border Margin="0,10,0,0"
                   CornerRadius="5"
-                  BorderBrush="Gray" BorderThickness="1"
+                  BorderBrush="#33888888" BorderThickness="1"
                   Padding="5">
                 <StackPanel>
                   <TextBlock FontSize="16" FontWeight="Bold" Margin="10,20,0,20" Text="{Binding ModelHeader}" />
@@ -119,13 +178,13 @@
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Height Before Upscale</TextBlock>
                     <TextBox Margin="0,0,5,0" Text="{Binding ResizeHeightBeforeUpscale}" IsReadOnly="False" />
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
-                    <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Resize the video to this height before running this model, set to 0 to disable.</TextBlock>
+                    <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Resize the video to this height before running this model, set to 0 to disable.</TextBlock>
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Margin="10,0,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ShowAdvancedSettings}">
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Factor Before Upscale</TextBlock>
                     <TextBox Margin="0,0,5,0" Text="{Binding ResizeFactorBeforeUpscale}" IsReadOnly="False" />
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">x</TextBlock>
-                    <TextBlock Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                    <TextBlock Foreground="Gray" Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
                       Resize the video by this factor before running this model. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half. This setting is ignored if Resize Height Before Upscale is specified.
                     </TextBlock>
                   </StackPanel>
@@ -133,7 +192,7 @@
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">ONNX Model Path</TextBlock>
                     <TextBox Margin="0,0,5,0" Text="{Binding OnnxModelPath}" IsReadOnly="False" Width="800" />
                     <Button Content="Select File" Click="OpenOnnxFileButtonClick" />
-                    <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">File path of the ONNX model to run.</TextBlock>
+                    <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">File path of the ONNX model to run.</TextBlock>
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
                     <TextBlock Text="{Binding $parent[vm:MainWindowViewModel].InputFilePath}" />
@@ -159,7 +218,7 @@
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Height</TextBlock>
           <NumericUpDown Margin="0,0,5,0" Text="{Binding FinalResizeHeight, FallbackValue=0}" AllowSpin="False" ShowButtonSpinner="False"  />
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
-          <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+          <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
             Resize the video to this height after running all models, set to 0 to disable. Note that the final video width and height must be divisble by 2 or the output video will be invalid.
           </TextBlock>
         </StackPanel>
@@ -168,7 +227,7 @@
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Factor</TextBlock>
           <TextBox Margin="0,0,5,0" VerticalAlignment="Center" Text="{Binding FinalResizeFactor, FallbackValue=1}" IsReadOnly="False" />
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">x</TextBlock>
-          <TextBlock Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+          <TextBlock Foreground="Gray" Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
             Resize the video by this factor after running all models. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half. This setting is ignored if Final Resize Height is specified. Note that the final video width and height must be divisble by 2 or the output video will be invalid.
           </TextBlock>
         </StackPanel>
@@ -178,7 +237,7 @@
           <ToggleButton IsChecked="{Binding TensorRtSelected}" Content="TensorRT" Command="{Binding SetTensorRtSelected}" />
           <ToggleButton IsChecked="{Binding DirectMlSelected}" Content="DirectML" Command="{Binding SetDirectMlSelected}" />
           <ToggleButton IsChecked="{Binding NcnnSelected}" Content="NCNN" Command="{Binding SetNcnnSelected}" />
-          <TextBlock Width="900" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>TensorRT</Bold>: Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.
+          <TextBlock Foreground="Gray" Width="900" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>TensorRT</Bold>: Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.
 <Bold>DirectML</Bold>: Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only.
 <Bold>NCNN</Bold>: Compatible with NVIDIA, AMD, and Intel GPUs but typically slower than DirectML. Supports fp32 ONNX models only.
         </TextBlock>
@@ -186,18 +245,7 @@
           </StackPanel>
         </Border>
 
-        <StackPanel Orientation="Horizontal">
-          <Button Margin="0,40,0,0" Content="Upscale" FontWeight="Bold" Background="Green" IsEnabled="{Binding UpscaleEnabled}" Command="{Binding RunUpscale}"></Button>
-          <Button Margin="10,40,0,0" Content="Cancel" FontWeight="Bold" Background="Red" IsEnabled="{Binding Upscaling}" Command="{Binding CancelUpscale}"></Button>
-        </StackPanel>
-
-
-        <TextBlock Margin="0,20,0,0" Text="{Binding ValidationText}" />
-
-        <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="Console"></TextBlock>
-        <ScrollViewer x:Name="ConsoleScrollViewer" Margin="0,10,0,0" Height="500" HorizontalScrollBarVisibility="Auto" Background="#111111" PropertyChanged="ConsoleScrollViewer_PropertyChanged">
-          <SelectableTextBlock x:Name="ConsoleTextBlock" Margin="20" Text="{Binding ConsoleText}" FontFamily="Consolas" Foreground="Gray" PropertyChanged="ConsoleTextBlock_PropertyChanged" />
-        </ScrollViewer>
       </StackPanel>
     </ScrollViewer>
+    </DockPanel>
 </Window>
