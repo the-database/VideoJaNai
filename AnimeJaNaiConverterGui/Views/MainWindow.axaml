@@ -145,6 +145,9 @@
                   <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Folder</TextBlock>
                   <TextBox x:Name="OutputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding OutputFolderPath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
                   <Button Content="Select Folder" Click="OpenOutputFolderButtonClick" />
+                  <TextBlock Foreground="Gray" Width="450" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                    Path of the folder to save the upscaled video files.
+                  </TextBlock>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
@@ -157,7 +160,7 @@
 
                 <StackPanel Orientation="Horizontal" Margin="10,0,0,0">
                   <CheckBox IsChecked="{Binding OverwriteExistingVideos}" Content="Allow Videos in Output Path to be Overwritten" />
-                  <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">If unchecked, upscaling will be skipped for videos that already exist in the output path. If checked, any videos that already exist in the output path will be overwritten without warning. Use with caution.</TextBlock>
+                  <TextBlock Width="600" TextWrapping="WrapWithOverflow" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">If unchecked, upscaling will be skipped for videos that already exist in the output path. If checked, any videos that already exist in the output path will be overwritten without warning. Use with caution.</TextBlock>
                 </StackPanel>
                 
               </StackPanel>
