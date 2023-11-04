@@ -1,26 +1,31 @@
 using AnimeJaNaiConverterGui.ViewModels;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.ReactiveUI;
+using Material.Icons.Avalonia;
 using ReactiveUI;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace AnimeJaNaiConverterGui.Views
 {
     public partial class MainWindow : ReactiveWindow<MainWindowViewModel>
     {
         private bool _autoScrollConsole = true;
+        private bool _userWantsToQuit = false;
 
         public MainWindow()
         {
-            //InitializeComponent();
             AvaloniaXamlLoader.Load(this);
             this.WhenActivated(disposable => { });
             Resized += MainWindow_Resized;
@@ -37,11 +42,25 @@ namespace AnimeJaNaiConverterGui.Views
             outputFolderNameTextBox?.AddHandler(DragDrop.DropEvent, SetOutputFolderPath);
         }
 
-        private void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
+        private async void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
         {
             if (DataContext is MainWindowViewModel vm)
             {
-                vm.CancelUpscale();
+                // Show confirmation dialog
+                if (!_userWantsToQuit && vm.Upscaling)
+                {
+                    // Cancel close to show dialog
+                    e.Cancel = true;
+
+                    _userWantsToQuit = await ShowConfirmationDialog("If you exit now, all unfinished upscales will be canceled. Are you sure you want to exit?");
+
+                    // Close if the user confirmed
+                    if (_userWantsToQuit)
+                    {
+                        vm.CancelUpscale();
+                        Close();
+                    }
+                }
             }
         }
 
@@ -304,6 +323,85 @@ namespace AnimeJaNaiConverterGui.Views
                     vm.OutputFolderPath = files[0].TryGetLocalPath() ?? "";
                 }
             }
+        }
+
+        private async Task<bool> ShowConfirmationDialog(string message)
+        {
+            var dialog = new Window
+            {
+                Title = "Cancel unfinished upscales?",
+                Width = 480,
+                Height = 160,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Icon = Icon,
+                CanResize = false,
+                ShowInTaskbar = false
+            };
+
+            var textBlock = new TextBlock
+            {
+                Text = message,
+                Margin = new Thickness(20),
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 380,
+            };
+
+            var materialIcon = new MaterialIcon
+            {
+                Kind = Material.Icons.MaterialIconKind.QuestionMarkCircleOutline,
+                Width = 48,
+                Height = 48,
+            };
+
+            var textPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(20),
+                Children = { materialIcon, textBlock },
+            };
+
+            var yesButton = new Button
+            {
+                Content = "Yes",
+                Width = 100,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+            yesButton.Click += (sender, e) => dialog.Close(true);
+
+            var noButton = new Button
+            {
+                Content = "No",
+                Width = 100,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalAlignment= VerticalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 0)
+            };
+            noButton.Click += (sender, e) => dialog.Close(false);
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Children = { yesButton, noButton },
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(20, 0, 20, 20)
+            };
+
+            var mainPanel = new StackPanel
+            {
+                Children = { textPanel, buttonPanel }
+            };
+
+            dialog.Content = mainPanel;
+            var result = await dialog.ShowDialog<bool?>(this);
+
+            return result ?? false;
         }
     }
 }

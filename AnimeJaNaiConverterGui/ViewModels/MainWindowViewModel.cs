@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reactive;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
@@ -52,6 +51,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
             set
             {
                 this.RaiseAndSetIfChanged(ref _validationText, value);
+                this.RaisePropertyChanged(nameof(LeftStatus));
             }
         }
 
@@ -211,6 +211,26 @@ namespace AnimeJaNaiConverterGui.ViewModels
             set => this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value);
         }
 
+        private bool _showConsole = false;
+        public bool ShowConsole
+        {
+            get => _showConsole;
+            set => this.RaiseAndSetIfChanged(ref _showConsole, value);
+        }
+
+        private string _inputStatusText = string.Empty;
+        public string InputStatusText
+        {
+            get => _inputStatusText;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _inputStatusText, value);
+                this.RaisePropertyChanged(nameof(LeftStatus));
+            }
+        }
+
+        public string LeftStatus => !Valid ? ValidationText.Replace("\n", " ") : $"{InputStatusText} selected for upscaling.";
+
         private bool _valid = false;
         [IgnoreDataMember]
         public bool Valid
@@ -306,6 +326,170 @@ namespace AnimeJaNaiConverterGui.ViewModels
             DirectMlSelected = false;
         }
 
+        private void CheckInputs()
+        {
+            //if (Valid && !Upscaling)
+            //{
+            //    var overwriteText = OverwriteExistingVideos ? "overwritten" : "skipped";
+
+            //    // input file
+            //    if (SelectedTabIndex == 0)
+            //    {
+            //        StringBuilder status = new();
+            //        var skipFiles = 0;
+
+
+
+            //        if (IMAGE_EXTENSIONS.Any(x => InputFilePath.ToLower().EndsWith(x)))
+            //        {
+            //            var outputFilePath = Path.ChangeExtension(
+            //                                    Path.Join(
+            //                                        Path.GetFullPath(OutputFolderPath),
+            //                                        OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(InputFilePath))),
+            //                                    ImageFormat);
+            //            if (File.Exists(outputFilePath))
+            //            {
+            //                status.Append($" (1 image already exists and will be {overwriteText})");
+            //                if (!OverwriteExistingVideos)
+            //                {
+            //                    skipFiles++;
+            //                }
+            //            }
+            //        }
+            //        else if (ARCHIVE_EXTENSIONS.Any(x => InputFilePath.ToLower().EndsWith(x)))
+            //        {
+            //            var outputFilePath = Path.ChangeExtension(
+            //                                    Path.Join(
+            //                                        Path.GetFullPath(OutputFolderPath),
+            //                                        OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(InputFilePath))),
+            //                                    "cbz");
+            //            if (File.Exists(outputFilePath))
+            //            {
+            //                status.Append($" (1 archive already exists and will be {overwriteText})");
+            //                if (!OverwriteExistingVideos)
+            //                {
+            //                    skipFiles++;
+            //                }
+            //            }
+            //        }
+            //        else
+            //        {
+            //            // TODO ???
+            //        }
+
+            //        var s = skipFiles > 0 ? "s" : "";
+            //        if (IMAGE_EXTENSIONS.Any(x => InputFilePath.ToLower().EndsWith(x)))
+            //        {
+            //            status.Insert(0, $"{1 - skipFiles} image{s}");
+            //        }
+            //        else if (ARCHIVE_EXTENSIONS.Any(x => InputFilePath.ToLower().EndsWith(x)))
+            //        {
+            //            status.Insert(0, $"{1 - skipFiles} archive{s}");
+            //        }
+            //        else
+            //        {
+            //            status.Insert(0, "0 files");
+            //        }
+
+            //        InputStatusText = status.ToString();
+            //        ProgressCurrentFile = 0;
+            //        ProgressTotalFiles = 1 - skipFiles;
+            //        ProgressCurrentFileInArchive = 0;
+            //        ProgressTotalFilesInCurrentArchive = 0;
+            //        ShowArchiveProgressBar = false;
+            //    }
+            //    else  // input folder
+            //    {
+            //        List<string> statuses = new();
+            //        var existImageCount = 0;
+            //        var existArchiveCount = 0;
+            //        var totalFileCount = 0;
+
+            //        if (UpscaleImages)
+            //        {
+            //            var images = Directory.EnumerateFiles(InputFolderPath, "*.*", SearchOption.AllDirectories)
+            //                .Where(file => IMAGE_EXTENSIONS.Any(ext => file.ToLower().EndsWith(ext)));
+            //            var imagesCount = 0;
+
+            //            foreach (var inputImagePath in images)
+            //            {
+            //                var outputImagePath = Path.ChangeExtension(
+            //                                        Path.Join(
+            //                                            Path.GetFullPath(OutputFolderPath),
+            //                                            OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(inputImagePath))),
+            //                                        ImageFormat);
+            //                // if out file exists, exist count ++
+            //                // if overwrite image OR out file doesn't exist, count image++
+            //                var fileExists = File.Exists(outputImagePath);
+
+            //                if (fileExists)
+            //                {
+            //                    existImageCount++;
+            //                }
+
+            //                if (!fileExists || OverwriteExistingVideos)
+            //                {
+            //                    imagesCount++;
+            //                }
+            //            }
+
+            //            var imageS = imagesCount == 1 ? "" : "s";
+            //            var existImageS = existImageCount == 1 ? "" : "s";
+
+            //            statuses.Add($"{imagesCount} image{imageS} ({existImageCount} image{existImageS} already exist and will be {overwriteText})");
+            //            totalFileCount += imagesCount;
+            //        }
+            //        if (UpscaleArchives)
+            //        {
+            //            var archives = Directory.EnumerateFiles(InputFolderPath, "*.*", SearchOption.AllDirectories)
+            //                .Where(file => ARCHIVE_EXTENSIONS.Any(ext => file.ToLower().EndsWith(ext)));
+            //            var archivesCount = 0;
+
+            //            foreach (var inputArchivePath in archives)
+            //            {
+            //                var outputArchivePath = Path.ChangeExtension(
+            //                                            Path.Join(
+            //                                                Path.GetFullPath(OutputFolderPath),
+            //                                                OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(inputArchivePath))),
+            //                                            "cbz");
+            //                var fileExists = File.Exists(outputArchivePath);
+
+            //                if (fileExists)
+            //                {
+            //                    existArchiveCount++;
+            //                }
+
+            //                if (!fileExists || OverwriteExistingVideos)
+            //                {
+            //                    archivesCount++;
+            //                }
+            //            }
+
+            //            var archiveS = archivesCount == 1 ? "" : "s";
+            //            var existArchiveS = existArchiveCount == 1 ? "" : "s";
+            //            statuses.Add($"{archivesCount} archive{archiveS} ({existArchiveCount} archive{existArchiveS} already exist and will be {overwriteText})");
+            //            totalFileCount += archivesCount;
+            //        }
+
+            //        if (!UpscaleArchives && !UpscaleImages)
+            //        {
+            //            InputStatusText = "0 files";
+            //        }
+            //        else
+            //        {
+            //            InputStatusText = $"{string.Join(" and ", statuses)}";
+            //        }
+
+            //        ProgressCurrentFile = 0;
+            //        ProgressTotalFiles = totalFileCount;
+            //        ProgressCurrentFileInArchive = 0;
+            //        ProgressTotalFilesInCurrentArchive = 0;
+            //        ShowArchiveProgressBar = false;
+
+            //    }
+            //}
+        }
+
         public void Validate()
         {
             var valid = true;
@@ -349,6 +533,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
             }
 
             Valid = valid;
+            CheckInputs();
             ValidationText = string.Join("\n", validationText);
         }
 
@@ -408,6 +593,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
         {
             _cancellationTokenSource = new CancellationTokenSource();
             var ct = _cancellationTokenSource.Token;
+            ShowConsole = true;
 
             var task = Task.Run(async () =>
             {
