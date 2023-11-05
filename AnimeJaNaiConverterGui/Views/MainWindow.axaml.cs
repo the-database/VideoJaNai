@@ -11,6 +11,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.ReactiveUI;
 using Material.Icons.Avalonia;
 using ReactiveUI;
+using Squirrel;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -59,6 +60,15 @@ namespace AnimeJaNaiConverterGui.Views
                         Close();
                     }
                 }
+                else
+                {
+                    using var mgr = new UpdateManager("https://github.com/the-database/AnimeJaNaiConverterGui/releases");
+                    if (!mgr.IsInstalledApp)
+                    {
+                        return;
+                    }
+                    var newVersion = await mgr.UpdateApp();
+                }
             }
         }
 
@@ -104,6 +114,23 @@ namespace AnimeJaNaiConverterGui.Views
 
         private async void OpenInputFileButtonClick(object? sender, RoutedEventArgs e)
         {
+            
+
+            // Get the resources
+            var resources = Application.Current.Resources;
+            foreach (var resourceKey in resources.Keys)
+            {
+                var resourceValue = resources[resourceKey];
+
+                
+                //if (resourceValue.HasDynamicResource())
+                //{
+                //    // This resource has a dynamic reference
+                //    Console.WriteLine($"Resource '{resourceKey}' is a dynamic resource.");
+                //}
+            }
+
+
             // Get top level from the current control. Alternatively, you can use Window reference instead.
             var topLevel = TopLevel.GetTopLevel(this);
 
