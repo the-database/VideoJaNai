@@ -2,6 +2,7 @@
 using DynamicData;
 using ReactiveUI;
 using Salaros.Configuration;
+using SevenZipExtractor;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -238,12 +239,23 @@ namespace AnimeJaNaiConverterGui.ViewModels
             set => this.RaiseAndSetIfChanged(ref _showConsole, value);
         }
 
+
+
         private bool _showAppSettings = false;
-        public bool ShowAppSettings
+        public bool RequestShowAppSettings
         {
             get => _showAppSettings;
-            set => this.RaiseAndSetIfChanged(ref _showAppSettings, value);
+            set 
+            { 
+                this.RaiseAndSetIfChanged(ref _showAppSettings, value); 
+                this.RaisePropertyChanged(nameof(ShowAppSettings));
+                this.RaisePropertyChanged(nameof(ShowMainForm));
+            }
         }
+
+        public bool ShowAppSettings => RequestShowAppSettings && !IsExtractingBackend;
+
+        public bool ShowMainForm => !RequestShowAppSettings && !IsExtractingBackend;
 
         private string _inputStatusText = string.Empty;
         public string InputStatusText
@@ -288,6 +300,18 @@ namespace AnimeJaNaiConverterGui.ViewModels
                 this.RaiseAndSetIfChanged(ref _upscaling, value);
                 this.RaisePropertyChanged(nameof(UpscaleEnabled));
                 this.RaisePropertyChanged(nameof(LeftStatus));
+            }
+        }
+
+        private bool _isExtractingBackend = false;
+        public bool IsExtractingBackend
+        {
+            get => _isExtractingBackend;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _isExtractingBackend, value);
+                this.RaisePropertyChanged(nameof(RequestShowAppSettings));
+                this.RaisePropertyChanged(nameof(ShowMainForm));
             }
         }
 
@@ -698,6 +722,24 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
             }
             ConsoleQueue.Enqueue(value);
             this.RaisePropertyChanged(nameof(ConsoleText));
+        }
+
+        public void CheckAndExtractBackend()
+        {
+            Task.Run(() =>
+            {
+                var backendArchivePath = Path.GetFullPath("./mpv-upscale-2x_animejanai.7z");
+
+                if (File.Exists(backendArchivePath))
+                {
+                    IsExtractingBackend = true;
+                    using ArchiveFile archiveFile = new(backendArchivePath);
+                    archiveFile.Extract(".");
+                    archiveFile.Dispose();
+                    File.Delete(backendArchivePath);
+                    IsExtractingBackend = false;
+                }
+            });            
         }
     }
 

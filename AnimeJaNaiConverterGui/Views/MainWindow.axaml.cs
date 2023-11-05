@@ -31,6 +31,7 @@ namespace AnimeJaNaiConverterGui.Views
             this.WhenActivated(disposable => { });
             Resized += MainWindow_Resized;
             Closing += MainWindow_Closing;
+            Opened += MainWindow_Opened;
 
             var inputFileNameTextBox = this.FindControl<TextBox>("InputFileNameTextBox");
             var inputFolderNameTextBox = this.FindControl<TextBox>("InputFolderNameTextBox");
@@ -39,6 +40,14 @@ namespace AnimeJaNaiConverterGui.Views
             inputFileNameTextBox?.AddHandler(DragDrop.DropEvent, SetInputFilePath);
             inputFolderNameTextBox?.AddHandler(DragDrop.DropEvent, SetInputFolderPath);
             outputFolderNameTextBox?.AddHandler(DragDrop.DropEvent, SetOutputFolderPath);
+        }
+
+        private void MainWindow_Opened(object? sender, EventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+                vm.CheckAndExtractBackend();
+            }
         }
 
         private async void MainWindow_Closing(object? sender, WindowClosingEventArgs e)

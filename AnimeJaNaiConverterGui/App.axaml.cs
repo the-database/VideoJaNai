@@ -7,6 +7,8 @@ using Avalonia.ReactiveUI;
 using NuGet.Versioning;
 using ReactiveUI;
 using Squirrel;
+using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace AnimeJaNaiConverterGui
@@ -22,9 +24,9 @@ namespace AnimeJaNaiConverterGui
             AvaloniaXamlLoader.Load(this);
         }
 
-        public override async void OnFrameworkInitializationCompleted()
+        public override void OnFrameworkInitializationCompleted()
         {
-            var suspension = new AutoSuspendHelper(ApplicationLifetime);
+            var suspension = new AutoSuspendHelper(ApplicationLifetime!);
             RxApp.SuspensionHost.CreateNewAppState = () => new MainWindowViewModel();
             RxApp.SuspensionHost.SetupDefaultSuspendResume(new NewtonsoftJsonSuspensionDriver("appstate.json"));
             suspension.OnFrameworkInitializationCompleted();
