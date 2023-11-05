@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.34031.279
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnimeJaNaiConverterGui", "AnimeJaNaiConverterGui\AnimeJaNaiConverterGui.csproj", "{28CB0170-1C94-4D8B-94B1-D4FDF71B827E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AnimeJaNaiConverterGui", "AnimeJaNaiConverterGui\AnimeJaNaiConverterGui.csproj", "{28CB0170-1C94-4D8B-94B1-D4FDF71B827E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SevenZipExtractor", "SevenZipExtractor\SevenZipExtractor.csproj", "{A4162498-4459-4FE9-882B-212844296462}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{28CB0170-1C94-4D8B-94B1-D4FDF71B827E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{28CB0170-1C94-4D8B-94B1-D4FDF71B827E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{28CB0170-1C94-4D8B-94B1-D4FDF71B827E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A4162498-4459-4FE9-882B-212844296462}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4162498-4459-4FE9-882B-212844296462}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A4162498-4459-4FE9-882B-212844296462}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A4162498-4459-4FE9-882B-212844296462}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

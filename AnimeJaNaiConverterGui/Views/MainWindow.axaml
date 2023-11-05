@@ -41,7 +41,8 @@
     </Design.DataContext>
   <Grid>
     <DockPanel>
-      <StackPanel DockPanel.Dock="Bottom">
+      <!--Bottom Status Panel -->
+      <StackPanel DockPanel.Dock="Bottom" IsVisible="{Binding !IsExtractingBackend}">
 
         <StackPanel Orientation="Horizontal">
           <Button Margin="20,10,0,10" FontWeight="Bold" Background="Green" IsEnabled="{Binding UpscaleEnabled}" Command="{Binding RunUpscale}">
@@ -79,7 +80,7 @@
               </StackPanel>
             </ToggleButton>
 
-            <ToggleButton FontSize="10" Margin="5,0,5,0" IsChecked="{Binding ShowAppSettings}">
+            <ToggleButton FontSize="10" Margin="5,0,5,0" IsChecked="{Binding RequestShowAppSettings}">
               <StackPanel Orientation="Horizontal">
                 <materialIcons:MaterialIcon Kind="Gear" VerticalAlignment="Center" />
                 <TextBlock Margin="5,0,5,0" VerticalAlignment="Center">App Settings</TextBlock>
@@ -92,7 +93,7 @@
       </StackPanel>
       
       
-    <ScrollViewer HorizontalScrollBarVisibility="Auto" IsVisible="{Binding !ShowAppSettings}">
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" IsVisible="{Binding ShowMainForm}">
       <StackPanel Margin="20">
         <TextBlock FontWeight="Bold" Text="Video Input and Output"></TextBlock>
         <Border Classes="border">
@@ -323,7 +324,7 @@
         </Border>
 
         <Border Classes="border">
-          <ToggleButton DockPanel.Dock="Right" Margin="10,10,0,10" IsChecked="{Binding !ShowAppSettings}">
+          <ToggleButton DockPanel.Dock="Right" Margin="10,10,0,10" IsChecked="{Binding !RequestShowAppSettings}">
             <StackPanel Orientation="Horizontal">
               <materialIcons:MaterialIcon Kind="ArrowBackCircle" />
               <TextBlock Margin="5,0,0,0">Return</TextBlock>
@@ -332,5 +333,9 @@
         </Border>
       </StackPanel>
     </StackPanel>
+
+    <Grid IsVisible="{Binding IsExtractingBackend}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+      <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">Performing first time setup. This may take several minutes...</TextBlock>
+    </Grid>
   </Grid>
 </Window>
