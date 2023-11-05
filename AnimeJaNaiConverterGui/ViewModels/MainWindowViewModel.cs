@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
@@ -33,6 +34,16 @@ namespace AnimeJaNaiConverterGui.ViewModels
 
         private CancellationTokenSource? _cancellationTokenSource;
         private Process? _runningProcess = null;
+
+        public string AppVersion => Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+
+        private bool _autoUpdate = true;
+        [DataMember]
+        public bool AutoUpdateEnabled
+        {
+            get => _autoUpdate;
+            set => this.RaiseAndSetIfChanged(ref _autoUpdate, value);
+        }
 
         private int _selectedTabIndex;
         [DataMember]
@@ -225,6 +236,13 @@ namespace AnimeJaNaiConverterGui.ViewModels
         {
             get => _showConsole;
             set => this.RaiseAndSetIfChanged(ref _showConsole, value);
+        }
+
+        private bool _showAppSettings = false;
+        public bool ShowAppSettings
+        {
+            get => _showAppSettings;
+            set => this.RaiseAndSetIfChanged(ref _showAppSettings, value);
         }
 
         private string _inputStatusText = string.Empty;

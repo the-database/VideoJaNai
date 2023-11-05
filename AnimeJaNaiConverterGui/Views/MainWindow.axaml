@@ -39,9 +39,8 @@
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainWindowViewModel/>
     </Design.DataContext>
-
+  <Grid>
     <DockPanel>
-
       <StackPanel DockPanel.Dock="Bottom">
 
         <StackPanel Orientation="Horizontal">
@@ -78,7 +77,13 @@
                 <materialIcons:MaterialIcon Kind="Console" VerticalAlignment="Center" />
                 <TextBlock Margin="5,0,5,0" VerticalAlignment="Center">Console</TextBlock>
               </StackPanel>
+            </ToggleButton>
 
+            <ToggleButton FontSize="10" Margin="5,0,5,0" IsChecked="{Binding ShowAppSettings}">
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Kind="Gear" VerticalAlignment="Center" />
+                <TextBlock Margin="5,0,5,0" VerticalAlignment="Center">App Settings</TextBlock>
+              </StackPanel>
             </ToggleButton>
           </StackPanel>
 
@@ -87,7 +92,7 @@
       </StackPanel>
       
       
-    <ScrollViewer HorizontalScrollBarVisibility="Auto">
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" IsVisible="{Binding !ShowAppSettings}">
       <StackPanel Margin="20">
         <TextBlock FontWeight="Bold" Text="Video Input and Output"></TextBlock>
         <Border Classes="border">
@@ -291,4 +296,41 @@
       </StackPanel>
     </ScrollViewer>
     </DockPanel>
+
+    <!-- Settings Overlay -->
+    <StackPanel IsVisible="{Binding ShowAppSettings}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0,0,0,30">
+      <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="20">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Left" FontWeight="Bold" Text="App Settings"></TextBlock>
+         
+        </DockPanel>
+
+        <Border Classes="border">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+              <CheckBox IsChecked="{Binding AutoUpdateEnabled}">Auto Update</CheckBox>
+              <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                Whether to automatically check for and install app updates.
+              </TextBlock>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+              <TextBlock Text="Current Version" VerticalAlignment="Center"></TextBlock>
+              <TextBlock VerticalAlignment="Center" FontFamily="Consolas" Text="{Binding AppVersion}" Margin="20,0,0,0"></TextBlock>    
+              <hypertext:Hyperlink VerticalAlignment="Center" Margin="20,0,0,0" Url="https://github.com/the-database/AnimeJaNaiConverterGui/releases"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="border">
+          <ToggleButton DockPanel.Dock="Right" Margin="10,10,0,10" IsChecked="{Binding !ShowAppSettings}">
+            <StackPanel Orientation="Horizontal">
+              <materialIcons:MaterialIcon Kind="ArrowBackCircle" />
+              <TextBlock Margin="5,0,0,0">Return</TextBlock>
+            </StackPanel>
+          </ToggleButton>
+        </Border>
+      </StackPanel>
+    </StackPanel>
+  </Grid>
 </Window>
