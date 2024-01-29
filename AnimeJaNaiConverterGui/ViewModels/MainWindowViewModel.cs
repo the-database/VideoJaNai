@@ -168,7 +168,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
             set => this.RaiseAndSetIfChanged(ref _finalResizeHeight, value);
         }
 
-        private string _finalResizeFactor = 1.ToString();
+        private string _finalResizeFactor = 100.ToString();
         [DataMember]
         public string FinalResizeFactor
         {
@@ -520,18 +520,19 @@ namespace AnimeJaNaiConverterGui.ViewModels
 
         public void SetupAnimeJaNaiConfSlot1()
         {
-            var confPath = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\portable_config\shaders\animejanai_v2.conf");
+            var confPath = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\animejanai\animejanai.conf");
             var backend = DirectMlSelected ? "DirectML" : NcnnSelected ? "NCNN" : "TensorRT";
             HashSet<string> filesNeedingEngine = new();
             var configText = new StringBuilder($@"[global]
 logging=yes
 backend={backend}
 [slot_1]
+profile_name=encode
 ");
 
             for (var i = 0; i < UpscaleSettings.Count; i++)
             {
-                var targetCopyPath = @$".\mpv-upscale-2x_animejanai\vapoursynth64\plugins\models\animejanai\{Path.GetFileName(UpscaleSettings[i].OnnxModelPath)}";
+                var targetCopyPath = @$".\mpv-upscale-2x_animejanai\animejanai\onnx\{Path.GetFileName(UpscaleSettings[i].OnnxModelPath)}";
 
                 if (Path.GetFullPath(targetCopyPath) != Path.GetFullPath(UpscaleSettings[i].OnnxModelPath))
                 {
@@ -560,7 +561,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
 
             for (var i = 0; i < UpscaleSettings.Count; i++)
             {
-                var enginePath = @$".\mpv-upscale-2x_animejanai\vapoursynth64\plugins\models\animejanai\{Path.GetFileNameWithoutExtension(UpscaleSettings[i].OnnxModelPath)}.engine";
+                var enginePath = @$".\mpv-upscale-2x_animejanai\animejanai\onnx\{Path.GetFileNameWithoutExtension(UpscaleSettings[i].OnnxModelPath)}.engine";
 
                 if (!File.Exists(enginePath))
                 {
@@ -576,8 +577,8 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
             var ct = _cancellationTokenSource.Token;
             ShowConsole = true;
 
-            var task = Task.Run(async () =>
-            {
+            //var task = Task.Run(async () =>
+            //{
                 ct.ThrowIfCancellationRequested();
                 ConsoleQueueClear();
                 Upscaling = true;
@@ -613,11 +614,11 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                 }
 
                 Valid = true;
-            }, ct);
+            //}, ct);
 
             try
             {
-                await task;
+                //await task;
                 Validate();
             }
             catch (OperationCanceledException e)
@@ -651,14 +652,14 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
 
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
-            var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_v2_encode.vpy - | ffmpeg {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {FfmpegVideoSettings} -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
+            var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_encode.vpy - | ffmpeg {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {FfmpegVideoSettings} -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
             ConsoleQueueEnqueue($"Upscaling with command: {cmd}");
             await RunCommand($@" /C {cmd}");
         }
 
         public async Task GenerateEngine(string inputFilePath)
         {
-            var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ./animejanai_v2_encode.vpy -p .";
+            var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ./animejanai_encode.vpy -p .";
             ConsoleQueueEnqueue($"Generating TensorRT engine with command: {cmd}");
             await RunCommand($@" /C {cmd}");
         }
@@ -675,7 +676,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                 process.StartInfo.RedirectStandardError = true;
                 process.StartInfo.UseShellExecute = false;
                 process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.WorkingDirectory = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\portable_config\shaders");
+                process.StartInfo.WorkingDirectory = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\animejanai\core");
 
                 // Create a StreamWriter to write the output to a log file
                 using (var outputFile = new StreamWriter("error.log", append: true))
@@ -762,7 +763,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
             set => this.RaiseAndSetIfChanged(ref _resizeHeightBeforeUpscale, value);
         }
 
-        private string _resizeFactorBeforeUpscale = 1.0.ToString();
+        private string _resizeFactorBeforeUpscale = 100.ToString();
         [DataMember]
         public string ResizeFactorBeforeUpscale
         {

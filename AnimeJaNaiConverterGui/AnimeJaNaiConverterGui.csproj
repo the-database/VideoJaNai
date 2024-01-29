@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -31,19 +31,20 @@
 
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.0.5" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.0.5" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.5" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.5" />
+    <PackageReference Include="Avalonia" Version="11.0.7" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.0.7" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.7" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.7" />
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.5" />
-    <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.5" />
+    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.7" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.7" />
     <PackageReference Include="Clowd.Squirrel" Version="3.0.210-g5f9f594" />
+    <PackageReference Include="FluentAvaloniaUI" Version="2.0.5" />
     <PackageReference Include="HyperText.Avalonia" Version="11.0.0-rc1" />
-    <PackageReference Include="Material.Icons.Avalonia" Version="2.0.1" />
+    <PackageReference Include="Material.Icons.Avalonia" Version="2.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Salaros.ConfigParser" Version="0.3.8" />
-    <PackageReference Include="SharpCompress" Version="0.34.1" />
+    <PackageReference Include="SharpCompress" Version="0.36.0" />
   </ItemGroup>
 
 
@@ -54,6 +55,9 @@
 
   <ItemGroup>
     <None Update="appstate.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="mpv-upscale-2x_animejanai\**\*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

@@ -222,7 +222,7 @@
                   <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ShowAdvancedSettings}">
                     <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Factor Before Upscale</TextBlock>
                     <TextBox Margin="0,0,5,0" Text="{Binding ResizeFactorBeforeUpscale}" IsReadOnly="False" />
-                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">x</TextBlock>
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">%</TextBlock>
                     <TextBlock Foreground="Gray" Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
                       Resize the video by this factor before running this model. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half. This setting is ignored if Resize Height Before Upscale is specified.
                     </TextBlock>
@@ -275,7 +275,7 @@
         <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowAdvancedSettings}">
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Factor</TextBlock>
           <TextBox Margin="0,0,5,0" VerticalAlignment="Center" Text="{Binding FinalResizeFactor, FallbackValue=1}" IsReadOnly="False" />
-          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">x</TextBlock>
+          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">%</TextBlock>
           <TextBlock Foreground="Gray" Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
             Resize the video by this factor after running all models. The video width and height are divided by this number, so a value of 1 performs no resize, and a value of 2 cuts the width and height of the video in half. This setting is ignored if Final Resize Height is specified. Note that the final video width and height must be divisble by 2 or the output video will be invalid.
           </TextBlock>
