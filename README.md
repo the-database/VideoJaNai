@@ -4,7 +4,8 @@
 ## Overview
 This project provides a Windows GUI for upscaling videos with ONNX compact models and frame interpolation with RIFE. By utilizing NVIDIA TensorRT and Vapoursynth, it provides the fastest possible inference speeds. DirectML and NCNN backends are also available for AMD and Intel graphics cards.
 
-![image](https://github.com/the-database/AnimeJaNaiConverterGui/assets/25811902/d2ba1480-0be4-442b-b6f8-f02cb13b4457)
+![image](https://github.com/the-database/AnimeJaNaiConverterGui/assets/25811902/83cc315b-8a5a-4c39-b114-5057edab5c9c)
+
 
 
 ## Resources
