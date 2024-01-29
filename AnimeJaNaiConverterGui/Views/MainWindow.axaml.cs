@@ -9,6 +9,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.ReactiveUI;
+using FluentAvalonia.UI.Windowing;
 using Material.Icons.Avalonia;
 using ReactiveUI;
 using Squirrel;
@@ -20,7 +21,7 @@ using System.Threading.Tasks;
 
 namespace AnimeJaNaiConverterGui.Views
 {
-    public partial class MainWindow : ReactiveWindow<MainWindowViewModel>
+    public partial class MainWindow : AppWindow
     {
         private bool _autoScrollConsole = true;
         private bool _userWantsToQuit = false;
@@ -28,7 +29,7 @@ namespace AnimeJaNaiConverterGui.Views
         public MainWindow()
         {
             AvaloniaXamlLoader.Load(this);
-            this.WhenActivated(disposable => { });
+            //this.WhenActivated(disposable => { }); // TODO ???
             Resized += MainWindow_Resized;
             Closing += MainWindow_Closing;
             Opened += MainWindow_Opened;
@@ -230,7 +231,7 @@ namespace AnimeJaNaiConverterGui.Views
                 Title = "Open ONNX Model File",
                 AllowMultiple = false,
                 FileTypeFilter = new FilePickerFileType[] { new("ONNX Model File") { Patterns = new[] { "*.onnx" }, MimeTypes = new[] { "*/*" } }, FilePickerFileTypes.All },
-                SuggestedStartLocation = await storageProvider.TryGetFolderFromPathAsync(new Uri(Path.GetFullPath(@".\mpv-upscale-2x_animejanai\vapoursynth64\plugins\models\animejanai"))),
+                SuggestedStartLocation = await storageProvider.TryGetFolderFromPathAsync(new Uri(Path.GetFullPath(@".\mpv-upscale-2x_animejanai\animejanai\onnx"))),
             });
 
             if (files.Count >= 1)
@@ -317,7 +318,7 @@ namespace AnimeJaNaiConverterGui.Views
                 Width = 480,
                 Height = 160,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Icon = Icon,
+                //Icon = Icon, // TODO
                 CanResize = false,
                 ShowInTaskbar = false
             };

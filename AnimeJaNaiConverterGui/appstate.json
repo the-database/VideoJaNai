@@ -13,7 +13,7 @@
         "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
         "ModelHeader": "Model 1",
         "ResizeHeightBeforeUpscale": 0,
-        "ResizeFactorBeforeUpscale": 1.0,
+        "ResizeFactorBeforeUpscale": 100,
         "OnnxModelPath": ""
       }
     ]
