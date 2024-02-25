@@ -59,19 +59,62 @@ def find_model(model_type, binding):
     return None
 
 
-def create_engine(onnx_name):
+def use_dynamic_engine(width, height):
+    return width <= 1920 and height <= 1080
+
+
+def get_engine_path(onnx_name, width, height):
+    if use_dynamic_engine(width, height):
+        name = f"{onnx_name}.engine"
+    else:
+        name = f"{onnx_name}-static-{width}x{height}.engine"
+
+    return os.path.join(model_path, name)
+
+
+def get_static_engine_path(onnx_name, width, height):
+    return os.path.join(model_path, f"{onnx_name}-static-{width}x{height}.engine")
+
+
+def get_dynamic_engine_path(onnx_name):
+    return os.path.join(model_path, f"{onnx_name}.engine")
+
+
+def create_engine(onnx_name, width, height):
+    if use_dynamic_engine(width, height):
+        create_dynamic_engine(onnx_name, width, height)
+    else:
+        create_static_engine(onnx_name, width, height)
+
+
+def create_static_engine(onnx_name, width, height):
     onnx_path = os.path.join(model_path, f"{onnx_name}.onnx")
     if not os.path.isfile(onnx_path):
         raise FileNotFoundError(onnx_path)
 
-    engine_path = os.path.join(model_path, f"{onnx_name}.engine")
+    engine_path = get_engine_path(onnx_name, width, height)
+
+    commands = [os.path.join(plugin_path, "trtexec"), "--fp16", f"--onnx={onnx_path}",
+                    f"--optShapes=input:1x3x{height}x{width}",
+                    "--skipInference", "--infStreams=4", "--builderOptimizationLevel=4",
+                    f"--saveEngine={engine_path}", "--tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT"]
+
+    logger.debug(' '.join(commands))
+
+    subprocess.run(commands,
+                   cwd=plugin_path)
+
+
+def create_dynamic_engine(onnx_name, width, height):
+    onnx_path = os.path.join(model_path, f"{onnx_name}.onnx")
+    if not os.path.isfile(onnx_path):
+        raise FileNotFoundError(onnx_path)
+
+    engine_path = get_engine_path(onnx_name, width, height)
 
     commands = [os.path.join(plugin_path, "trtexec"), "--fp16", f"--onnx={onnx_path}",
                     "--minShapes=input:1x3x8x8", "--optShapes=input:1x3x1080x1920", "--maxShapes=input:1x3x1080x1920",
-                    "--skipInference", "--infStreams=4", "--builderOptimizationLevel=4", 
-                    # "--layerPrecisions=*:fp16",
-                    # "--layerOutputTypes=*:fp16", "--precisionConstraints=obey", "--inputIOFormats=fp16:chw",
-                    # "--outputIOFormats=fp16:chw", "--useCudaGraph", "--noDataTransfers", "--verbose",
+                    "--skipInference", "--infStreams=4", "--builderOptimizationLevel=4",
                     f"--saveEngine={engine_path}", "--tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT"]
 
     logger.debug(' '.join(commands))
@@ -93,7 +136,7 @@ def scale_to_1080(clip, w=1920, h=1080):
 def upscale2x(clip, backend, engine_name, num_streams):
     if engine_name is None:
         return clip
-    engine_path = os.path.join(model_path, f"{engine_name}.engine")
+    engine_path =  get_engine_path(engine_name, clip.width, clip.height)  #os.path.join(model_path, f"{engine_name}.engine")
     network_path = os.path.join(model_path, f"{engine_name}.onnx")
 
     message = f"upscale2x: scaling 2x from {clip.width}x{clip.height} with engine={engine_name}; num_streams={num_streams}"
@@ -111,15 +154,41 @@ def upscale2x(clip, backend, engine_name, num_streams):
             clip,
             fp16=True,
             network_path=network_path)
-    else: # TensorRT
-        if not os.path.isfile(engine_path):
-            create_engine(engine_name)
+    else:  # TensorRT
 
-        return core.trt.Model(
-            clip,
-            engine_path=engine_path,
-            num_streams=num_streams,
-        )
+        if use_dynamic_engine(clip.width, clip.height):
+            try:
+                upscale2x_trt_dynamic(clip, engine_name, num_streams)
+            except:
+                upscale2x_trt_static(clip, engine_name, num_streams)
+        else:
+            upscale2x_trt_static(clip, engine_name, num_streams)
+
+
+def upscale2x_trt_static(clip, engine_name, num_streams):
+    engine_path = get_static_engine_path(engine_name, clip.width, clip.height)
+
+    if not os.path.isfile(engine_path):
+        create_static_engine(engine_name, clip.width, clip.height)
+
+    return core.trt.Model(
+        clip,
+        engine_path=engine_path,
+        num_streams=num_streams
+    )
+
+
+def upscale2x_trt_dynamic(clip, engine_name, num_streams):
+    engine_path = get_dynamic_engine_path(engine_name)
+
+    if not os.path.isfile(engine_path):
+        create_dynamic_engine(engine_name, clip.width, clip.height)
+
+    return core.trt.Model(
+        clip,
+        engine_path=engine_path,
+        num_streams=num_streams
+    )
 
 
 def run_animejanai(clip, container_fps, chain_conf, backend):
@@ -186,9 +255,6 @@ def run_animejanai_upscale(clip, backend, model_conf, num_streams):
         clip = scale_to_1080(clip, model_conf['resize_height_before_upscale'] * 16 / 9,
                              model_conf['resize_height_before_upscale'])
         current_logger_steps.append(f"Applied Resize Height Before Upscale: {model_conf['resize_height_before_upscale']}px;    New Video Resolution: {clip.width}x{clip.height}")
-    elif clip.height > 1080:
-        clip = scale_to_1080(clip)
-        current_logger_steps.append(f"Applied Resize to Video Larger than 1080p;    New Video Resolution: {clip.width}x{clip.height}")
 
     # upscale 2x
     return upscale2x(clip, backend, model_conf['name'], num_streams)
