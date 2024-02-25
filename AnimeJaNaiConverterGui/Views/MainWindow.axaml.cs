@@ -12,23 +12,27 @@ using Avalonia.ReactiveUI;
 using FluentAvalonia.UI.Windowing;
 using Material.Icons.Avalonia;
 using ReactiveUI;
-using Squirrel;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Velopack;
 
 namespace AnimeJaNaiConverterGui.Views
 {
     public partial class MainWindow : AppWindow
     {
+        private readonly UpdateManager _um;
+        private UpdateInfo _update;
+
         private bool _autoScrollConsole = true;
         private bool _userWantsToQuit = false;
 
         public MainWindow()
         {
             AvaloniaXamlLoader.Load(this);
+            _um = new UpdateManager("https://github.com/the-database/AnimeJaNaiConverterGui/releases", logger: Program.Log);
             //this.WhenActivated(disposable => { }); // TODO ???
             Resized += MainWindow_Resized;
             Closing += MainWindow_Closing;
@@ -72,12 +76,15 @@ namespace AnimeJaNaiConverterGui.Views
                 }
                 else
                 {
-                    using var mgr = new UpdateManager("https://github.com/the-database/AnimeJaNaiConverterGui/releases");
-                    if (!mgr.IsInstalledApp)
+                    if (_um.IsInstalled)
                     {
-                        return;
+                        _update = await _um.CheckForUpdatesAsync().ConfigureAwait(true);
+
+                        if (_update != null)
+                        {
+                            _um.ApplyUpdatesAndExit(_update);
+                        }
                     }
-                    var newVersion = await mgr.UpdateApp();
                 }
             }
         }

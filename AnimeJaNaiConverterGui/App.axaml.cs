@@ -6,7 +6,6 @@ using Avalonia.Markup.Xaml;
 using Avalonia.ReactiveUI;
 using NuGet.Versioning;
 using ReactiveUI;
-using Squirrel;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -17,10 +16,6 @@ namespace AnimeJaNaiConverterGui
     {
         public override void Initialize()
         {
-            SquirrelAwareApp.HandleEvents(
-                onInitialInstall: OnAppInstall,
-                onAppUninstall: OnAppUninstall
-            );
             AvaloniaXamlLoader.Load(this);
         }
 
@@ -35,16 +30,6 @@ namespace AnimeJaNaiConverterGui
             var state = RxApp.SuspensionHost.GetAppState<MainWindowViewModel>();
             new MainWindow { DataContext = state }.Show();
             base.OnFrameworkInitializationCompleted();
-        }
-
-        private static void OnAppInstall(SemanticVersion version, IAppTools tools)
-        {
-            tools.CreateShortcutForThisExe(ShortcutLocation.StartMenu | ShortcutLocation.Desktop);
-        }
-
-        private static void OnAppUninstall(SemanticVersion version, IAppTools tools)
-        {
-            tools.RemoveShortcutForThisExe(ShortcutLocation.StartMenu | ShortcutLocation.Desktop);
         }
     }
 }
