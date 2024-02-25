@@ -561,12 +561,13 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
 
             for (var i = 0; i < UpscaleSettings.Count; i++)
             {
-                var enginePath = @$".\mpv-upscale-2x_animejanai\animejanai\onnx\{Path.GetFileNameWithoutExtension(UpscaleSettings[i].OnnxModelPath)}.engine";
+                // TODO testing
+                //var enginePath = @$".\mpv-upscale-2x_animejanai\animejanai\onnx\{Path.GetFileNameWithoutExtension(UpscaleSettings[i].OnnxModelPath)}.engine";
 
-                if (!File.Exists(enginePath))
-                {
+                //if (!File.Exists(enginePath))
+                //{
                     await GenerateEngine(inputFilePath);
-                }
+                //}
             }
 
         }
@@ -625,11 +626,13 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
             {
                 Console.WriteLine($"{nameof(OperationCanceledException)} thrown with message: {e.Message}");
                 Upscaling = false;
+                Validate();
             }
             finally
             {
                 _cancellationTokenSource.Dispose();
                 Upscaling = false;
+                Validate();
             }
         }
 
@@ -644,6 +647,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                     _runningProcess.Kill(true);
                     _runningProcess = null; // Clear the reference to the terminated process
                 }
+                Upscaling = false;
                 Validate();
             }
             catch { }

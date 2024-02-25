@@ -63,15 +63,6 @@ def use_dynamic_engine(width, height):
     return width <= 1920 and height <= 1080
 
 
-def get_engine_path(onnx_name, width, height):
-    if use_dynamic_engine(width, height):
-        name = f"{onnx_name}.engine"
-    else:
-        name = f"{onnx_name}-static-{width}x{height}.engine"
-
-    return os.path.join(model_path, name)
-
-
 def get_static_engine_path(onnx_name, width, height):
     return os.path.join(model_path, f"{onnx_name}-static-{width}x{height}.engine")
 
@@ -80,19 +71,12 @@ def get_dynamic_engine_path(onnx_name):
     return os.path.join(model_path, f"{onnx_name}.engine")
 
 
-def create_engine(onnx_name, width, height):
-    if use_dynamic_engine(width, height):
-        create_dynamic_engine(onnx_name, width, height)
-    else:
-        create_static_engine(onnx_name, width, height)
-
-
 def create_static_engine(onnx_name, width, height):
     onnx_path = os.path.join(model_path, f"{onnx_name}.onnx")
     if not os.path.isfile(onnx_path):
         raise FileNotFoundError(onnx_path)
 
-    engine_path = get_engine_path(onnx_name, width, height)
+    engine_path = get_static_engine_path(onnx_name, width, height)
 
     commands = [os.path.join(plugin_path, "trtexec"), "--fp16", f"--onnx={onnx_path}",
                     f"--optShapes=input:1x3x{height}x{width}",
@@ -110,7 +94,7 @@ def create_dynamic_engine(onnx_name, width, height):
     if not os.path.isfile(onnx_path):
         raise FileNotFoundError(onnx_path)
 
-    engine_path = get_engine_path(onnx_name, width, height)
+    engine_path = get_dynamic_engine_path(onnx_name, width, height)
 
     commands = [os.path.join(plugin_path, "trtexec"), "--fp16", f"--onnx={onnx_path}",
                     "--minShapes=input:1x3x8x8", "--optShapes=input:1x3x1080x1920", "--maxShapes=input:1x3x1080x1920",
@@ -136,12 +120,11 @@ def scale_to_1080(clip, w=1920, h=1080):
 def upscale2x(clip, backend, engine_name, num_streams):
     if engine_name is None:
         return clip
-    engine_path =  get_engine_path(engine_name, clip.width, clip.height)  #os.path.join(model_path, f"{engine_name}.engine")
     network_path = os.path.join(model_path, f"{engine_name}.onnx")
 
     message = f"upscale2x: scaling 2x from {clip.width}x{clip.height} with engine={engine_name}; num_streams={num_streams}"
     logger.debug(message)
-    print(message)
+    # print(message)
 
     if backend.lower() == "directml":
         return core.ort.Model(
@@ -154,15 +137,26 @@ def upscale2x(clip, backend, engine_name, num_streams):
             clip,
             fp16=True,
             network_path=network_path)
-    else:  # TensorRT
 
-        if use_dynamic_engine(clip.width, clip.height):
-            try:
-                upscale2x_trt_dynamic(clip, engine_name, num_streams)
-            except:
-                upscale2x_trt_static(clip, engine_name, num_streams)
-        else:
-            upscale2x_trt_static(clip, engine_name, num_streams)
+    # TensorRT
+    # if static engine already exists, use it
+    static_engine_path = get_static_engine_path(engine_name, clip.width, clip.height)
+    if os.path.isfile(static_engine_path):
+        # print(f'Static shapes engine already exists, use static shapes engine at {static_engine_path}', flush=True)
+        return upscale2x_trt_static(clip, engine_name, num_streams)
+    # use dynamic engine if video is 1920x1080 or smaller
+    if use_dynamic_engine(clip.width, clip.height):
+        try:
+            # print('Trying dynamic shapes engine', flush=True)
+            return upscale2x_trt_dynamic(clip, engine_name, num_streams)
+        except:
+            # print('Failed to generate dynamic shapes engine; fall back to static shapes engine', flush=True)
+            # fall back to static engine since not all models support dynamic shapes
+            return upscale2x_trt_static(clip, engine_name, num_streams)
+
+    # use static engine if the video is larger than 1920x1080
+    # print('Using static shapes engine for video higher than 1080p', flush=True)
+    return upscale2x_trt_static(clip, engine_name, num_streams)
 
 
 def upscale2x_trt_static(clip, engine_name, num_streams):
@@ -280,10 +274,10 @@ def run_animejanai_with_keybinding(clip, container_fps, keybinding):
         #raise ValueError(chain_conf['min_px'] <= clip.width * clip.height <= chain_conf['max_px'])
         if 'chain_' not in chain_key:
             continue
-        try:
-            print(chain_conf['min_px'])
-        except:
-            raise ValueError(f"{section_key} {config}")
+        # try:
+            # print(chain_conf['min_px'])
+        # except:
+        #     raise ValueError(f"{section_key} {config}")
         if chain_conf['min_px'] <= clip.width * clip.height <= chain_conf['max_px'] and \
                 chain_conf['min_fps'] <= container_fps <= chain_conf['max_fps']:
             logger.debug(f'run_animejanai slot {keybinding} {chain_key}')
