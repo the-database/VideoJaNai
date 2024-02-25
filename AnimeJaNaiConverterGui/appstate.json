@@ -2,10 +2,10 @@
   "$type": "AnimeJaNaiConverterGui.ViewModels.MainWindowViewModel, AnimeJaNaiConverterGui",
   "SelectedTabIndex": 0,
   "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
-  "InputFilePath": "",
+  "InputFilePath": "D:\\file\\Upscales\\input_videos\\[Beatrice-Raws] Steins;Gate (Creditless OP) [BDRip 1920x1080 HEVC TrueHD].mkv",
   "InputFolderPath": "",
   "OutputFilePath": "",
-  "OutputFolderPath": "",
+  "OutputFolderPath": "D:\\file\\Upscales\\output_videos",
   "UpscaleSettings": {
     "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
     "$values": [
@@ -14,7 +14,7 @@
         "ModelHeader": "Model 1",
         "ResizeHeightBeforeUpscale": 0,
         "ResizeFactorBeforeUpscale": 100,
-        "OnnxModelPath": ""
+        "OnnxModelPath": "C:\\Users\\jsoos\\Documents\\programming\\AnimeJaNaiConverterGui\\AnimeJaNaiConverterGui\\bin\\Debug\\net8.0\\mpv-upscale-2x_animejanai\\animejanai\\onnx\\2x_AnimeJaNai_HD_V3Sharp1_ESRGAN_110k-fp16.onnx"
       }
     ]
   },
