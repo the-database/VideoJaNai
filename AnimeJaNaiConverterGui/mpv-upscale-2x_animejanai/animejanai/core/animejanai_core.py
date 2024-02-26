@@ -189,10 +189,10 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
     models = chain_conf.get('models', [])
     colorspace = "709"
     colorlv = 1
-    try:
-        colorlv = clip.get_frame(0).props._ColorRange
-    except AttributeError:
-        pass
+    # try:
+    #     colorlv = clip.get_frame(0).props._ColorRange
+    # except AttributeError:
+    #     pass
     fmt_in = clip.format.id
 
     if len(models) > 0:
@@ -229,16 +229,28 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
                 clip = run_animejanai_upscale(clip, backend, model_conf, num_streams)
                 current_logger_steps.append(f"Applied Model: {model_conf['name']};    New Video Resolution: {clip.width}x{clip.height}")
 
-    fmt_out = fmt_in
-    if fmt_in not in [vs.YUV410P8, vs.YUV411P8, vs.YUV420P8, vs.YUV422P8, vs.YUV444P8, vs.YUV420P10, vs.YUV422P10,
-                      vs.YUV444P10]:
-        fmt_out = vs.YUV420P10
+    if len(models) > 0:
+        fmt_out = fmt_in
+        if fmt_in not in [vs.YUV410P8, vs.YUV411P8, vs.YUV420P8, vs.YUV422P8, vs.YUV444P8, vs.YUV420P10, vs.YUV422P10,
+                          vs.YUV444P10]:
+            fmt_out = vs.YUV420P10
 
-    clip = vs.core.resize.Spline36(clip, format=fmt_out, matrix_s=colorspace, range=1 if colorlv == 0 else None)
+        clip = vs.core.resize.Spline36(clip, format=fmt_out, matrix_s=colorspace, range=1 if colorlv == 0 else None)
 
     if chain_conf['rife']:
-        clip = rife_cuda.rife(clip, clip.width, clip.height, container_fps)
-        current_logger_steps.append(f"Applied RIFE Interpolation;    New Video FPS: {container_fps * 2:.3f}")
+        # TODO rife nvidia or rife other
+        clip = rife_cuda.rife(
+            clip,
+            model=chain_conf['rife_model'],
+            fps_in=float(container_fps),
+            fps_num=chain_conf['rife_factor_numerator'],
+            fps_den=chain_conf['rife_factor_denominator'],
+            t_tta=chain_conf['rife_ensemble'],
+            scene_detect_threshold=chain_conf['rife_scene_detect_threshold'],
+            lt_d2k=True,
+            tensorrt=backend.lower() == 'tensorrt'
+        )
+        current_logger_steps.append(f"Applied RIFE Interpolation;    New Video FPS: {float(container_fps) * 2:.3f}")
 
     clip.set_output()
 

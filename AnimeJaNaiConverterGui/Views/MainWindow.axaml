@@ -254,14 +254,6 @@
             <TextBlock Margin="5,0,0,0">Add Model</TextBlock>
           </StackPanel>
         </Button>
-            
-            
-
-        <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowAdvancedSettings}">
-          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Enable RIFE 2x Interpolation</TextBlock>
-          <CheckBox IsChecked="{Binding EnableRife}" />
-          <TextBlock FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Whether or not to run RIFE video frame interpolation.</TextBlock>
-        </StackPanel>
 
         <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
           <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Height</TextBlock>
@@ -294,6 +286,44 @@
           </StackPanel>
         </Border>
 
+        <!-- Interpolation -->
+        <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="Interpolation Settings"></TextBlock>
+        <Border Classes="border">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+              <CheckBox IsChecked="{Binding EnableRife}">Enable Interpolation</CheckBox>
+              <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Whether or not to run video frame interpolation.</TextBlock>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding EnableRife}">
+              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Interpolation Factor</TextBlock>
+              <NumericUpDown Value="{Binding RifeFactorNumerator}" Minimum="{Binding RifeFactorDenominator}" FormatString="0" />
+              <TextBlock xml:space="preserve"> / </TextBlock>
+              <NumericUpDown Value="{Binding RifeFactorDenominator}" Minimum="1" Maximum="{Binding RifeFactorNumerator}" FormatString="0" />
+              <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Interpolation factor represented as a fraction. For example, 2 / 1 will double the framerate.</TextBlock>
+            </StackPanel>
+            
+            <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding EnableRife}">
+              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Model</TextBlock>
+              <ComboBox Margin="0,0,5,0" VerticalAlignment="Center" SelectedValue="{Binding RifeModel}" ItemsSource="{Binding RifeModelList}" />
+              <TextBlock Foreground="Gray" Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                Interpolation model to run. Higher RIFE version is newer and usually better quality.
+              </TextBlock>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding EnableRife}">
+              <CheckBox IsChecked="{Binding RifeEnsemble}">Ensemble</CheckBox>
+              <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Whether or not to use the ensemble version of the model, which improves quality but runs slower.</TextBlock>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding EnableRife}">
+              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Scene Detection Threshold</TextBlock>
+              <NumericUpDown Value="{Binding RifeSceneDetectThreshold}" Minimum="0" FormatString="0.000" Maximum="1" Increment="0.05" />
+              <TextBlock Foreground="Gray" Width="900" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Scene detection is used to prevent interpolating frames during hard transitions between scenes. The threshold adjusts the sensitivity for what is considered a scene change. If the threshold is too high, more interpolation artifacts may be visible during scene transitions. If the threshold is too low, the video may stutter more.</TextBlock>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        
       </StackPanel>
     </ScrollViewer>
     </DockPanel>

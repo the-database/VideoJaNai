@@ -1,4 +1,5 @@
 ﻿using Avalonia.Collections;
+using Avalonia.Controls;
 using DynamicData;
 using ReactiveUI;
 using Salaros.Configuration;
@@ -20,7 +21,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
     [DataContract]
     public class MainWindowViewModel : ViewModelBase
     {
-        public static readonly List<string> VIDEO_EXTENSIONS = new() { ".mkv", ".mp4", ".mpg", ".mpeg", ".avi", ".mov", ".wmv" };
+        public static readonly List<string> VIDEO_EXTENSIONS = [".mkv", ".mp4", ".mpg", ".mpeg", ".avi", ".mov", ".wmv"];
 
         public MainWindowViewModel()
         {
@@ -222,6 +223,62 @@ namespace AnimeJaNaiConverterGui.ViewModels
         {
             get => _enableRife;
             set => this.RaiseAndSetIfChanged(ref _enableRife, value);
+        }
+
+        private List<string> _rifeModelList = ["RIFE 4.14", "RIFE 4.14 Lite", "RIFE 4.13", "RIFE 4.13 Lite", "RIFE 4.6"];
+        private static readonly Dictionary<string, string> rifeModelMapping = new()
+        {
+            { "RIFE 4.14", 414.ToString() },
+            { "RIFE 4.14 Lite", 4141.ToString() },
+            { "RIFE 4.13", 413.ToString() },
+            { "RIFE 4.13 Lite", 413.ToString() },
+            { "RIFE 4.6", 46.ToString() },
+        };
+        
+        public List<string> RifeModelList
+        {
+            get => _rifeModelList;
+            set => this.RaiseAndSetIfChanged(ref _rifeModelList, value);
+        }
+
+        private string _rifeModel = "RIFE 4.14";
+        [DataMember]
+        public string RifeModel
+        {
+            get => _rifeModel;
+            set => this.RaiseAndSetIfChanged(ref _rifeModel, value);
+        }
+
+        private bool _rifeEnsemble = false;
+        [DataMember]
+        public bool RifeEnsemble
+        {
+            get => _rifeEnsemble;
+            set => this.RaiseAndSetIfChanged(ref _rifeEnsemble, value);
+        }
+
+        private string _rifeFactorNumerator = 2.ToString();
+        [DataMember]
+        public string RifeFactorNumerator
+        {
+            get => _rifeFactorNumerator;
+            set => this.RaiseAndSetIfChanged(ref _rifeFactorNumerator, value);
+        }
+
+        private string _rifeFactorDenominator = 1.ToString();
+        [DataMember]
+        public string RifeFactorDenominator
+        {
+            get => _rifeFactorDenominator;
+            set => this.RaiseAndSetIfChanged(ref _rifeFactorDenominator, value);
+        }
+
+        private string _rifeSceneDetectThreshold = 0.150.ToString();
+        [DataMember]
+        public string RifeSceneDetectThreshold
+        {
+            get => _rifeSceneDetectThreshold;
+            set => this.RaiseAndSetIfChanged(ref _rifeSceneDetectThreshold, value);
         }
 
         private bool _showAdvancedSettings = false;
@@ -545,7 +602,13 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
             }
 
             var rife = EnableRife ? "yes" : "no";
+            var ensemble = RifeEnsemble ? "yes" : "no";
             configText.AppendLine($"chain_1_rife={rife}");
+            configText.AppendLine($"chain_1_rife_factor_numerator={RifeFactorNumerator}");
+            configText.AppendLine($"chain_1_rife_factor_denominator={RifeFactorDenominator}");
+            configText.AppendLine($"chain_1_rife_model={rifeModelMapping[RifeModel]}");
+            configText.AppendLine($"chain_1_rife_ensemble={ensemble}");
+            configText.AppendLine($"chain_1_rife_scene_detect_threshold={RifeSceneDetectThreshold}");
             configText.AppendLine($"chain_1_final_resize_height={FinalResizeHeight}");
             configText.AppendLine($"chain_1_final_resize_factor={FinalResizeFactor}");
 
