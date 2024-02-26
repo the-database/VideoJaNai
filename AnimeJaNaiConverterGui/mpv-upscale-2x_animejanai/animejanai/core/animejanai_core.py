@@ -189,10 +189,10 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
     models = chain_conf.get('models', [])
     colorspace = "709"
     colorlv = 1
-    # try:
-    #     colorlv = clip.get_frame(0).props._ColorRange
-    # except AttributeError:
-    #     pass
+    try:
+        colorlv = clip.get_frame(0).props._ColorRange
+    except AttributeError:
+        pass
     fmt_in = clip.format.id
 
     if len(models) > 0:

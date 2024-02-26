@@ -110,11 +110,10 @@ def rife(
     w_in, h_in = input.width, input.height
     size_in = w_in * h_in
     colorlv = 1
-    # TODO
-    # try:
-    #     colorlv = getattr(input.get_frame(0).props, "_ColorRange", 0)
-    # except:
-    #     pass
+    try:
+        colorlv = getattr(input.get_frame(0).props, "_ColorRange", 0)
+    except:
+        pass
     fmt_in = input.format.id
     fps_factor = fps_num / fps_den
 
