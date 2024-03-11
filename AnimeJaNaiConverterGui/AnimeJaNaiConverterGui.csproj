@@ -6,7 +6,7 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <Version>0.0.8</Version>
+    <Version>0.0.9</Version>
     <Title>AnimeJaNaiConverterGui</Title>
     <PackageIcon>logo.png</PackageIcon>
     <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
@@ -44,7 +44,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Salaros.ConfigParser" Version="0.3.8" />
     <PackageReference Include="SharpCompress" Version="0.36.0" />
-    <PackageReference Include="Velopack" Version="0.0.340" />
+    <PackageReference Include="Velopack" Version="0.0.359" />
   </ItemGroup>
 
 
@@ -54,9 +54,6 @@
 
 
   <ItemGroup>
-    <None Update="appstate - Copy.json">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
     <None Update="appstate.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
