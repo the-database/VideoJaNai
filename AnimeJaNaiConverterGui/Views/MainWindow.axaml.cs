@@ -125,7 +125,7 @@ namespace AnimeJaNaiConverterGui.Views
             var consoleScrollViewer = this.FindControl<ScrollViewer>("ConsoleScrollViewer");
             if (consoleScrollViewer != null)
             {
-                consoleScrollViewer.Width = Width - 40; // Adjust the width as needed
+                consoleScrollViewer.Width = Width - 340; // Adjust the width as needed
             }
             
         }

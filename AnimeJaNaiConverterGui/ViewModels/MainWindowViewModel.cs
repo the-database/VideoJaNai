@@ -814,8 +814,11 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             set
             {
                 this.RaiseAndSetIfChanged(ref _valid, value);
-                this.RaisePropertyChanged(nameof(Vm.UpscaleEnabled));
-                this.RaisePropertyChanged(nameof(Vm.LeftStatus));
+                if (Vm != null)
+                {
+                    Vm.RaisePropertyChanged(nameof(Vm.UpscaleEnabled));
+                    Vm.RaisePropertyChanged(nameof(Vm.LeftStatus));
+                }
             }
         }
 

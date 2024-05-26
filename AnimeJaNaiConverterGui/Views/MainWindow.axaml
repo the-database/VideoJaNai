@@ -99,7 +99,7 @@
       <!-- Main Form -->
       <DockPanel Grid.Column="1" IsVisible="{Binding ShowMainForm}">
         <!--Bottom Status Panel -->
-        <StackPanel DockPanel.Dock="Bottom" IsVisible="{Binding !IsExtractingBackend}">
+        <StackPanel DockPanel.Dock="Bottom">
 
           <StackPanel Orientation="Horizontal">
             <Button Margin="20,10,0,10" FontWeight="Bold" Background="Green" IsEnabled="{Binding UpscaleEnabled}" Command="{Binding RunUpscale}">
@@ -118,8 +118,15 @@
           </StackPanel>
 
           <StackPanel IsVisible="{Binding ShowConsole}" >
-            <TextBlock Margin="20,10,0,0" FontWeight="Bold" Text="Console"></TextBlock>
-            <ScrollViewer x:Name="ConsoleScrollViewer" Margin="0,10,0,0" Background="#111111" Height="500" Width="500" HorizontalScrollBarVisibility="Auto" Foreground="Gray"  PropertyChanged="ConsoleScrollViewer_PropertyChanged">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Left" Margin="20,10,0,0" FontWeight="Bold" Text="Console"></TextBlock>
+              <ToggleButton DockPanel.Dock="Right" Margin="0,0,20,0" IsChecked="{Binding !ShowConsole}">
+                <materialIcons:MaterialIcon Kind="Close" />
+              </ToggleButton>
+              <Rectangle/>
+            </DockPanel>
+
+            <ScrollViewer x:Name="ConsoleScrollViewer" Margin="0,10,0,0" Background="#111111" Height="450" HorizontalAlignment="Stretch" HorizontalScrollBarVisibility="Auto" Foreground="Gray"  PropertyChanged="ConsoleScrollViewer_PropertyChanged">
               <SelectableTextBlock x:Name="ConsoleTextBlock" Margin="20" Text="{Binding ConsoleText}" FontFamily="Consolas" PropertyChanged="ConsoleTextBlock_PropertyChanged" />
             </ScrollViewer>
           </StackPanel>
