@@ -4,7 +4,7 @@ import subprocess
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
-import rife_cuda 
+import rife_cuda
 import animejanai_config
 
 # trtexec num_streams
@@ -228,6 +228,11 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
 
                 clip = run_animejanai_upscale(clip, backend, model_conf, num_streams)
                 current_logger_steps.append(f"Applied Model: {model_conf['name']};    New Video Resolution: {clip.width}x{clip.height}")
+
+    if chain_conf['final_resize_height'] != 0 and chain_conf['final_resize_height'] != clip.height:
+        clip = scale_to_1080(clip, round(chain_conf['final_resize_height'] * clip.width / clip.height), round(chain_conf['final_resize_height']))
+    elif chain_conf['final_resize_factor'] != 100:
+        clip = vs.core.resize.Spline36(clip, width=clip.width * chain_conf['final_resize_factor'] / 100, height=clip.height * chain_conf['final_resize_factor'] / 100)
 
     if len(models) > 0:
         fmt_out = fmt_in
