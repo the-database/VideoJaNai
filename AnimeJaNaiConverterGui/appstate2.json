@@ -1,0 +1,370 @@
+{
+  "$type": "AnimeJaNaiConverterGui.ViewModels.MainWindowViewModel, AnimeJaNaiConverterGui",
+  "AutoUpdateEnabled": true,
+  "Workflows": {
+    "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui]], Avalonia.Base",
+    "$values": [
+      {
+        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "WorkflowName": "Default Workflow",
+        "WorkflowIndex": 0,
+        "SelectedTabIndex": 0,
+        "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
+        "TensorRtSelected": true,
+        "DirectMlSelected": false,
+        "NcnnSelected": false,
+        "FinalResizeHeight": 0,
+        "FinalResizeFactor": 100,
+        "InputFilePath": "",
+        "InputFolderPath": "",
+        "OutputFilename": "%filename%-animejanai.mkv",
+        "OutputFolderPath": "",
+        "OverwriteExistingVideos": false,
+        "UpscaleSettings": {
+          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$values": [
+            {
+              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "ModelHeader": "Model 1",
+              "ResizeHeightBeforeUpscale": 0,
+              "ResizeFactorBeforeUpscale": 100.0,
+              "OnnxModelPath": ""
+            }
+          ]
+        },
+        "EnableRife": false,
+        "RifeModel": "RIFE 4.14",
+        "RifeEnsemble": false,
+        "RifeFactorNumerator": 2,
+        "RifeFactorDenominator": 1,
+        "RifeSceneDetectThreshold": 0.150,
+        "ShowAdvancedSettings": true
+      },
+      {
+        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "WorkflowName": "Workflow 2",
+        "WorkflowIndex": 1,
+        "SelectedTabIndex": 0,
+        "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
+        "TensorRtSelected": true,
+        "DirectMlSelected": false,
+        "NcnnSelected": false,
+        "FinalResizeHeight": 0,
+        "FinalResizeFactor": 100,
+        "InputFilePath": "",
+        "InputFolderPath": "",
+        "OutputFilename": "%filename%-animejanai.mkv",
+        "OutputFolderPath": "",
+        "OverwriteExistingVideos": false,
+        "UpscaleSettings": {
+          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$values": [
+            {
+              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "ModelHeader": "Model 1",
+              "ResizeHeightBeforeUpscale": 0,
+              "ResizeFactorBeforeUpscale": 100.0,
+              "OnnxModelPath": ""
+            }
+          ]
+        },
+        "EnableRife": false,
+        "RifeModel": "RIFE 4.14",
+        "RifeEnsemble": false,
+        "RifeFactorNumerator": 2,
+        "RifeFactorDenominator": 1,
+        "RifeSceneDetectThreshold": 0.150,
+        "ShowAdvancedSettings": true
+      },
+      {
+        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "WorkflowName": "Default Workflow",
+        "WorkflowIndex": 2,
+        "SelectedTabIndex": 0,
+        "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
+        "TensorRtSelected": true,
+        "DirectMlSelected": false,
+        "NcnnSelected": false,
+        "FinalResizeHeight": 0,
+        "FinalResizeFactor": 100,
+        "InputFilePath": "",
+        "InputFolderPath": "",
+        "OutputFilename": "%filename%-animejanai.mkv",
+        "OutputFolderPath": "",
+        "OverwriteExistingVideos": false,
+        "UpscaleSettings": {
+          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$values": [
+            {
+              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "ModelHeader": "Model 1",
+              "ResizeHeightBeforeUpscale": 0,
+              "ResizeFactorBeforeUpscale": 100.0,
+              "OnnxModelPath": ""
+            }
+          ]
+        },
+        "EnableRife": false,
+        "RifeModel": "RIFE 4.14",
+        "RifeEnsemble": false,
+        "RifeFactorNumerator": 2,
+        "RifeFactorDenominator": 1,
+        "RifeSceneDetectThreshold": 0.150,
+        "ShowAdvancedSettings": true
+      },
+      {
+        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "WorkflowName": "Default Workflow",
+        "WorkflowIndex": 3,
+        "SelectedTabIndex": 4,
+        "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
+        "TensorRtSelected": true,
+        "DirectMlSelected": false,
+        "NcnnSelected": false,
+        "FinalResizeHeight": 0,
+        "FinalResizeFactor": 100,
+        "InputFilePath": "",
+        "InputFolderPath": "",
+        "OutputFilename": "%filename%-animejanai.mkv",
+        "OutputFolderPath": "",
+        "OverwriteExistingVideos": false,
+        "UpscaleSettings": {
+          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$values": [
+            {
+              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "ModelHeader": "Model 1",
+              "ResizeHeightBeforeUpscale": 0,
+              "ResizeFactorBeforeUpscale": 100.0,
+              "OnnxModelPath": ""
+            }
+          ]
+        },
+        "EnableRife": false,
+        "RifeModel": "RIFE 4.14",
+        "RifeEnsemble": false,
+        "RifeFactorNumerator": 2,
+        "RifeFactorDenominator": 1,
+        "RifeSceneDetectThreshold": 0.150,
+        "ShowAdvancedSettings": true
+      },
+      {
+        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "WorkflowName": "Default Workflow",
+        "WorkflowIndex": 4,
+        "SelectedTabIndex": 0,
+        "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
+        "TensorRtSelected": true,
+        "DirectMlSelected": false,
+        "NcnnSelected": false,
+        "FinalResizeHeight": 0,
+        "FinalResizeFactor": 100,
+        "InputFilePath": "",
+        "InputFolderPath": "",
+        "OutputFilename": "%filename%-animejanai.mkv",
+        "OutputFolderPath": "",
+        "OverwriteExistingVideos": false,
+        "UpscaleSettings": {
+          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$values": [
+            {
+              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "ModelHeader": "Model 1",
+              "ResizeHeightBeforeUpscale": 0,
+              "ResizeFactorBeforeUpscale": 100.0,
+              "OnnxModelPath": ""
+            }
+          ]
+        },
+        "EnableRife": false,
+        "RifeModel": "RIFE 4.14",
+        "RifeEnsemble": false,
+        "RifeFactorNumerator": 2,
+        "RifeFactorDenominator": 1,
+        "RifeSceneDetectThreshold": 0.150,
+        "ShowAdvancedSettings": true
+      },
+      {
+        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "WorkflowName": "Default Workflow",
+        "WorkflowIndex": 5,
+        "SelectedTabIndex": 0,
+        "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
+        "TensorRtSelected": true,
+        "DirectMlSelected": false,
+        "NcnnSelected": false,
+        "FinalResizeHeight": 0,
+        "FinalResizeFactor": 100,
+        "InputFilePath": "",
+        "InputFolderPath": "",
+        "OutputFilename": "%filename%-animejanai.mkv",
+        "OutputFolderPath": "",
+        "OverwriteExistingVideos": false,
+        "UpscaleSettings": {
+          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$values": [
+            {
+              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "ModelHeader": "Model 1",
+              "ResizeHeightBeforeUpscale": 0,
+              "ResizeFactorBeforeUpscale": 100.0,
+              "OnnxModelPath": ""
+            }
+          ]
+        },
+        "EnableRife": false,
+        "RifeModel": "RIFE 4.14",
+        "RifeEnsemble": false,
+        "RifeFactorNumerator": 2,
+        "RifeFactorDenominator": 1,
+        "RifeSceneDetectThreshold": 0.150,
+        "ShowAdvancedSettings": true
+      },
+      {
+        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "WorkflowName": "Default Workflow",
+        "WorkflowIndex": 6,
+        "SelectedTabIndex": 7,
+        "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
+        "TensorRtSelected": true,
+        "DirectMlSelected": false,
+        "NcnnSelected": false,
+        "FinalResizeHeight": 0,
+        "FinalResizeFactor": 100,
+        "InputFilePath": "",
+        "InputFolderPath": "",
+        "OutputFilename": "%filename%-animejanai.mkv",
+        "OutputFolderPath": "",
+        "OverwriteExistingVideos": false,
+        "UpscaleSettings": {
+          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$values": [
+            {
+              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "ModelHeader": "Model 1",
+              "ResizeHeightBeforeUpscale": 0,
+              "ResizeFactorBeforeUpscale": 100.0,
+              "OnnxModelPath": ""
+            }
+          ]
+        },
+        "EnableRife": false,
+        "RifeModel": "RIFE 4.14",
+        "RifeEnsemble": false,
+        "RifeFactorNumerator": 2,
+        "RifeFactorDenominator": 1,
+        "RifeSceneDetectThreshold": 0.150,
+        "ShowAdvancedSettings": true
+      },
+      {
+        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "WorkflowName": "Default Workflow",
+        "WorkflowIndex": 7,
+        "SelectedTabIndex": 0,
+        "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
+        "TensorRtSelected": true,
+        "DirectMlSelected": false,
+        "NcnnSelected": false,
+        "FinalResizeHeight": 0,
+        "FinalResizeFactor": 100,
+        "InputFilePath": "",
+        "InputFolderPath": "",
+        "OutputFilename": "%filename%-animejanai.mkv",
+        "OutputFolderPath": "",
+        "OverwriteExistingVideos": false,
+        "UpscaleSettings": {
+          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$values": [
+            {
+              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "ModelHeader": "Model 1",
+              "ResizeHeightBeforeUpscale": 0,
+              "ResizeFactorBeforeUpscale": 100.0,
+              "OnnxModelPath": ""
+            }
+          ]
+        },
+        "EnableRife": false,
+        "RifeModel": "RIFE 4.14",
+        "RifeEnsemble": false,
+        "RifeFactorNumerator": 2,
+        "RifeFactorDenominator": 1,
+        "RifeSceneDetectThreshold": 0.150,
+        "ShowAdvancedSettings": true
+      },
+      {
+        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "WorkflowName": "Default Workflow",
+        "WorkflowIndex": 8,
+        "SelectedTabIndex": 0,
+        "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
+        "TensorRtSelected": true,
+        "DirectMlSelected": false,
+        "NcnnSelected": false,
+        "FinalResizeHeight": 0,
+        "FinalResizeFactor": 100,
+        "InputFilePath": "",
+        "InputFolderPath": "",
+        "OutputFilename": "%filename%-animejanai.mkv",
+        "OutputFolderPath": "",
+        "OverwriteExistingVideos": false,
+        "UpscaleSettings": {
+          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$values": [
+            {
+              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "ModelHeader": "Model 1",
+              "ResizeHeightBeforeUpscale": 0,
+              "ResizeFactorBeforeUpscale": 100.0,
+              "OnnxModelPath": ""
+            }
+          ]
+        },
+        "EnableRife": false,
+        "RifeModel": "RIFE 4.14",
+        "RifeEnsemble": false,
+        "RifeFactorNumerator": 2,
+        "RifeFactorDenominator": 1,
+        "RifeSceneDetectThreshold": 0.150,
+        "ShowAdvancedSettings": true
+      },
+      {
+        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "WorkflowName": "Default Workflow",
+        "WorkflowIndex": 9,
+        "SelectedTabIndex": 0,
+        "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
+        "TensorRtSelected": true,
+        "DirectMlSelected": false,
+        "NcnnSelected": false,
+        "FinalResizeHeight": 0,
+        "FinalResizeFactor": 100,
+        "InputFilePath": "",
+        "InputFolderPath": "",
+        "OutputFilename": "%filename%-animejanai.mkv",
+        "OutputFolderPath": "",
+        "OverwriteExistingVideos": false,
+        "UpscaleSettings": {
+          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$values": [
+            {
+              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "ModelHeader": "Model 1",
+              "ResizeHeightBeforeUpscale": 0,
+              "ResizeFactorBeforeUpscale": 100.0,
+              "OnnxModelPath": ""
+            }
+          ]
+        },
+        "EnableRife": false,
+        "RifeModel": "RIFE 4.14",
+        "RifeEnsemble": false,
+        "RifeFactorNumerator": 2,
+        "RifeFactorDenominator": 1,
+        "RifeSceneDetectThreshold": 0.150,
+        "ShowAdvancedSettings": true
+      }
+    ]
+  },
+  "SelectedWorkflowIndex": 0
+}

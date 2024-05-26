@@ -13,9 +13,10 @@ namespace AnimeJaNaiConverterGui
     public class NewtonsoftJsonSuspensionDriver : ISuspensionDriver
     {
         private readonly string _file;
-        private readonly JsonSerializerSettings _settings = new JsonSerializerSettings
+        public static readonly JsonSerializerSettings Settings = new()
         {
-            TypeNameHandling = TypeNameHandling.All
+            TypeNameHandling = TypeNameHandling.All,
+            Formatting = Formatting.Indented,
         };
 
         public NewtonsoftJsonSuspensionDriver(string file) => _file = file;
@@ -30,13 +31,13 @@ namespace AnimeJaNaiConverterGui
         public IObservable<object> LoadState()
         {
             var lines = File.ReadAllText(_file);
-            var state = JsonConvert.DeserializeObject<object>(lines, _settings);
+            var state = JsonConvert.DeserializeObject<object>(lines, Settings);
             return Observable.Return(state);
         }
 
         public IObservable<Unit> SaveState(object state)
         {
-            var lines = JsonConvert.SerializeObject(state, _settings);
+            var lines = JsonConvert.SerializeObject(state, Settings);
             File.WriteAllText(_file, lines);
             return Observable.Return(Unit.Default);
         }

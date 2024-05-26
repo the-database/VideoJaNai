@@ -9,6 +9,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.ReactiveUI;
+using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Windowing;
 using Material.Icons.Avalonia;
 using ReactiveUI;
@@ -32,7 +33,7 @@ namespace AnimeJaNaiConverterGui.Views
         public MainWindow()
         {
             AvaloniaXamlLoader.Load(this);
-            _um = new UpdateManager("https://github.com/the-database/AnimeJaNaiConverterGui/releases", logger: Program.Log);
+            _um = new UpdateManager("https://github.com/the-database/AnimeJaNaiConverterGui/releases");
             //this.WhenActivated(disposable => { }); // TODO ???
             Resized += MainWindow_Resized;
             Closing += MainWindow_Closing;
@@ -166,7 +167,7 @@ namespace AnimeJaNaiConverterGui.Views
                 //// Reads all the content of file as a text.
                 //var fileContent = await streamReader.ReadToEndAsync();
                 if (DataContext is MainWindowViewModel vm) {
-                    vm.InputFilePath = files[0].TryGetLocalPath() ?? "";
+                    vm.CurrentWorkflow.InputFilePath = files[0].TryGetLocalPath() ?? "";
                 }
             }
         }
@@ -183,7 +184,7 @@ namespace AnimeJaNaiConverterGui.Views
                     var filePath = files[0].TryGetLocalPath();
                     if (File.Exists(filePath))
                     {
-                        vm.InputFilePath = filePath;
+                        vm.CurrentWorkflow.InputFilePath = filePath;
                     }
                 }
             }
@@ -201,7 +202,7 @@ namespace AnimeJaNaiConverterGui.Views
                     var filePath = files[0].TryGetLocalPath();
                     if (Directory.Exists(filePath))
                     {
-                        vm.InputFolderPath = filePath;
+                        vm.CurrentWorkflow.InputFolderPath = filePath;
                     }
                 }
             }
@@ -219,7 +220,7 @@ namespace AnimeJaNaiConverterGui.Views
                     var filePath = files[0].TryGetLocalPath();
                     if (Directory.Exists(filePath))
                     {
-                        vm.OutputFolderPath = filePath;
+                        vm.CurrentWorkflow.OutputFolderPath = filePath;
                     }
                 }
             }
@@ -237,7 +238,7 @@ namespace AnimeJaNaiConverterGui.Views
             {
                 Title = "Open ONNX Model File",
                 AllowMultiple = false,
-                FileTypeFilter = new FilePickerFileType[] { new("ONNX Model File") { Patterns = new[] { "*.onnx" }, MimeTypes = new[] { "*/*" } }, FilePickerFileTypes.All },
+                FileTypeFilter = [new("ONNX Model File") { Patterns = ["*.onnx"], MimeTypes = ["*/*"] }, FilePickerFileTypes.All],
                 SuggestedStartLocation = await storageProvider.TryGetFolderFromPathAsync(new Uri(Path.GetFullPath(@".\mpv-upscale-2x_animejanai\animejanai\onnx"))),
             });
 
@@ -254,11 +255,11 @@ namespace AnimeJaNaiConverterGui.Views
                     //vm.InputFilePath = files[0].TryGetLocalPath() ?? "";
                     if (sender is Button button && button.DataContext is UpscaleModel item)
                     {
-                        int index = vm.UpscaleSettings.IndexOf(item);
+                        int index = vm.CurrentWorkflow.UpscaleSettings.IndexOf(item);
                         // 'index' now contains the index of the clicked item in the ItemsControl
                         // You can use it as needed
-                        vm.UpscaleSettings[index].OnnxModelPath = files[0].TryGetLocalPath() ?? string.Empty;
-                        vm.Validate();
+                        vm.CurrentWorkflow.UpscaleSettings[index].OnnxModelPath = files[0].TryGetLocalPath() ?? string.Empty;
+                        vm.CurrentWorkflow.Validate();
                     }
                     
                 }
@@ -286,7 +287,7 @@ namespace AnimeJaNaiConverterGui.Views
                 //var fileContent = await streamReader.ReadToEndAsync();
                 if (DataContext is MainWindowViewModel vm)
                 {
-                    vm.InputFolderPath = files[0].TryGetLocalPath() ?? "";
+                    vm.CurrentWorkflow.InputFolderPath = files[0].TryGetLocalPath() ?? "";
                 }
             }
         }
@@ -312,7 +313,147 @@ namespace AnimeJaNaiConverterGui.Views
                 //var fileContent = await streamReader.ReadToEndAsync();
                 if (DataContext is MainWindowViewModel vm)
                 {
-                    vm.OutputFolderPath = files[0].TryGetLocalPath() ?? "";
+                    vm.CurrentWorkflow.OutputFolderPath = files[0].TryGetLocalPath() ?? "";
+                }
+            }
+        }
+
+        private async void ImportCurrentWorkflowButtonClick(object? sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+                // Get top level from the current control. Alternatively, you can use Window reference instead.
+                var topLevel = GetTopLevel(this);
+
+                // Start async operation to open the dialog.
+                var storageProvider = topLevel.StorageProvider;
+
+                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = "Import Workflow File",
+                    AllowMultiple = false,
+                    FileTypeFilter = [new("AnimeJaNai Workflow File") { Patterns = ["*.awf"], MimeTypes = ["*/*"] }, FilePickerFileTypes.All],
+                    SuggestedStartLocation = await storageProvider.TryGetFolderFromPathAsync(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)),
+                });
+
+                if (files.Count >= 1)
+                {
+
+                    var inPath = files[0].TryGetLocalPath();
+
+                    if (inPath != null)
+                    {
+                        var td = new TaskDialog
+                        {
+                            Title = "Confirm Workflow Import",
+                            ShowProgressBar = false,
+                            Content = $"The following workflow file will be imported to the current workflow {vm.CurrentWorkflow?.WorkflowName}. All configuration settings for the current profile {vm.CurrentWorkflow?.WorkflowName} will be overwritten.\n\n" +
+                            inPath,
+                            Buttons =
+                        {
+                            TaskDialogButton.OKButton,
+                            TaskDialogButton.CancelButton
+                        }
+                        };
+
+
+                        td.Closing += async (s, e) =>
+                        {
+                            if ((TaskDialogStandardResult)e.Result == TaskDialogStandardResult.OK)
+                            {
+                                var deferral = e.GetDeferral();
+
+                                td.SetProgressBarState(0, TaskDialogProgressState.Indeterminate);
+                                td.ShowProgressBar = true;
+
+                                await Task.Run(() =>
+                                {
+                                    vm.ReadWorkflowFileToCurrentWorkflow(inPath);
+                                });
+
+                                deferral.Complete();
+                            }
+                        };
+
+                        td.XamlRoot = VisualRoot as Visual;
+                        _ = await td.ShowAsync();
+                    }
+                }
+            }
+        }
+
+        private async void ResetWorkflow(object? sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+
+                var td = new TaskDialog
+                {
+                    Title = "Confirm Workflow Reset",
+                    ShowProgressBar = false,
+                    Content = $"The current workflow's settings will be reset to the default settings. Any unsaved settings for the current workflow will be lost.",
+                    Buttons =
+                {
+                    TaskDialogButton.OKButton,
+                    TaskDialogButton.CancelButton
+                }
+                };
+
+
+                td.Closing += async (s, e) =>
+                {
+                    if ((TaskDialogStandardResult)e.Result == TaskDialogStandardResult.OK)
+                    {
+                        var deferral = e.GetDeferral();
+
+                        td.SetProgressBarState(0, TaskDialogProgressState.Indeterminate);
+                        td.ShowProgressBar = true;
+
+                        await Task.Run(() =>
+                        {
+                            vm.ResetCurrentWorkflow();
+                        });
+
+                        deferral.Complete();
+                    }
+                };
+
+                td.XamlRoot = VisualRoot as Visual;
+                _ = await td.ShowAsync();
+
+            }
+        }
+
+        private async void ExportCurrentWorkflowButtonClick(object? sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+                // Get top level from the current control. Alternatively, you can use Window reference instead.
+                var topLevel = GetTopLevel(this);
+
+                var storageProvider = topLevel.StorageProvider;
+
+                // Start async operation to open the dialog.
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Export Current Profile Conf File",
+                    DefaultExtension = "conf",
+                    FileTypeChoices =
+                    [
+                    new("AnimeJaNai Workflow File (*.awf)") { Patterns = ["*.awf"] },
+                    ],
+                    SuggestedStartLocation = await storageProvider.TryGetFolderFromPathAsync(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)),
+                    SuggestedFileName = vm.CurrentWorkflow?.WorkflowName,
+                });
+
+                if (file is not null)
+                {
+                    var outPath = file.TryGetLocalPath();
+
+                    if (outPath != null)
+                    {
+                        vm.WriteCurrentWorkflowToFile(outPath);
+                    }
                 }
             }
         }

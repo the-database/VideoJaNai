@@ -54,7 +54,7 @@
 
 
   <ItemGroup>
-    <None Update="appstate.json">
+    <None Update="appstate2.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="mpv-upscale-2x_animejanai\**\*">
