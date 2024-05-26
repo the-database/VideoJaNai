@@ -21,9 +21,19 @@ namespace AnimeJaNaiConverterGui
 
         public override void OnFrameworkInitializationCompleted()
         {
+            if (!Directory.Exists(Program.AppStateFolder))
+            {
+                Directory.CreateDirectory(Program.AppStateFolder);
+            }
+
+            if (!File.Exists(Program.AppStatePath))
+            {
+                File.Copy(Program.AppStateFilename, Program.AppStatePath);
+            }
+
             var suspension = new AutoSuspendHelper(ApplicationLifetime!);
             RxApp.SuspensionHost.CreateNewAppState = () => new MainWindowViewModel();
-            RxApp.SuspensionHost.SetupDefaultSuspendResume(new NewtonsoftJsonSuspensionDriver("appstate.json"));
+            RxApp.SuspensionHost.SetupDefaultSuspendResume(Program.SuspensionDriver);
             suspension.OnFrameworkInitializationCompleted();
             
             // Load the saved view model state.

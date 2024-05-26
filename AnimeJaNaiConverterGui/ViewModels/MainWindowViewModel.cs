@@ -15,6 +15,8 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Velopack;
+using Velopack.Sources;
 
 namespace AnimeJaNaiConverterGui.ViewModels
 {
@@ -22,6 +24,9 @@ namespace AnimeJaNaiConverterGui.ViewModels
     public class MainWindowViewModel : ViewModelBase
     {
         public static readonly List<string> VIDEO_EXTENSIONS = [".mkv", ".mp4", ".mpg", ".mpeg", ".avi", ".mov", ".wmv"];
+
+        private readonly UpdateManager _um;
+        private UpdateInfo? _update = null;
 
         public MainWindowViewModel()
         {
@@ -32,12 +37,53 @@ namespace AnimeJaNaiConverterGui.ViewModels
             {
                 Validate();
             });
+
+            _um = new UpdateManager(new GithubSource("https://github.com/the-database/AnimeJaNaiConverterGui", null, false));
+            CheckForUpdates();
         }
 
         private CancellationTokenSource? _cancellationTokenSource;
         private Process? _runningProcess = null;
 
-        public string AppVersion => Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+        public bool IsInstalled => _um?.IsInstalled ?? false;
+
+        private bool _showCheckUpdateButton = true;
+        public bool ShowCheckUpdateButton
+        {
+            get => _showCheckUpdateButton;
+            set => this.RaiseAndSetIfChanged(ref _showCheckUpdateButton, value);
+        }
+
+        private bool _showDownloadButton = false;
+        public bool ShowDownloadButton
+        {
+            get => _showDownloadButton;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _showDownloadButton, value);
+                this.RaisePropertyChanged(nameof(ShowCheckUpdateButton));
+            }
+        }
+
+        private bool _showApplyButton = false;
+        public bool ShowApplyButton
+        {
+            get => _showApplyButton;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _showApplyButton, value);
+                this.RaisePropertyChanged(nameof(ShowCheckUpdateButton));
+            }
+        }
+
+        public string AppVersion => _um?.CurrentVersion?.ToString() ?? "";
+
+        private string _updateStatusText = string.Empty;
+        public string UpdateStatusText
+        {
+            get => _updateStatusText;
+            set => this.RaiseAndSetIfChanged(ref _updateStatusText, value);
+        }
 
         private bool _autoUpdate = true;
         [DataMember]
@@ -719,7 +765,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
 
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
-            var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_encode.vpy - | ffmpeg {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {FfmpegVideoSettings} -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
+            var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_encode.vpy - | ffmpeg {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {FfmpegVideoSettings} -max_interleave_delta 0 -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
             ConsoleQueueEnqueue($"Upscaling with command: {cmd}");
             await RunCommand($@" /C {cmd}");
         }
@@ -808,6 +854,91 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(UpscaleSettings[i].
                     IsExtractingBackend = false;
                 }
             });            
+        }
+
+        public async Task CheckForUpdates()
+        {
+            try
+            {
+                if (IsInstalled)
+                {
+                    await Task.Run(async () =>
+                    {
+                        _update = await _um.CheckForUpdatesAsync().ConfigureAwait(true);
+                    });
+
+                    UpdateStatus();
+
+                    if (AutoUpdateEnabled)
+                    {
+                        await DownloadUpdate();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatusText = $"Check for update failed: {ex.Message}";
+            }
+        }
+
+        public async Task DownloadUpdate()
+        {
+            try
+            {
+                if (_update != null)
+                {
+                    ShowDownloadButton = false;
+                    await _um.DownloadUpdatesAsync(_update, Progress).ConfigureAwait(true);
+                    UpdateStatus();
+                }
+            }
+            catch
+            {
+
+            }
+        }
+
+        public void ApplyUpdate()
+        {
+            if (_update != null)
+            {
+                ShowApplyButton = false;
+                _um.ApplyUpdatesAndRestart(_update);
+            }
+        }
+
+        private void UpdateStatus()
+        {
+            ShowDownloadButton = false;
+            ShowApplyButton = false;
+            ShowCheckUpdateButton = true;
+
+            if (_update != null)
+            {
+                UpdateStatusText = $"Update is available: {_update.TargetFullRelease.Version}";
+                ShowDownloadButton = true;
+                ShowCheckUpdateButton = false;
+
+                if (_um.IsUpdatePendingRestart)
+                {
+                    UpdateStatusText = $"Update ready, pending restart to install version: {_update.TargetFullRelease.Version}";
+                    ShowDownloadButton = false;
+                    ShowApplyButton = true;
+                    ShowCheckUpdateButton = false;
+                }
+                else
+                {
+                }
+            }
+            else
+            {
+                UpdateStatusText = "No updates found";
+            }
+        }
+
+        private void Progress(int percent)
+        {
+            UpdateStatusText = $"Downloading update {_update?.TargetFullRelease.Version} ({percent}%)...";
         }
     }
 

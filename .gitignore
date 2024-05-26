@@ -396,3 +396,8 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+AnimeJaNaiConverterGui/mpv-upscale-2x_animejanai/*
+AnimeJaNaiConverterGui/mpv-upscale-2x_animejanai/animejanai/.idea
+!AnimeJaNaiConverterGui/mpv-upscale-2x_animejanai/animejanai/
+!AnimeJaNaiConverterGui/mpv-upscale-2x_animejanai/vsmlrt.py

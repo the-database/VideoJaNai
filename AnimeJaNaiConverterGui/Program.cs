@@ -4,12 +4,21 @@ using Salaros.Configuration.Logging;
 using System;
 using Velopack;
 using Microsoft.Extensions.Logging;
+using ReactiveUI;
+using System.IO;
 
 namespace AnimeJaNaiConverterGui
 {
     internal class Program
     {
-        public static ILogger Log { get; private set; }
+        public static readonly string AppStateFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "AnimeJaNaiConverterGui"
+        );
+        public static readonly string AppStateFilename = "appstate2.json";
+        public static readonly string AppStatePath = Path.Combine(AppStateFolder, AppStateFilename);
+
+        public static readonly ISuspensionDriver SuspensionDriver = new NewtonsoftJsonSuspensionDriver(AppStatePath);
 
         // Initialization code. Don't use any Avalonia, third-party APIs or any
         // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
@@ -17,7 +26,7 @@ namespace AnimeJaNaiConverterGui
         [STAThread]
         public static void Main(string[] args)
         {
-            VelopackApp.Build().Run(Log);
+            VelopackApp.Build().Run();
 
             BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
