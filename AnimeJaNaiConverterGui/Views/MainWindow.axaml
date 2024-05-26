@@ -32,6 +32,15 @@
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Padding" Value="10" />
     </Style>
+    <Style Selector="Button.active">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColor }" />
+      <Style Selector="^:pointerover">
+        <!--<Style Selector="^ /template/ ui|FABorder#Root">
+          <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+          <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+        </Style>-->
+      </Style>
+    </Style>
   </Window.Styles>
   
     <Design.DataContext>
@@ -40,334 +49,430 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
   <Grid>
-    <DockPanel>
-      <!--Bottom Status Panel -->
-      <StackPanel DockPanel.Dock="Bottom" IsVisible="{Binding !IsExtractingBackend}">
+    <Grid ColumnDefinitions="300,*" RowDefinitions="*" IsVisible="{Binding !IsExtractingBackend}">
 
-        <StackPanel Orientation="Horizontal">
-          <Button Margin="20,10,0,10" FontWeight="Bold" Background="Green" IsEnabled="{Binding UpscaleEnabled}" Command="{Binding RunUpscale}">
-            <StackPanel Orientation="Horizontal">
-              <materialIcons:MaterialIcon Kind="PlayCircle" />
-              <TextBlock Margin="5,0,0,0">Upscale</TextBlock>
-            </StackPanel>
+      <DockPanel Grid.Column="0" Background="#33000000">
 
-          </Button>
-          <Button Margin="20,10,0,10" FontWeight="Bold" Background="Red" IsEnabled="{Binding Upscaling}" Command="{Binding CancelUpscale}">
+        <StackPanel DockPanel.Dock="Bottom">
+          <TextBlock Margin="0">
+
+          </TextBlock>
+          <Button FontSize="13" Padding="10" Classes.active="{Binding ShowAppSettings}" Width="300" HorizontalContentAlignment="Left" Command="{Binding HandleAppSettingsSelected}">
             <StackPanel Orientation="Horizontal">
-              <materialIcons:MaterialIcon Kind="StopCircle" />
-              <TextBlock Margin="5,0,0,0">Cancel</TextBlock>
+              <materialIcons:MaterialIcon Kind="Gear" VerticalAlignment="Center" />
+              <TextBlock Margin="5,0,5,0" VerticalAlignment="Center">App Settings</TextBlock>
             </StackPanel>
           </Button>
         </StackPanel>
 
-        <StackPanel IsVisible="{Binding ShowConsole}" >
-          <TextBlock Margin="20,10,0,0" FontWeight="Bold" Text="Console"></TextBlock>
-          <ScrollViewer x:Name="ConsoleScrollViewer" Margin="0,10,0,0" Background="#111111" Height="500" Width="500" HorizontalScrollBarVisibility="Auto" Foreground="Gray"  PropertyChanged="ConsoleScrollViewer_PropertyChanged">
-            <SelectableTextBlock x:Name="ConsoleTextBlock" Margin="20" Text="{Binding ConsoleText}" FontFamily="Consolas" PropertyChanged="ConsoleTextBlock_PropertyChanged" />
-          </ScrollViewer>
-        </StackPanel>
-
-        <DockPanel Margin="0" Height="30" DockPanel.Dock="Bottom" HorizontalAlignment="Stretch">
-
-          <TextBlock Margin="10,10,10,0" DockPanel.Dock="Left" FontSize="10" Text="{Binding LeftStatus}" />
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-            
-
-            <ToggleButton IsChecked="{Binding ShowConsole}" FontSize="10" Margin="5,0,5,0">
-              <StackPanel Orientation="Horizontal">
-                <materialIcons:MaterialIcon Kind="Console" VerticalAlignment="Center" />
-                <TextBlock Margin="5,0,5,0" VerticalAlignment="Center">Console</TextBlock>
-              </StackPanel>
-            </ToggleButton>
-
-            <ToggleButton FontSize="10" Margin="5,0,5,0" IsChecked="{Binding RequestShowAppSettings}">
-              <StackPanel Orientation="Horizontal">
-                <materialIcons:MaterialIcon Kind="Gear" VerticalAlignment="Center" />
-                <TextBlock Margin="5,0,5,0" VerticalAlignment="Center">App Settings</TextBlock>
-              </StackPanel>
-            </ToggleButton>
+        <StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="10" ToolTip.Tip="Workflows provide convenient access to save and load preset settings for upscaling." ToolTip.ShowDelay="200">
+            <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">
+              Workflows
+            </TextBlock>
+            <materialIcons:MaterialIcon Kind="QuestionMarkCircle" VerticalAlignment="Center" Opacity="0.5" />
           </StackPanel>
 
-          <Rectangle />
-        </DockPanel>
-      </StackPanel>
-      
-      
-    <ScrollViewer HorizontalScrollBarVisibility="Auto" IsVisible="{Binding ShowMainForm}">
-      <StackPanel Margin="20">
-        <TextBlock FontWeight="Bold" Text="Video Input and Output"></TextBlock>
-        <Border Classes="border">
-          <StackPanel>
-          
-        <TabControl SelectedIndex="{Binding SelectedTabIndex}">
-          <TabItem VerticalContentAlignment="Center" FontSize="16">
-            <TabItem.Header>
-              <StackPanel Orientation="Horizontal">
-                <materialIcons:MaterialIcon Kind="File" />
-                <TextBlock Margin="5,0,5,0">Single Video Upscale</TextBlock>
-              </StackPanel>
-            </TabItem.Header>
-            
-            <Border Classes="border">
-              <StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Video</TextBlock>
-                  <TextBox x:Name="InputFileNameTextBox" Margin="0,0,5,0" Text="{Binding InputFilePath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
-                  <Button Content="Select File" Click="OpenInputFileButtonClick" />
-                  <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Path of the video file to upscale.</TextBlock>
+          <ItemsControl ItemsSource="{Binding Workflows}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:UpscaleWorkflow">
+                <StackPanel>
+                  <Button FontSize="13" Padding="10" Width="300" HorizontalContentAlignment="Left"
+                          ClickMode="Press"
+                          Classes.active="{Binding ActiveWorkflow}"
+                          Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).HandleWorkflowSelected}"
+                          CommandParameter="{Binding WorkflowIndex}">
+                    <StackPanel Orientation="Horizontal">
+                      <materialIcons:MaterialIcon Kind="{Binding WorkflowIcon}" VerticalAlignment="Center" />
+                      <TextBlock Margin="5,0,5,0" VerticalAlignment="Center" Text="{Binding WorkflowName}" />
+                    </StackPanel>
+                  </Button>
                 </StackPanel>
-              </StackPanel>
-            </Border>
-            
-          </TabItem>
-          <TabItem VerticalAlignment="Center" FontSize="16">
-            <TabItem.Header>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+      </DockPanel>
+
+      <!-- Main Form -->
+      <DockPanel Grid.Column="1" IsVisible="{Binding ShowMainForm}">
+        <!--Bottom Status Panel -->
+        <StackPanel DockPanel.Dock="Bottom" IsVisible="{Binding !IsExtractingBackend}">
+
+          <StackPanel Orientation="Horizontal">
+            <Button Margin="20,10,0,10" FontWeight="Bold" Background="Green" IsEnabled="{Binding UpscaleEnabled}" Command="{Binding RunUpscale}">
               <StackPanel Orientation="Horizontal">
-                <materialIcons:MaterialIcon Kind="Folder" />
-                <TextBlock Margin="5,0,5,0">Batch Video Upscale</TextBlock>
+                <materialIcons:MaterialIcon Kind="PlayCircle" />
+                <TextBlock Margin="5,0,0,0">Upscale</TextBlock>
               </StackPanel>
+
+            </Button>
+            <Button Margin="20,10,0,10" FontWeight="Bold" Background="Red" IsEnabled="{Binding Upscaling}" Command="{Binding CancelUpscale}">
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Kind="StopCircle" />
+                <TextBlock Margin="5,0,0,0">Cancel</TextBlock>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+
+          <StackPanel IsVisible="{Binding ShowConsole}" >
+            <TextBlock Margin="20,10,0,0" FontWeight="Bold" Text="Console"></TextBlock>
+            <ScrollViewer x:Name="ConsoleScrollViewer" Margin="0,10,0,0" Background="#111111" Height="500" Width="500" HorizontalScrollBarVisibility="Auto" Foreground="Gray"  PropertyChanged="ConsoleScrollViewer_PropertyChanged">
+              <SelectableTextBlock x:Name="ConsoleTextBlock" Margin="20" Text="{Binding ConsoleText}" FontFamily="Consolas" PropertyChanged="ConsoleTextBlock_PropertyChanged" />
+            </ScrollViewer>
+          </StackPanel>
+
+          <DockPanel Margin="0" Height="30" DockPanel.Dock="Bottom" HorizontalAlignment="Stretch">
+
+            <TextBlock Margin="10,10,10,0" DockPanel.Dock="Left" FontSize="10" Text="{Binding LeftStatus}" />
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+              <ToggleButton IsChecked="{Binding ShowConsole}" FontSize="10" Margin="5,0,5,0">
+                <StackPanel Orientation="Horizontal">
+                  <materialIcons:MaterialIcon Kind="Console" VerticalAlignment="Center" />
+                  <TextBlock Margin="5,0,5,0" VerticalAlignment="Center">Console</TextBlock>
+                </StackPanel>
+              </ToggleButton>
+            </StackPanel>
+
+            <Rectangle />
+          </DockPanel>
+        </StackPanel>
+      
+      
+      <ScrollViewer HorizontalScrollBarVisibility="Auto">
+        <StackPanel Margin="20">
+          <Grid>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,20" Grid.Column="0">
+              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Workflow Name</TextBlock>
+              <TextBox Width="500" Margin="0,0,5,0" Text="{Binding CurrentWorkflow.WorkflowName}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Top">
+              <StackPanel Margin="0,10,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+
+                <Button Margin="10,0,10,0" Click="ImportCurrentWorkflowButtonClick">
+                  <StackPanel Orientation="Horizontal">
+                    <materialIcons:MaterialIcon Kind="Import" VerticalAlignment="Center" />
+                    <TextBlock Margin="10,0,10,0" VerticalAlignment="Center">Import Workflow</TextBlock>
+                  </StackPanel>
+                </Button>
+                <Button Margin="10,0,10,0" Click="ExportCurrentWorkflowButtonClick">
+                  <StackPanel Orientation="Horizontal">
+                    <materialIcons:MaterialIcon Kind="Export" VerticalAlignment="Center" />
+                    <TextBlock Margin="10,0,10,0" VerticalAlignment="Center">Export Workflow</TextBlock>
+                  </StackPanel>
+                </Button>
+                <Button Margin="10,0,0,0" Click="ResetWorkflow">
+                  <StackPanel Orientation="Horizontal">
+                    <materialIcons:MaterialIcon Kind="Refresh" VerticalAlignment="Center" />
+                    <TextBlock Margin="10,0,10,0" VerticalAlignment="Center">Reset Workflow</TextBlock>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </StackPanel>
+
+          </Grid>
+
+          <TextBlock FontWeight="Bold" Text="Video Input and Output"></TextBlock>
+          <Border Classes="border">
+            <StackPanel>
+          
+          <TabControl SelectedIndex="{Binding CurrentWorkflow.SelectedTabIndex}">
+            <TabItem VerticalContentAlignment="Center" FontSize="16">
+              <TabItem.Header>
+                <StackPanel Orientation="Horizontal">
+                  <materialIcons:MaterialIcon Kind="File" />
+                  <TextBlock Margin="5,0,5,0">Single Video Upscale</TextBlock>
+                </StackPanel>
               </TabItem.Header>
             
               <Border Classes="border">
                 <StackPanel>
                   <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Folder</TextBlock>
-                    <TextBox x:Name="InputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding InputFolderPath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
-                    <Button Content="Select Folder" Click="OpenInputFolderButtonClick" />
-                    <TextBlock Foreground="Gray" Width="450" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-                      Path of the folder to upscale. The folder will be scanned and all video files (<Run FontFamily="Consolas">*.mkv</Run>, <Run FontFamily="Consolas">*.mp4</Run>, <Run FontFamily="Consolas">*.mpg</Run>, <Run FontFamily="Consolas">*.mpeg</Run>, <Run FontFamily="Consolas">*.avi</Run>, <Run FontFamily="Consolas">*.mov</Run>, <Run FontFamily="Consolas">*.wmv</Run>) found will be upscaled.
-                    </TextBlock>
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Video</TextBlock>
+                    <TextBox x:Name="InputFileNameTextBox" Margin="0,0,5,0" Text="{Binding CurrentWorkflow.InputFilePath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
+                    <Button Content="Select File" Click="OpenInputFileButtonClick" />
+                    <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Path of the video file to upscale.</TextBlock>
                   </StackPanel>
                 </StackPanel>
               </Border>
-          </TabItem>
-        </TabControl>
-
-            <Border Classes="border">
-
-              <StackPanel>
-
-                <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Folder</TextBlock>
-                  <TextBox x:Name="OutputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding OutputFolderPath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
-                  <Button Content="Select Folder" Click="OpenOutputFolderButtonClick" />
-                  <TextBlock Foreground="Gray" Width="450" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-                    Path of the folder to save the upscaled video files.
-                  </TextBlock>
+            
+            </TabItem>
+            <TabItem VerticalAlignment="Center" FontSize="16">
+              <TabItem.Header>
+                <StackPanel Orientation="Horizontal">
+                  <materialIcons:MaterialIcon Kind="Folder" />
+                  <TextBlock Margin="5,0,5,0">Batch Video Upscale</TextBlock>
                 </StackPanel>
+                </TabItem.Header>
+            
+                <Border Classes="border">
+                  <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Input Folder</TextBlock>
+                      <TextBox x:Name="InputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding CurrentWorkflow.InputFolderPath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
+                      <Button Content="Select Folder" Click="OpenInputFolderButtonClick" />
+                      <TextBlock Foreground="Gray" Width="450" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                        Path of the folder to upscale. The folder will be scanned and all video files (<Run FontFamily="Consolas">*.mkv</Run>, <Run FontFamily="Consolas">*.mp4</Run>, <Run FontFamily="Consolas">*.mpg</Run>, <Run FontFamily="Consolas">*.mpeg</Run>, <Run FontFamily="Consolas">*.avi</Run>, <Run FontFamily="Consolas">*.mov</Run>, <Run FontFamily="Consolas">*.wmv</Run>) found will be upscaled.
+                      </TextBlock>
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+            </TabItem>
+          </TabControl>
 
-                <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
-                  <TextBlock Margin="0,0,5,0">Output Filename</TextBlock>
-                  <TextBox Text="{Binding OutputFilename}" Margin="0,0,5,0" IsReadOnly="False" Width="600" DragDrop.AllowDrop="True" />
-                  <SelectableTextBlock Foreground="Gray" Width="400" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-                    The filename of the upscaled video, including the desired file extension. <Run FontFamily="Consolas">%filename%</Run> is the input filename without extension. 
-                  </SelectableTextBlock>
-                </StackPanel>
+              <Border Classes="border">
 
-                <StackPanel Orientation="Horizontal" Margin="10,0,0,0">
-                  <CheckBox IsChecked="{Binding OverwriteExistingVideos}" Content="Allow Videos in Output Path to be Overwritten" />
-                  <TextBlock Width="600" TextWrapping="WrapWithOverflow" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">If unchecked, upscaling will be skipped for videos that already exist in the output path. If checked, any videos that already exist in the output path will be overwritten without warning. Use with caution.</TextBlock>
-                </StackPanel>
+                <StackPanel>
+
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Output Folder</TextBlock>
+                    <TextBox x:Name="OutputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding CurrentWorkflow.OutputFolderPath}" IsReadOnly="False" Width="800" DragDrop.AllowDrop="True" />
+                    <Button Content="Select Folder" Click="OpenOutputFolderButtonClick" />
+                    <TextBlock Foreground="Gray" Width="450" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                      Path of the folder to save the upscaled video files.
+                    </TextBlock>
+                  </StackPanel>
+
+                  <StackPanel Orientation="Horizontal" Margin="10,0,0,10">
+                    <TextBlock Margin="0,0,5,0">Output Filename</TextBlock>
+                    <TextBox Text="{Binding CurrentWorkflow.OutputFilename}" Margin="0,0,5,0" IsReadOnly="False" Width="600" DragDrop.AllowDrop="True" />
+                    <SelectableTextBlock Foreground="Gray" Width="400" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                      The filename of the upscaled video, including the desired file extension. <Run FontFamily="Consolas">%filename%</Run> is the input filename without extension. 
+                    </SelectableTextBlock>
+                  </StackPanel>
+
+                  <StackPanel Orientation="Horizontal" Margin="10,0,0,0">
+                    <CheckBox IsChecked="{Binding CurrentWorkflow.OverwriteExistingVideos}" Content="Allow Videos in Output Path to be Overwritten" />
+                    <TextBlock Width="600" TextWrapping="WrapWithOverflow" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">If unchecked, upscaling will be skipped for videos that already exist in the output path. If checked, any videos that already exist in the output path will be overwritten without warning. Use with caution.</TextBlock>
+                  </StackPanel>
                 
-              </StackPanel>
-
-            </Border>
-
-            <Border Classes="border">
-              <StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Output Video Settings</TextBlock>
-                  <TextBox Margin="0,0,5,0" Text="{Binding FfmpegVideoSettings}" IsReadOnly="False" Width="800" />
-                  <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Video encoding settings to pass to FFmpeg. Choose a preset below or edit the text to use custom settings.</TextBlock>
                 </StackPanel>
 
+              </Border>
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
-                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Presets</TextBlock>
-                  <ToggleButton IsChecked="{Binding FfmpegHevcNvencSelected}" Content="NVENC HEVC" Command="{Binding SetFfmpegHevcNvenc}" />
-                  <ToggleButton IsChecked="{Binding FfmpegX265Selected}" Content="x265 (CPU)" Command="{Binding SetFfmpegX265}" />
-                  <ToggleButton IsChecked="{Binding FfmpegX264Selected}" Content="x264 (CPU)" Command="{Binding SetFfmpegX264}" />
-                  <ToggleButton IsChecked="{Binding FfmpegLosslessSelected}" Content="Lossless (CPU)" Command="{Binding SetFfmpegLossless}" />
-                  <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>NVENC HEVC</Bold>: HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.  
+              <Border Classes="border">
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Output Video Settings</TextBlock>
+                    <TextBox Margin="0,0,5,0" Text="{Binding CurrentWorkflow.FfmpegVideoSettings}" IsReadOnly="False" Width="800" />
+                    <TextBlock Width="300" TextWrapping="WrapWithOverflow" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Video encoding settings to pass to FFmpeg. Choose a preset below or edit the text to use custom settings.</TextBlock>
+                  </StackPanel>
+
+
+                  <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">FFmpeg Presets</TextBlock>
+                    <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegHevcNvencSelected}" Content="NVENC HEVC" Command="{Binding CurrentWorkflow.SetFfmpegHevcNvenc}" />
+                    <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegX265Selected}" Content="x265 (CPU)" Command="{Binding CurrentWorkflow.SetFfmpegX265}" />
+                    <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegX264Selected}" Content="x264 (CPU)" Command="{Binding CurrentWorkflow.SetFfmpegX264}" />
+                    <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegLosslessSelected}" Content="Lossless (CPU)" Command="{Binding CurrentWorkflow.SetFfmpegLossless}" />
+                    <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>NVENC HEVC</Bold>: HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.  
 <Bold>x265 (CPU)</Bold>: <hypertext:Hyperlink Url="https://ffmpeg.org/ffmpeg-codecs.html#libx265" Text="x265 compression" />, more efficient compression but slower to encode.
 <Bold>x265 (CPU)</Bold>: <hypertext:Hyperlink Url="https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb" Text="x264 compression" />, OK compression, faster to encode.
 <Bold>Lossless (CPU)</Bold>: FFV1 lossless compression, usually fastest to encode but extremely large filesize, and may be slower if bottlenecked by a slow storage drive.</TextBlock>
+                  </StackPanel>
                 </StackPanel>
-              </StackPanel>
+              </Border>
+
+            </StackPanel>
             </Border>
 
-          </StackPanel>
-          </Border>
-
-        <!-- Upscaling -->
-        <Grid>
-          <TextBlock Grid.Column="0" Margin="0,40,0,0" FontWeight="Bold" Text="Upscale Settings"></TextBlock>
-          <CheckBox Grid.Column="1" Margin="0,0,0,0" HorizontalAlignment="Right" VerticalAlignment="Bottom" IsChecked="{Binding ShowAdvancedSettings}" Content="Show More Upscale Settings" />
-        </Grid>
+          <!-- Upscaling -->
+          <Grid>
+            <TextBlock Grid.Column="0" Margin="0,40,0,0" FontWeight="Bold" Text="Upscale Settings"></TextBlock>
+            <CheckBox Grid.Column="1" Margin="0,0,0,0" HorizontalAlignment="Right" VerticalAlignment="Bottom" IsChecked="{Binding CurrentWorkflow.ShowAdvancedSettings}" Content="Show More Upscale Settings" />
+          </Grid>
         
-        <Border Classes="border">
-          <StackPanel>
+          <Border Classes="border">
+            <StackPanel>
             
-        <ItemsControl ItemsSource="{Binding UpscaleSettings}" >
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:UpscaleModel">
-              <Border Classes="border">
-                <Grid>
-                  <StackPanel Grid.Column="0">
-                    <TextBlock FontSize="16" FontWeight="Bold" Margin="10,10,0,10" Text="{Binding ModelHeader}" />
-                    <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ShowAdvancedSettings}}">
-                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Height Before Upscale</TextBlock>
-                      <TextBox Margin="0,0,5,0" Text="{Binding ResizeHeightBeforeUpscale}" IsReadOnly="False" />
-                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
-                      <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Resize the video to this height before running this model, set to 0 to disable.</TextBlock>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ShowAdvancedSettings}">
-                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Factor Before Upscale</TextBlock>
-                      <TextBox Margin="0,0,5,0" Text="{Binding ResizeFactorBeforeUpscale}" IsReadOnly="False" />
-                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">%</TextBlock>
-                      <TextBlock Foreground="Gray" Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-                        Resize the video by this factor before running this model. The video width and height are scaled by this percentage, so a value of 100% performs no resize, and a value of 50% cuts the width and height of the video in half. This setting is ignored if Resize Height Before Upscale is specified.
-                      </TextBlock>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">ONNX Model Path</TextBlock>
-                      <TextBox Margin="0,0,5,0" Text="{Binding OnnxModelPath}" IsReadOnly="False" Width="800" />
-                      <Button Content="Select File" Click="OpenOnnxFileButtonClick" />
-                      <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">File path of the ONNX model to run.</TextBlock>
-                    </StackPanel>
-                  </StackPanel>
-
-                  <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,10,0,10" HorizontalAlignment="Right" VerticalAlignment="Top">
-                    <Button Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).DeleteModel}"
-                            CommandParameter="{Binding}"
-                            >
-                      <StackPanel Orientation="Horizontal">
-                        <materialIcons:MaterialIcon Kind="MinusCircle" />
-                        <TextBlock Margin="5,0,0,0">Remove Model</TextBlock>
+          <ItemsControl ItemsSource="{Binding CurrentWorkflow.UpscaleSettings}" >
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:UpscaleModel">
+                <Border Classes="border">
+                  <Grid>
+                    <StackPanel Grid.Column="0">
+                      <TextBlock FontWeight="Bold" Margin="10,10,0,10" Text="{Binding ModelHeader}" />
+                      <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).CurrentWorkflow.ShowAdvancedSettings}}">
+                        <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Height Before Upscale</TextBlock>
+                        <NumericUpDown Margin="0,0,5,0" VerticalAlignment="Center" Value="{Binding ResizeHeightBeforeUpscale}" Minimum="0" AllowSpin="False" ShowButtonSpinner="False" />
+                        <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
+                        <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Resize the video to this height before running this model, set to 0 to disable.</TextBlock>
                       </StackPanel>
-                    </Button>
-                  </StackPanel>
+                      <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).CurrentWorkflow.ShowAdvancedSettings}">
+                        <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Resize Factor Before Upscale</TextBlock>
+                        <NumericUpDown Margin="0,0,5,0" VerticalAlignment="Center" Value="{Binding ResizeFactorBeforeUpscale}" Minimum="0" AllowSpin="False" ShowButtonSpinner="False" IsEnabled="{Binding EnableResizeFactor}" />
+                        <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">%</TextBlock>
+                        <TextBlock Foreground="Gray" Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                          Resize the video by this factor before running this model. The video width and height are scaled by this percentage, so a value of 100% performs no resize, and a value of 50% cuts the width and height of the video in half. This setting is ignored if Resize Height Before Upscale is specified.
+                        </TextBlock>
+                      </StackPanel>
+                      <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                        <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">ONNX Model Path</TextBlock>
+                        <TextBox Margin="0,0,5,0" Text="{Binding OnnxModelPath}" IsReadOnly="False" Width="800" />
+                        <Button Content="Select File" Click="OpenOnnxFileButtonClick" />
+                        <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">File path of the ONNX model to run.</TextBlock>
+                      </StackPanel>
+                    </StackPanel>
 
-                </Grid>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <Button Margin="10,20,0,20" Command="{Binding AddModel}">
-          <StackPanel Orientation="Horizontal">
-            <materialIcons:MaterialIcon Kind="PlusCircle" />
-            <TextBlock Margin="5,0,0,0">Add Model</TextBlock>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,10,0,10" HorizontalAlignment="Right" VerticalAlignment="Top">
+                      <Button Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).CurrentWorkflow.DeleteModel}"
+                              CommandParameter="{Binding}"
+                              >
+                        <StackPanel Orientation="Horizontal">
+                          <materialIcons:MaterialIcon Kind="MinusCircle" />
+                          <TextBlock Margin="5,0,0,0">Remove Model</TextBlock>
+                        </StackPanel>
+                      </Button>
+                    </StackPanel>
+
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Button Margin="10,20,0,20" Command="{Binding CurrentWorkflow.AddModel}">
+            <StackPanel Orientation="Horizontal">
+              <materialIcons:MaterialIcon Kind="PlusCircle" />
+              <TextBlock Margin="5,0,0,0">Add Model</TextBlock>
+            </StackPanel>
+          </Button>
+
+          <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+            <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Height</TextBlock>
+            <NumericUpDown Margin="0,0,5,0" VerticalAlignment="Center" Value="{Binding CurrentWorkflow.FinalResizeHeight}" Minimum="0" AllowSpin="False" ShowButtonSpinner="False" Classes="clearButton"  />
+            <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
+            <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+              Resize the video to this height after running all models, set to 0 to disable. Note that the final video width and height must be divisble by 2 or the output video will be invalid.
+            </TextBlock>
           </StackPanel>
-        </Button>
 
-        <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Height</TextBlock>
-          <NumericUpDown Margin="0,0,5,0" Text="{Binding FinalResizeHeight, FallbackValue=0}" AllowSpin="False" ShowButtonSpinner="False"  />
-          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
-          <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-            Resize the video to this height after running all models, set to 0 to disable. Note that the final video width and height must be divisble by 2 or the output video will be invalid.
-          </TextBlock>
-        </StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding CurrentWorkflow.ShowAdvancedSettings}">
+            <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Factor</TextBlock>
+            <NumericUpDown Margin="0,0,5,0" VerticalAlignment="Center" Value="{Binding CurrentWorkflow.FinalResizeFactor}" IsEnabled="{Binding CurrentWorkflow.EnableFinalResizeFactor}" />
+            <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">%</TextBlock>
+            <TextBlock Foreground="Gray" Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+              Resize the video by this factor after running all models. The video width and height are scaled by this percentage, so a value of 100% performs no resize, and a value of 50% cuts the width and height of the video in half. This setting is ignored if Final Resize Height is specified. Note that the final video width and height must be divisble by 2 or the output video will be invalid.
+            </TextBlock>
+          </StackPanel>
 
-        <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowAdvancedSettings}">
-          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Final Resize Factor</TextBlock>
-          <TextBox Margin="0,0,5,0" VerticalAlignment="Center" Text="{Binding FinalResizeFactor, FallbackValue=1}" IsReadOnly="False" />
-          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">%</TextBlock>
-          <TextBlock Foreground="Gray" Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-            Resize the video by this factor after running all models. The video width and height are scaled by this percentage, so a value of 100% performs no resize, and a value of 50% cuts the width and height of the video in half. This setting is ignored if Final Resize Height is specified. Note that the final video width and height must be divisble by 2 or the output video will be invalid.
-          </TextBlock>
-        </StackPanel>
-
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
-          <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Upscaling Backend</TextBlock>
-          <ToggleButton IsChecked="{Binding TensorRtSelected}" Content="TensorRT" Command="{Binding SetTensorRtSelected}" />
-          <ToggleButton IsChecked="{Binding DirectMlSelected}" Content="DirectML" Command="{Binding SetDirectMlSelected}" />
-          <ToggleButton IsChecked="{Binding NcnnSelected}" Content="NCNN" Command="{Binding SetNcnnSelected}" />
-          <TextBlock Foreground="Gray" Width="900" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>TensorRT</Bold>: Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
+            <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Upscaling Backend</TextBlock>
+            <ToggleButton IsChecked="{Binding CurrentWorkflow.TensorRtSelected}" Content="TensorRT" Command="{Binding CurrentWorkflow.SetTensorRtSelected}" />
+            <ToggleButton IsChecked="{Binding CurrentWorkflow.DirectMlSelected}" Content="DirectML" Command="{Binding CurrentWorkflow.SetDirectMlSelected}" />
+            <ToggleButton IsChecked="{Binding CurrentWorkflow.NcnnSelected}" Content="NCNN" Command="{Binding CurrentWorkflow.SetNcnnSelected}" />
+            <TextBlock Foreground="Gray" Width="900" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>TensorRT</Bold>: Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.
 <Bold>DirectML</Bold>: Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only.
 <Bold>NCNN</Bold>: Compatible with NVIDIA, AMD, and Intel GPUs but typically slower than DirectML. Supports fp32 ONNX models only.</TextBlock>
-        </StackPanel>            
-          </StackPanel>
-        </Border>
-
-        <!-- Interpolation -->
-        <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="Interpolation Settings"></TextBlock>
-        <Border Classes="border">
-          <StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-              <CheckBox IsChecked="{Binding EnableRife}">Enable Interpolation</CheckBox>
-              <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Whether or not to run video frame interpolation.</TextBlock>
+          </StackPanel>            
             </StackPanel>
+          </Border>
 
-            <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding EnableRife}">
-              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Interpolation Factor</TextBlock>
-              <NumericUpDown Value="{Binding RifeFactorNumerator}" Minimum="{Binding RifeFactorDenominator}" FormatString="0" />
-              <TextBlock xml:space="preserve"> / </TextBlock>
-              <NumericUpDown Value="{Binding RifeFactorDenominator}" Minimum="1" Maximum="{Binding RifeFactorNumerator}" FormatString="0" />
-              <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Interpolation factor represented as a fraction. For example, 2 / 1 will double the framerate.</TextBlock>
-            </StackPanel>
+          <!-- Interpolation -->
+          <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="Interpolation Settings"></TextBlock>
+          <Border Classes="border">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                <CheckBox IsChecked="{Binding CurrentWorkflow.EnableRife}">Enable Interpolation</CheckBox>
+                <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Whether or not to run video frame interpolation.</TextBlock>
+              </StackPanel>
+
+              <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding CurrentWorkflow.EnableRife}">
+                <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Interpolation Factor</TextBlock>
+                <NumericUpDown Value="{Binding CurrentWorkflow.RifeFactorNumerator}" Minimum="{Binding CurrentWorkflow.RifeFactorDenominator}" FormatString="0" />
+                <TextBlock xml:space="preserve"> / </TextBlock>
+                <NumericUpDown Value="{Binding CurrentWorkflow.RifeFactorDenominator}" Minimum="1" Maximum="{Binding CurrentWorkflow.RifeFactorNumerator}" FormatString="0" />
+                <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Interpolation factor represented as a fraction. For example, 2 / 1 will double the framerate.</TextBlock>
+              </StackPanel>
             
-            <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding EnableRife}">
-              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Model</TextBlock>
-              <ComboBox Margin="0,0,5,0" VerticalAlignment="Center" SelectedValue="{Binding RifeModel}" ItemsSource="{Binding RifeModelList}" />
-              <TextBlock Foreground="Gray" Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-                Interpolation model to run. Higher RIFE version is newer and usually better quality.
-              </TextBlock>
-            </StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding CurrentWorkflow.EnableRife}">
+                <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Model</TextBlock>
+                <ComboBox Margin="0,0,5,0" VerticalAlignment="Center" SelectedValue="{Binding CurrentWorkflow.RifeModel}" ItemsSource="{Binding CurrentWorkflow.RifeModelList}" />
+                <TextBlock Foreground="Gray" Width="800" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                  Interpolation model to run. Higher RIFE version is newer and usually better quality.
+                </TextBlock>
+              </StackPanel>
 
-            <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding EnableRife}">
-              <CheckBox IsChecked="{Binding RifeEnsemble}">Ensemble</CheckBox>
-              <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Whether or not to use the ensemble version of the model, which improves quality but runs slower.</TextBlock>
-            </StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding CurrentWorkflow.EnableRife}">
+                <CheckBox IsChecked="{Binding CurrentWorkflow.RifeEnsemble}">Ensemble</CheckBox>
+                <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Whether or not to use the ensemble version of the model, which improves quality but runs slower.</TextBlock>
+              </StackPanel>
 
-            <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding EnableRife}">
-              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Scene Detection Threshold</TextBlock>
-              <NumericUpDown Value="{Binding RifeSceneDetectThreshold}" Minimum="0" FormatString="0.000" Maximum="1" Increment="0.05" />
-              <TextBlock Foreground="Gray" Width="900" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Scene detection is used to prevent interpolating frames during hard transitions between scenes. The threshold adjusts the sensitivity for what is considered a scene change. If the threshold is too high, more interpolation artifacts may be visible during scene transitions. If the threshold is too low, the video may stutter more.</TextBlock>
+              <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding CurrentWorkflow.EnableRife}">
+                <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Scene Detection Threshold</TextBlock>
+                <NumericUpDown Value="{Binding CurrentWorkflow.RifeSceneDetectThreshold}" Minimum="0" FormatString="0.000" Maximum="1" Increment="0.05" />
+                <TextBlock Foreground="Gray" Width="900" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">Scene detection is used to prevent interpolating frames during hard transitions between scenes. The threshold adjusts the sensitivity for what is considered a scene change. If the threshold is too high, more interpolation artifacts may be visible during scene transitions. If the threshold is too low, the video may stutter more.</TextBlock>
+              </StackPanel>
             </StackPanel>
-          </StackPanel>
-        </Border>
+          </Border>
         
-      </StackPanel>
-    </ScrollViewer>
-    </DockPanel>
+        </StackPanel>
+      </ScrollViewer>
+      </DockPanel>
 
-    <!-- Settings Overlay -->
-    <StackPanel IsVisible="{Binding ShowAppSettings}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0,0,0,30">
-      <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="20">
-        <DockPanel>
-          <TextBlock DockPanel.Dock="Left" FontWeight="Bold" Text="App Settings"></TextBlock>
+      <!-- Settings Overlay -->
+      <StackPanel IsVisible="{Binding ShowAppSettings}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0,0,0,30" Grid.Column="1">
+        <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="20">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Left" FontWeight="Bold" Text="App Settings"></TextBlock>
          
-        </DockPanel>
+          </DockPanel>
 
-        <Border Classes="border">
-          <StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-              <CheckBox IsChecked="{Binding AutoUpdateEnabled}">Auto Update</CheckBox>
-              <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-                Whether to automatically check for and install app updates.
-              </TextBlock>
-            </StackPanel>
+          <!-- App Settings -->
+          <Border Classes="border">
+            <StackPanel>
+              <StackPanel IsVisible="{Binding IsInstalled}">
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                    <CheckBox IsChecked="{Binding AutoUpdateEnabled}">Auto Update</CheckBox>
+                    <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                      Whether to automatically check for and install app updates.
+                    </TextBlock>
+                  </StackPanel>
 
-            <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-              <TextBlock Text="Current Version" VerticalAlignment="Center"></TextBlock>
-              <TextBlock VerticalAlignment="Center" FontFamily="Consolas" Text="{Binding AppVersion}" Margin="20,0,0,0"></TextBlock>    
-              <hypertext:Hyperlink VerticalAlignment="Center" Margin="20,0,0,0" Url="https://github.com/the-database/AnimeJaNaiConverterGui/releases"/>
-            </StackPanel>
-          </StackPanel>
-        </Border>
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                    <TextBlock Text="Current Version" VerticalAlignment="Center"></TextBlock>
+                    <TextBlock VerticalAlignment="Center" FontFamily="Consolas" Text="{Binding AppVersion}" Margin="20,0,0,0"></TextBlock>
+                    <hypertext:Hyperlink VerticalAlignment="Center" Margin="20,0,0,0" Url="https://github.com/the-database/AnimeJaNaiConverterGui/releases" />
+                  </StackPanel>
 
-        <Border Classes="border">
-          <ToggleButton DockPanel.Dock="Right" Margin="10,10,0,10" IsChecked="{Binding !RequestShowAppSettings}">
-            <StackPanel Orientation="Horizontal">
-              <materialIcons:MaterialIcon Kind="ArrowBackCircle" />
-              <TextBlock Margin="5,0,0,0">Return</TextBlock>
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                    <TextBlock VerticalAlignment="Center" Text="{Binding UpdateStatusText}" Margin="0,0,0,0"></TextBlock>
+                  </StackPanel>
+
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowCheckUpdateButton}">
+                    <Button Command="{Binding CheckForUpdates}">Check for Updates Now</Button>
+                  </StackPanel>
+
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowDownloadButton}">
+                    <Button Command="{Binding DownloadUpdate}">Download Update</Button>
+                  </StackPanel>
+
+                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowApplyButton}">
+                    <Button Command="{Binding ApplyUpdate}">Restart to Update MangaJaNaiConverterGui</Button>
+                  </StackPanel>
+                </StackPanel>
+              </StackPanel>
+              <StackPanel IsVisible="{Binding !IsInstalled}">
+                <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                  <TextBlock>App is not installed; auto update settings unavailable.</TextBlock>
+                </StackPanel>
+              </StackPanel>
             </StackPanel>
-          </ToggleButton>
-        </Border>
+          </Border>
+
+          <Border Classes="border">
+            <ToggleButton DockPanel.Dock="Right" Margin="10,10,0,10" IsChecked="{Binding !RequestShowAppSettings}">
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Kind="ArrowBackCircle" />
+                <TextBlock Margin="5,0,0,0">Return</TextBlock>
+              </StackPanel>
+            </ToggleButton>
+          </Border>
+        </StackPanel>
       </StackPanel>
-    </StackPanel>
-
+    </Grid>
     <Grid IsVisible="{Binding IsExtractingBackend}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
       <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">Performing first time setup. This may take several minutes...</TextBlock>
     </Grid>
