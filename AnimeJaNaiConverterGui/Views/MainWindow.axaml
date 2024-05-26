@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:hypertext="clr-namespace:HyperText.Avalonia.Controls;assembly=HyperText.Avalonia"
         xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        xmlns:ui="using:FluentAvalonia.UI.Controls"
         mc:Ignorable="d" d:DesignWidth="1920" d:DesignHeight="1080"
         Width="1920" Height="1080"
         WindowStartupLocation="CenterScreen"
@@ -35,10 +36,10 @@
     <Style Selector="Button.active">
       <Setter Property="Background" Value="{DynamicResource SystemAccentColor }" />
       <Style Selector="^:pointerover">
-        <!--<Style Selector="^ /template/ ui|FABorder#Root">
+        <Style Selector="^ /template/ ContentPresenter#PART_ContentPresenter">
           <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
           <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
-        </Style>-->
+        </Style>
       </Style>
     </Style>
   </Window.Styles>
