@@ -7,6 +7,7 @@ using Avalonia.ReactiveUI;
 using NuGet.Versioning;
 using ReactiveUI;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -21,6 +22,8 @@ namespace AnimeJaNaiConverterGui
 
         public override void OnFrameworkInitializationCompleted()
         {
+            Assets.Resources.Culture = new CultureInfo("ja-JP"); // TODO remove
+
             if (!Directory.Exists(Program.AppStateFolder))
             {
                 Directory.CreateDirectory(Program.AppStateFolder);
