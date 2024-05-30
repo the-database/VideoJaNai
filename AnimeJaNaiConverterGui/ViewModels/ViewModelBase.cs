@@ -1,6 +1,6 @@
 ﻿using ReactiveUI;
 
-namespace AnimeJaNaiConverterGui.ViewModels
+namespace VideoJaNai.ViewModels
 {
     public class ViewModelBase : ReactiveObject
     {

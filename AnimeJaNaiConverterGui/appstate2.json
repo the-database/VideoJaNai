@@ -1,11 +1,11 @@
 {
-  "$type": "AnimeJaNaiConverterGui.ViewModels.MainWindowViewModel, AnimeJaNaiConverterGui",
+  "$type": "VideoJaNai.ViewModels.MainWindowViewModel, VideoJaNai",
   "AutoUpdateEnabled": true,
   "Workflows": {
-    "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui]], Avalonia.Base",
+    "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai]], Avalonia.Base",
     "$values": [
       {
-        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
         "WorkflowName": "Default Workflow",
         "WorkflowIndex": 0,
         "SelectedTabIndex": 0,
@@ -21,10 +21,10 @@
         "OutputFolderPath": "",
         "OverwriteExistingVideos": false,
         "UpscaleSettings": {
-          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleModel, VideoJaNai]], Avalonia.Base",
           "$values": [
             {
-              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "$type": "VideoJaNai.ViewModels.UpscaleModel, VideoJaNai",
               "ModelHeader": "Model 1",
               "ResizeHeightBeforeUpscale": 0,
               "ResizeFactorBeforeUpscale": 100.0,
@@ -41,7 +41,7 @@
         "ShowAdvancedSettings": true
       },
       {
-        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
         "WorkflowName": "Workflow 2",
         "WorkflowIndex": 1,
         "SelectedTabIndex": 0,
@@ -57,10 +57,10 @@
         "OutputFolderPath": "",
         "OverwriteExistingVideos": false,
         "UpscaleSettings": {
-          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleModel, VideoJaNai]], Avalonia.Base",
           "$values": [
             {
-              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "$type": "VideoJaNai.ViewModels.UpscaleModel, VideoJaNai",
               "ModelHeader": "Model 1",
               "ResizeHeightBeforeUpscale": 0,
               "ResizeFactorBeforeUpscale": 100.0,
@@ -77,7 +77,7 @@
         "ShowAdvancedSettings": true
       },
       {
-        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
         "WorkflowName": "Default Workflow",
         "WorkflowIndex": 2,
         "SelectedTabIndex": 0,
@@ -93,10 +93,10 @@
         "OutputFolderPath": "",
         "OverwriteExistingVideos": false,
         "UpscaleSettings": {
-          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleModel, VideoJaNai]], Avalonia.Base",
           "$values": [
             {
-              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "$type": "VideoJaNai.ViewModels.UpscaleModel, VideoJaNai",
               "ModelHeader": "Model 1",
               "ResizeHeightBeforeUpscale": 0,
               "ResizeFactorBeforeUpscale": 100.0,
@@ -113,7 +113,7 @@
         "ShowAdvancedSettings": true
       },
       {
-        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
         "WorkflowName": "Default Workflow",
         "WorkflowIndex": 3,
         "SelectedTabIndex": 4,
@@ -129,10 +129,10 @@
         "OutputFolderPath": "",
         "OverwriteExistingVideos": false,
         "UpscaleSettings": {
-          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleModel, VideoJaNai]], Avalonia.Base",
           "$values": [
             {
-              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "$type": "VideoJaNai.ViewModels.UpscaleModel, VideoJaNai",
               "ModelHeader": "Model 1",
               "ResizeHeightBeforeUpscale": 0,
               "ResizeFactorBeforeUpscale": 100.0,
@@ -149,7 +149,7 @@
         "ShowAdvancedSettings": true
       },
       {
-        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
         "WorkflowName": "Default Workflow",
         "WorkflowIndex": 4,
         "SelectedTabIndex": 0,
@@ -165,10 +165,10 @@
         "OutputFolderPath": "",
         "OverwriteExistingVideos": false,
         "UpscaleSettings": {
-          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleModel, VideoJaNai]], Avalonia.Base",
           "$values": [
             {
-              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "$type": "VideoJaNai.ViewModels.UpscaleModel, VideoJaNai",
               "ModelHeader": "Model 1",
               "ResizeHeightBeforeUpscale": 0,
               "ResizeFactorBeforeUpscale": 100.0,
@@ -185,7 +185,7 @@
         "ShowAdvancedSettings": true
       },
       {
-        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
         "WorkflowName": "Default Workflow",
         "WorkflowIndex": 5,
         "SelectedTabIndex": 0,
@@ -201,10 +201,10 @@
         "OutputFolderPath": "",
         "OverwriteExistingVideos": false,
         "UpscaleSettings": {
-          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleModel, VideoJaNai]], Avalonia.Base",
           "$values": [
             {
-              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "$type": "VideoJaNai.ViewModels.UpscaleModel, VideoJaNai",
               "ModelHeader": "Model 1",
               "ResizeHeightBeforeUpscale": 0,
               "ResizeFactorBeforeUpscale": 100.0,
@@ -221,7 +221,7 @@
         "ShowAdvancedSettings": true
       },
       {
-        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
         "WorkflowName": "Default Workflow",
         "WorkflowIndex": 6,
         "SelectedTabIndex": 7,
@@ -237,10 +237,10 @@
         "OutputFolderPath": "",
         "OverwriteExistingVideos": false,
         "UpscaleSettings": {
-          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleModel, VideoJaNai]], Avalonia.Base",
           "$values": [
             {
-              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "$type": "VideoJaNai.ViewModels.UpscaleModel, VideoJaNai",
               "ModelHeader": "Model 1",
               "ResizeHeightBeforeUpscale": 0,
               "ResizeFactorBeforeUpscale": 100.0,
@@ -257,7 +257,7 @@
         "ShowAdvancedSettings": true
       },
       {
-        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
         "WorkflowName": "Default Workflow",
         "WorkflowIndex": 7,
         "SelectedTabIndex": 0,
@@ -273,10 +273,10 @@
         "OutputFolderPath": "",
         "OverwriteExistingVideos": false,
         "UpscaleSettings": {
-          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleModel, VideoJaNai]], Avalonia.Base",
           "$values": [
             {
-              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "$type": "VideoJaNai.ViewModels.UpscaleModel, VideoJaNai",
               "ModelHeader": "Model 1",
               "ResizeHeightBeforeUpscale": 0,
               "ResizeFactorBeforeUpscale": 100.0,
@@ -293,7 +293,7 @@
         "ShowAdvancedSettings": true
       },
       {
-        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
         "WorkflowName": "Default Workflow",
         "WorkflowIndex": 8,
         "SelectedTabIndex": 0,
@@ -309,10 +309,10 @@
         "OutputFolderPath": "",
         "OverwriteExistingVideos": false,
         "UpscaleSettings": {
-          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleModel, VideoJaNai]], Avalonia.Base",
           "$values": [
             {
-              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "$type": "VideoJaNai.ViewModels.UpscaleModel, VideoJaNai",
               "ModelHeader": "Model 1",
               "ResizeHeightBeforeUpscale": 0,
               "ResizeFactorBeforeUpscale": 100.0,
@@ -329,7 +329,7 @@
         "ShowAdvancedSettings": true
       },
       {
-        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleWorkflow, AnimeJaNaiConverterGui",
+        "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
         "WorkflowName": "Default Workflow",
         "WorkflowIndex": 9,
         "SelectedTabIndex": 0,
@@ -345,10 +345,10 @@
         "OutputFolderPath": "",
         "OverwriteExistingVideos": false,
         "UpscaleSettings": {
-          "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+          "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleModel, VideoJaNai]], Avalonia.Base",
           "$values": [
             {
-              "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+              "$type": "VideoJaNai.ViewModels.UpscaleModel, VideoJaNai",
               "ModelHeader": "Model 1",
               "ResizeHeightBeforeUpscale": 0,
               "ResizeFactorBeforeUpscale": 100.0,

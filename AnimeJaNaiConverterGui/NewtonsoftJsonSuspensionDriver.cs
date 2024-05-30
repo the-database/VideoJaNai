@@ -1,4 +1,4 @@
-using AnimeJaNaiConverterGui.ViewModels;
+using VideoJaNai.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using ReactiveUI;
@@ -8,7 +8,7 @@ using System.Reactive;
 using Newtonsoft.Json;
 using System.IO;
 
-namespace AnimeJaNaiConverterGui
+namespace VideoJaNai
 {
     public class NewtonsoftJsonSuspensionDriver : ISuspensionDriver
     {

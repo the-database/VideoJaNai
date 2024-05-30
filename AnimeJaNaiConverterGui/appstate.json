@@ -1,5 +1,5 @@
 {
-  "$type": "AnimeJaNaiConverterGui.ViewModels.MainWindowViewModel, AnimeJaNaiConverterGui",
+  "$type": "VideoJaNai.ViewModels.MainWindowViewModel, VideoJaNai",
   "AutoUpdateEnabled": true,
   "SelectedTabIndex": 0,
   "OverwriteExistingVideos": false,
@@ -14,11 +14,11 @@
   "OutputFilename": "%filename%-animejanai.mkv",
   "OutputFolderPath": "",
   "UpscaleSettings": {
-    "$type": "Avalonia.Collections.AvaloniaList`1[[AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui]], Avalonia.Base",
+    "$type": "Avalonia.Collections.AvaloniaList`1[[VideoJaNai.ViewModels.UpscaleModel, VideoJaNai]], Avalonia.Base",
 
     "$values": [
       {
-        "$type": "AnimeJaNaiConverterGui.ViewModels.UpscaleModel, AnimeJaNaiConverterGui",
+        "$type": "VideoJaNai.ViewModels.UpscaleModel, VideoJaNai",
         "ModelHeader": "Model 1",
         "ResizeHeightBeforeUpscale": 0,
         "ResizeFactorBeforeUpscale": 100,

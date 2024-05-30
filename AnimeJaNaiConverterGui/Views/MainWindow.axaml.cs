@@ -1,4 +1,4 @@
-using AnimeJaNaiConverterGui.ViewModels;
+using VideoJaNai.ViewModels;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
@@ -20,21 +20,16 @@ using System.Linq;
 using System.Threading.Tasks;
 using Velopack;
 
-namespace AnimeJaNaiConverterGui.Views
+namespace VideoJaNai.Views
 {
     public partial class MainWindow : AppWindow
     {
-        private readonly UpdateManager _um;
-        private UpdateInfo _update;
-
         private bool _autoScrollConsole = true;
         private bool _userWantsToQuit = false;
 
         public MainWindow()
         {
             AvaloniaXamlLoader.Load(this);
-            _um = new UpdateManager("https://github.com/the-database/AnimeJaNaiConverterGui/releases");
-            //this.WhenActivated(disposable => { }); // TODO ???
             Resized += MainWindow_Resized;
             Closing += MainWindow_Closing;
             Opened += MainWindow_Opened;
@@ -73,18 +68,6 @@ namespace AnimeJaNaiConverterGui.Views
                     {
                         vm.CancelUpscale();
                         Close();
-                    }
-                }
-                else
-                {
-                    if (_um.IsInstalled)
-                    {
-                        _update = await _um.CheckForUpdatesAsync().ConfigureAwait(true);
-
-                        if (_update != null)
-                        {
-                            _um.ApplyUpdatesAndExit(_update);
-                        }
                     }
                 }
             }

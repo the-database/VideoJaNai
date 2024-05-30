@@ -19,7 +19,7 @@ using System.Threading.Tasks;
 using Velopack;
 using Velopack.Sources;
 
-namespace AnimeJaNaiConverterGui.ViewModels
+namespace VideoJaNai.ViewModels
 {
     [DataContract]
     public class MainWindowViewModel : ViewModelBase
@@ -39,7 +39,7 @@ namespace AnimeJaNaiConverterGui.ViewModels
                 CurrentWorkflow?.Validate();
             });
 
-            _um = new UpdateManager(new GithubSource("https://github.com/the-database/AnimeJaNaiConverterGui", null, false));
+            _um = new UpdateManager(new GithubSource("https://github.com/the-database/VideoJaNai", null, false));
             CheckForUpdates();
         }
 

@@ -1,9 +1,9 @@
-using AnimeJaNaiConverterGui.ViewModels;
+using VideoJaNai.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using System;
 
-namespace AnimeJaNaiConverterGui
+namespace VideoJaNai
 {
     public class ViewLocator : IDataTemplate
     {
