@@ -130,16 +130,16 @@
     <value>App is not installed; auto update settings unavailable.</value>
   </data>
   <data name="AppSettingsButtonText" xml:space="preserve">
-    <value>App Settings</value>
+    <value>設定</value>
   </data>
   <data name="AppSettingsHeader" xml:space="preserve">
-    <value>App Settings</value>
+    <value>設定</value>
   </data>
   <data name="AutoUpdateDescription" xml:space="preserve">
     <value>Whether to automatically check for and install app updates.</value>
   </data>
   <data name="AutoUpdateLabel" xml:space="preserve">
-    <value>Auto Update</value>
+    <value>自動更新</value>
   </data>
   <data name="BatchVideoUpscaleTabHeader" xml:space="preserve">
     <value>Batch Video Upscale</value>
@@ -148,16 +148,16 @@
     <value>Cancel</value>
   </data>
   <data name="CheckForUpdatesNowButtonText" xml:space="preserve">
-    <value>Check for Updates Now</value>
+    <value>更新を確認する</value>
   </data>
   <data name="ConsoleButtonText" xml:space="preserve">
-    <value>Console</value>
+    <value>コンソール</value>
   </data>
   <data name="CurrentVersionLabel" xml:space="preserve">
     <value>Current Version</value>
   </data>
   <data name="DownloadUpdateButtonText" xml:space="preserve">
-    <value>Download Update</value>
+    <value>更新をダウンロードする</value>
   </data>
   <data name="EnableInterpolationDescription" xml:space="preserve">
     <value>Whether or not to run video frame interpolation.</value>
@@ -180,8 +180,17 @@
   <data name="FfmpegOutputSettingsLabel" xml:space="preserve">
     <value>FFmpeg Output Video Settings</value>
   </data>
-  <data name="FfmpegPresetsDescription" xml:space="preserve">
-    <value />
+  <data name="FfmpegPresetsDescriptionLossless" xml:space="preserve">
+    <value>FFV1 lossless compression, usually fastest to encode but extremely large filesize, and may be slower if bottlenecked by a slow storage drive.</value>
+  </data>
+  <data name="FfmpegPresetsDescriptionNvencHevc" xml:space="preserve">
+    <value>HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.</value>
+  </data>
+  <data name="FfmpegPresetsDescriptionX264" xml:space="preserve">
+    <value>x264 compression, OK compression, faster to encode.</value>
+  </data>
+  <data name="FfmpegPresetsDescriptionX265" xml:space="preserve">
+    <value>x265 compression, more efficient compression but slower to encode.</value>
   </data>
   <data name="FfmpegPresetsLabel" xml:space="preserve">
     <value>FFmpeg Presets</value>
@@ -277,7 +286,7 @@
     <value>Restart to Update VideoJaNai</value>
   </data>
   <data name="ReturnButtonText" xml:space="preserve">
-    <value>Return</value>
+    <value>戻る</value>
   </data>
   <data name="SceneDetectionThresholdDescription" xml:space="preserve">
     <value>Scene detection is used to prevent interpolating frames during hard transitions between scenes. The threshold adjusts the sensitivity for what is considered a scene change. If the threshold is too high, more interpolation artifacts may be visible during scene transitions. If the threshold is too low, the video may stutter more.</value>
@@ -286,10 +295,10 @@
     <value>Scene Detection Threshold</value>
   </data>
   <data name="SelectFileButtonText" xml:space="preserve">
-    <value>Select File</value>
+    <value>ファイルを選択する</value>
   </data>
   <data name="SelectFolderButtonText" xml:space="preserve">
-    <value>Select Folder</value>
+    <value>フォルダーを選択する</value>
   </data>
   <data name="SingleVideoUpscaleTabHeader" xml:space="preserve">
     <value>Single Video Upscale</value>
@@ -300,8 +309,14 @@
   <data name="UpscaleSettingsHeader" xml:space="preserve">
     <value>Upscale Settings</value>
   </data>
-  <data name="UpscalingBackendDescription" xml:space="preserve">
-    <value />
+  <data name="UpscalingBackendDescriptionDirectMl" xml:space="preserve">
+    <value>Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only.</value>
+  </data>
+  <data name="UpscalingBackendDescriptionNcnn" xml:space="preserve">
+    <value>Compatible with NVIDIA, AMD, and Intel GPUs but typically slower than DirectML. Supports fp32 ONNX models only.</value>
+  </data>
+  <data name="UpscalingBackendDescriptionTensorRt" xml:space="preserve">
+    <value>Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.</value>
   </data>
   <data name="UpscalingBackendLabel" xml:space="preserve">
     <value>Upscaling Backend</value>

@@ -180,8 +180,17 @@
   <data name="FfmpegOutputSettingsLabel" xml:space="preserve">
     <value>FFmpeg Output Video Settings</value>
   </data>
-  <data name="FfmpegPresetsDescription" xml:space="preserve">
-    <value />
+  <data name="FfmpegPresetsDescriptionLossless" xml:space="preserve">
+    <value>FFV1 lossless compression, usually fastest to encode but extremely large filesize, and may be slower if bottlenecked by a slow storage drive.</value>
+  </data>
+  <data name="FfmpegPresetsDescriptionNvencHevc" xml:space="preserve">
+    <value>HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.</value>
+  </data>
+  <data name="FfmpegPresetsDescriptionX264" xml:space="preserve">
+    <value>x264 compression, OK compression, faster to encode.</value>
+  </data>
+  <data name="FfmpegPresetsDescriptionX265" xml:space="preserve">
+    <value>x265 compression, more efficient compression but slower to encode.</value>
   </data>
   <data name="FfmpegPresetsLabel" xml:space="preserve">
     <value>FFmpeg Presets</value>
@@ -286,10 +295,10 @@
     <value>Scene Detection Threshold</value>
   </data>
   <data name="SelectFileButtonText" xml:space="preserve">
-    <value>ファイルを選択</value>
+    <value>Select File</value>
   </data>
   <data name="SelectFolderButtonText" xml:space="preserve">
-    <value>フォルダーを選択</value>
+    <value>Select Folder</value>
   </data>
   <data name="SingleVideoUpscaleTabHeader" xml:space="preserve">
     <value>Single Video Upscale</value>
@@ -300,8 +309,14 @@
   <data name="UpscaleSettingsHeader" xml:space="preserve">
     <value>Upscale Settings</value>
   </data>
-  <data name="UpscalingBackendDescription" xml:space="preserve">
-    <value />
+  <data name="UpscalingBackendDescriptionDirectMl" xml:space="preserve">
+    <value>Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only.</value>
+  </data>
+  <data name="UpscalingBackendDescriptionNcnn" xml:space="preserve">
+    <value>Compatible with NVIDIA, AMD, and Intel GPUs but typically slower than DirectML. Supports fp32 ONNX models only.</value>
+  </data>
+  <data name="UpscalingBackendDescriptionTensorRt" xml:space="preserve">
+    <value>Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.</value>
   </data>
   <data name="UpscalingBackendLabel" xml:space="preserve">
     <value>Upscaling Backend</value>
