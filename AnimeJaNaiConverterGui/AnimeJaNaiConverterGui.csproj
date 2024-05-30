@@ -18,11 +18,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AvaloniaResource Remove="Assets\Resources.ja-JP.resx" />
-    <AvaloniaResource Remove="Assets\Resources.resx" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="Assets\logo.ico" />
   </ItemGroup>
 
@@ -68,20 +63,12 @@
 
 
   <ItemGroup>
-    <AvaloniaResource Update="Assets\Resources.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </AvaloniaResource>
-    <Compile Update="Assets\Resources.Designer.cs">
+    <Compile Update="Lang\Resources.Designer.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <EmbeddedResource Update="Assets\Resources.ja-JP.resx">
-      <Generator>PublicResXFileCodeGenerator</Generator>
-    </EmbeddedResource>
-    <EmbeddedResource Update="Assets\Resources.resx">
+    <EmbeddedResource Update="Lang\Resources.resx">
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>

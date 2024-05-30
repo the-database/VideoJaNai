@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace AnimeJaNaiConverterGui.Assets {
+namespace AnimeJaNaiConverterGui.Lang {
     using System;
     
     
@@ -39,7 +39,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         public static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("AnimeJaNaiConverterGui.Assets.Resources", typeof(Resources).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("AnimeJaNaiConverterGui.Lang.Resources", typeof(Resources).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -70,7 +70,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to If unchecked, upscaling will be skipped for videos that already exist in the output path. If checked, any videos that already exist in the output path will be overwritten without warning. Use with caution..
         /// </summary>
         public static string AllowOverwriteDescription {
             get {
@@ -84,6 +84,15 @@ namespace AnimeJaNaiConverterGui.Assets {
         public static string AllowOverwriteLabel {
             get {
                 return ResourceManager.GetString("AllowOverwriteLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to App is not installed; auto update settings unavailable..
+        /// </summary>
+        public static string AppNotInstalledText {
+            get {
+                return ResourceManager.GetString("AppNotInstalledText", resourceCulture);
             }
         }
         
@@ -106,7 +115,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Whether to automatically check for and install app updates..
         /// </summary>
         public static string AutoUpdateDescription {
             get {
@@ -142,6 +151,15 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Check for Updates Now.
+        /// </summary>
+        public static string CheckForUpdatesNowButtonText {
+            get {
+                return ResourceManager.GetString("CheckForUpdatesNowButtonText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Console.
         /// </summary>
         public static string ConsoleButtonText {
@@ -160,7 +178,16 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Download Update.
+        /// </summary>
+        public static string DownloadUpdateButtonText {
+            get {
+                return ResourceManager.GetString("DownloadUpdateButtonText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Whether or not to run video frame interpolation..
         /// </summary>
         public static string EnableInterpolationDescription {
             get {
@@ -178,7 +205,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Whether or not to use the ensemble version of the model, which improves quality but runs slower..
         /// </summary>
         public static string EnsembleDescription {
             get {
@@ -205,7 +232,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Video encoding settings to pass to FFmpeg. Choose a preset below or edit the text to use custom settings..
         /// </summary>
         public static string FfmpegOutputSettingsDescription {
             get {
@@ -223,11 +250,38 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to FFV1 lossless compression, usually fastest to encode but extremely large filesize, and may be slower if bottlenecked by a slow storage drive..
         /// </summary>
-        public static string FfmpegPresetsDescription {
+        public static string FfmpegPresetsDescriptionLossless {
             get {
-                return ResourceManager.GetString("FfmpegPresetsDescription", resourceCulture);
+                return ResourceManager.GetString("FfmpegPresetsDescriptionLossless", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding..
+        /// </summary>
+        public static string FfmpegPresetsDescriptionNvencHevc {
+            get {
+                return ResourceManager.GetString("FfmpegPresetsDescriptionNvencHevc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to x264 compression, OK compression, faster to encode..
+        /// </summary>
+        public static string FfmpegPresetsDescriptionX264 {
+            get {
+                return ResourceManager.GetString("FfmpegPresetsDescriptionX264", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to x265 compression, more efficient compression but slower to encode..
+        /// </summary>
+        public static string FfmpegPresetsDescriptionX265 {
+            get {
+                return ResourceManager.GetString("FfmpegPresetsDescriptionX265", resourceCulture);
             }
         }
         
@@ -241,7 +295,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Resize the video by this factor after running all models. The video width and height are scaled by this percentage, so a value of 100% performs no resize, and a value of 50% cuts the width and height of the video in half. This setting is ignored if Final Resize Height is specified. Note that the final video width and height must be divisble by 2 or the output video will be invalid..
         /// </summary>
         public static string FinalResizeFactorDescription {
             get {
@@ -259,7 +313,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Resize the video to this height after running all models, set to 0 to disable. Note that the final video width and height must be divisble by 2 or the output video will be invalid..
         /// </summary>
         public static string FinalResizeHeightDescription {
             get {
@@ -277,6 +331,15 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Performing first time setup. This may take several minutes....
+        /// </summary>
+        public static string FirstTimeSetupText {
+            get {
+                return ResourceManager.GetString("FirstTimeSetupText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Import Workflow.
         /// </summary>
         public static string ImportWorkflowButtonText {
@@ -286,7 +349,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Path of the folder to upscale. The folder will be scanned and all video files (*.mkv, *.mp4, *.mpg, *.mpeg, *.avi, *.mov, *.wmv) found will be upscaled..
         /// </summary>
         public static string InputFolderDescription {
             get {
@@ -322,7 +385,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Interpolation factor represented as a fraction. For example, 2 / 1 will double the framerate..
         /// </summary>
         public static string InterpolationFactorDescription {
             get {
@@ -340,7 +403,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Interpolation model to run. Higher RIFE version is newer and usually better quality..
         /// </summary>
         public static string InterpolationModelDescription {
             get {
@@ -385,7 +448,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to File path of the ONNX model to run..
         /// </summary>
         public static string OnnxModelPathDescription {
             get {
@@ -403,7 +466,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to The filename of the upscaled video, including the desired file extension. %filename% is the input filename without extension..
         /// </summary>
         public static string OutputFilenameDescription {
             get {
@@ -421,7 +484,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Path of the folder to upscale. The folder will be scanned and all video files (*.mkv, *.mp4, *.mpg, *.mpeg, *.avi, *.mov, *.wmv) found will be upscaled..
+        ///   Looks up a localized string similar to Path of the folder to save the upscaled video files..
         /// </summary>
         public static string OutputFolderDescription {
             get {
@@ -457,7 +520,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Resize the video by this factor before running this model. The video width and height are scaled by this percentage, so a value of 100% performs no resize, and a value of 50% cuts the width and height of the video in half. This setting is ignored if Resize Height Before Upscale is specified..
         /// </summary>
         public static string ResizeFactorBeforeUpscaleDescription {
             get {
@@ -475,7 +538,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Resize the video to this height before running this model, set to 0 to disable..
         /// </summary>
         public static string ResizeHeightBeforeUpscaleDescription {
             get {
@@ -493,6 +556,15 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Restart to Update VideoJaNai.
+        /// </summary>
+        public static string RestartToUpdateButtonText {
+            get {
+                return ResourceManager.GetString("RestartToUpdateButtonText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Return.
         /// </summary>
         public static string ReturnButtonText {
@@ -502,7 +574,7 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Scene detection is used to prevent interpolating frames during hard transitions between scenes. The threshold adjusts the sensitivity for what is considered a scene change. If the threshold is too high, more interpolation artifacts may be visible during scene transitions. If the threshold is too low, the video may stutter more..
         /// </summary>
         public static string SceneDetectionThresholdDescription {
             get {
@@ -565,11 +637,29 @@ namespace AnimeJaNaiConverterGui.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to .
+        ///   Looks up a localized string similar to Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only..
         /// </summary>
-        public static string UpscalingBackendDescription {
+        public static string UpscalingBackendDescriptionDirectMl {
             get {
-                return ResourceManager.GetString("UpscalingBackendDescription", resourceCulture);
+                return ResourceManager.GetString("UpscalingBackendDescriptionDirectMl", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Compatible with NVIDIA, AMD, and Intel GPUs but typically slower than DirectML. Supports fp32 ONNX models only..
+        /// </summary>
+        public static string UpscalingBackendDescriptionNcnn {
+            get {
+                return ResourceManager.GetString("UpscalingBackendDescriptionNcnn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once..
+        /// </summary>
+        public static string UpscalingBackendDescriptionTensorRt {
+            get {
+                return ResourceManager.GetString("UpscalingBackendDescriptionTensorRt", resourceCulture);
             }
         }
         
