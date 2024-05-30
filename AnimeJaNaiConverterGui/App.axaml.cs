@@ -1,5 +1,5 @@
-using AnimeJaNaiConverterGui.ViewModels;
-using AnimeJaNaiConverterGui.Views;
+using VideoJaNai.ViewModels;
+using VideoJaNai.Views;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -11,7 +11,7 @@ using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace AnimeJaNaiConverterGui
+namespace VideoJaNai
 {
     public partial class App : Application
     {

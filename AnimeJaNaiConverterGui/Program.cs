@@ -7,13 +7,13 @@ using Microsoft.Extensions.Logging;
 using ReactiveUI;
 using System.IO;
 
-namespace AnimeJaNaiConverterGui
+namespace VideoJaNai
 {
     internal class Program
     {
         public static readonly string AppStateFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "AnimeJaNaiConverterGui"
+            "VideoJaNai"
         );
         public static readonly string AppStateFilename = "appstate2.json";
         public static readonly string AppStatePath = Path.Combine(AppStateFolder, AppStateFilename);

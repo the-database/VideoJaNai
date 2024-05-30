@@ -1,19 +1,19 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:AnimeJaNaiConverterGui.ViewModels"
+        xmlns:vm="using:VideoJaNai.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:hypertext="clr-namespace:HyperText.Avalonia.Controls;assembly=HyperText.Avalonia"
         xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         xmlns:ui="using:FluentAvalonia.UI.Controls"
-        xmlns:lang="clr-namespace:AnimeJaNaiConverterGui.Lang"
+        xmlns:lang="clr-namespace:VideoJaNai.Lang"
         mc:Ignorable="d" d:DesignWidth="1920" d:DesignHeight="1080"
         Width="1920" Height="1080"
         WindowStartupLocation="CenterScreen"
-        x:Class="AnimeJaNaiConverterGui.Views.MainWindow"
+        x:Class="VideoJaNai.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/logo.ico"
-        Title="AnimeJaNaiConverterGui">
+        Title="VideoJaNai">
 
   <Window.Styles>
     <Style Selector="TabControl[TabStripPlacement=Top]">
@@ -420,7 +420,7 @@
                   <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
                     <TextBlock Text="{x:Static lang:Resources.CurrentVersionLabel}" VerticalAlignment="Center" />
                     <TextBlock VerticalAlignment="Center" FontFamily="Consolas" Text="{Binding AppVersion}" Margin="20,0,0,0" />
-                    <hypertext:Hyperlink VerticalAlignment="Center" Margin="20,0,0,0" Url="https://github.com/the-database/AnimeJaNaiConverterGui/releases" />
+                    <hypertext:Hyperlink VerticalAlignment="Center" Margin="20,0,0,0" Url="https://github.com/the-database/VideoJaNai/releases" />
                   </StackPanel>
 
                   <StackPanel Orientation="Horizontal" Margin="10,10,0,10">

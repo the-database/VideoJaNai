@@ -2,7 +2,7 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
 
-namespace AnimeJaNaiConverterGui;
+namespace VideoJaNai;
 
 public class LogUpdatedEventArgs : EventArgs
 {
