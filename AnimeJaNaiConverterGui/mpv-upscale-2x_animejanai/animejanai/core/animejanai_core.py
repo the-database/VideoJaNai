@@ -33,6 +33,7 @@ def init_logger():
                               mode='a', maxBytes=1 * 1024 * 1024, backupCount=2, encoding=None, delay=0)
     rfh.setFormatter(formatter)
     rfh.setLevel(logging.DEBUG)
+    logger.handlers.clear()
     logger.addHandler(rfh)
 
 
@@ -81,6 +82,7 @@ def create_static_engine(onnx_name, width, height):
     commands = [os.path.join(plugin_path, "trtexec"), "--fp16", f"--onnx={onnx_path}",
                     f"--optShapes=input:1x3x{height}x{width}",
                     "--skipInference", "--infStreams=4", "--builderOptimizationLevel=4",
+                    "--inputIOFormats=fp16:chw", "--outputIOFormats=fp16:chw",
                     f"--saveEngine={engine_path}", "--tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT"]
 
     logger.debug(' '.join(commands))
@@ -96,8 +98,14 @@ def create_dynamic_engine(onnx_name, width, height):
 
     engine_path = get_dynamic_engine_path(onnx_name)
 
+    # commands = [os.path.join(plugin_path, "trtexec"), "--fp16", f"--onnx={onnx_path}",
+    #                 "--minShapes=input:1x3x8x8", "--optShapes=input:1x3x1080x1920", "--maxShapes=input:1x3x1080x1920",
+    #                 "--skipInference", "--infStreams=4", "--builderOptimizationLevel=4",
+    #                 f"--saveEngine={engine_path}", "--tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT"]
+
+    # SwinIR test
     commands = [os.path.join(plugin_path, "trtexec"), "--fp16", f"--onnx={onnx_path}",
-                    "--minShapes=input:1x3x8x8", "--optShapes=input:1x3x1080x1920", "--maxShapes=input:1x3x1080x1920",
+                    #"--minShapes=input:1x3x8x8", "--optShapes=input:1x3x1080x1920", "--maxShapes=input:1x3x1080x1920",
                     "--skipInference", "--infStreams=4", "--builderOptimizationLevel=4",
                     f"--saveEngine={engine_path}", "--tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT"]
 
@@ -144,19 +152,20 @@ def upscale2x(clip, backend, engine_name, num_streams):
     if os.path.isfile(static_engine_path):
         logger.debug(f'Static shapes engine already exists, use static shapes engine at {static_engine_path}')
         return upscale2x_trt_static(clip, engine_name, num_streams)
+
     # use dynamic engine if video is 1920x1080 or smaller
     if use_dynamic_engine(clip.width, clip.height):
         try:
             logger.debug('Trying dynamic shapes engine')
             return upscale2x_trt_dynamic(clip, engine_name, num_streams)
-        except:
-            logger.debug('Failed to generate dynamic shapes engine; fall back to static shapes engine')
+        except Exception as e:
+            logger.debug(f'Failed to generate dynamic shapes engine; fall back to static shapes engine. Error was: {e}')
             # fall back to static engine since not all models support dynamic shapes
-            return upscale2x_trt_static(clip, engine_name, num_streams)
+            # return upscale2x_trt_static(clip, engine_name, num_streams)  # TODO maybe restore
 
     # use static engine if the video is larger than 1920x1080
-    logger.debug('Using static shapes engine for video higher than 1080p')
-    return upscale2x_trt_static(clip, engine_name, num_streams)
+    # logger.debug('Using static shapes engine for video higher than 1080p')
+    # return upscale2x_trt_static(clip, engine_name, num_streams)  #TODO maybe restore
 
 
 def upscale2x_trt_static(clip, engine_name, num_streams):
@@ -164,6 +173,10 @@ def upscale2x_trt_static(clip, engine_name, num_streams):
 
     if not os.path.isfile(engine_path):
         create_static_engine(engine_name, clip.width, clip.height)
+
+    if not os.path.exists(engine_path):
+        logger.debug("Engine failed to generate, exiting")
+        exit(1)
 
     return core.trt.Model(
         clip,
@@ -173,10 +186,19 @@ def upscale2x_trt_static(clip, engine_name, num_streams):
 
 
 def upscale2x_trt_dynamic(clip, engine_name, num_streams):
+    # logger.debug("upscale2x_trt_dynamic")
     engine_path = get_dynamic_engine_path(engine_name)
+
+    logger.debug(f"engine_path? a={engine_name}; b={num_streams}; c={engine_path}; d={os.path.isfile(engine_path)}")
 
     if not os.path.isfile(engine_path):
         create_dynamic_engine(engine_name, clip.width, clip.height)
+
+    if not os.path.exists(engine_path):
+        logger.debug("Engine failed to generate, exiting")
+        exit(1)
+
+    logger.debug(f'clip format? {clip.format};; {clip.format == vs.RGBH}; {clip.format == vs.RGBS}')
 
     return core.trt.Model(
         clip,
