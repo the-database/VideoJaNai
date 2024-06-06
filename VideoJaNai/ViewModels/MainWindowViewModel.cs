@@ -136,7 +136,10 @@ namespace VideoJaNai.ViewModels
         public static readonly string _ffmpegHevcNvenc = "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M";
         public static readonly string _ffmpegLossless = "ffv1";
 
-        
+        public static readonly string _tensorRtDynamicEngine = "--fp16 --minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x1080x1920 --inputIOFormats=fp32:chw --outputIOFormats=fp32:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
+        public static readonly string _tensorRtStaticEngine = "--fp16 --optShapes=input:%video_resolution% --inputIOFormats=fp32:chw --outputIOFormats=fp32:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
+        public static readonly string _tensorRtStaticOnnx = "--fp16 --inputIOFormats=fp32:chw --outputIOFormats=fp32:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
+        public static readonly string _tensorRtStaticBf16Engine = "--bf16 --optShapes=input:%video_resolution% --inputIOFormats=fp32:chw --outputIOFormats=fp32:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
 
         private bool _showConsole = false;
         public bool ShowConsole
@@ -375,6 +378,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             configText.AppendLine($"chain_1_rife_scene_detect_threshold={CurrentWorkflow.RifeSceneDetectThreshold}");
             configText.AppendLine($"chain_1_final_resize_height={CurrentWorkflow.FinalResizeHeight}");
             configText.AppendLine($"chain_1_final_resize_factor={CurrentWorkflow.FinalResizeFactor}");
+            configText.AppendLine($"chain_1_tensorrt_engine_settings={CurrentWorkflow.TensorRtEngineSettings}");
 
             File.WriteAllText(confPath, configText.ToString());
         }
@@ -866,6 +870,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             set
             {
                 this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
+                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
             }
         }
 
@@ -877,6 +882,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             set
             {
                 this.RaiseAndSetIfChanged(ref _directMlSelected, value);
+                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
             }
         }
 
@@ -888,6 +894,28 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             set
             {
                 this.RaiseAndSetIfChanged(ref _ncnnSelected, value);
+                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
+            }
+        }
+
+        public bool TensorRtEngineDynamicSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtDynamicEngine;
+        public bool TensorRtEngineStaticSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticEngine;
+        public bool TensorRtEngineStaticOnnxSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticOnnx;
+        public bool TensorRtEngineStaticBf16Selected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticBf16Engine;
+
+
+        private string _tensorRtEngineSettings = MainWindowViewModel._tensorRtDynamicEngine;
+        [DataMember]
+        public string TensorRtEngineSettings
+        {
+            get => _tensorRtEngineSettings;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _tensorRtEngineSettings, value);
+                this.RaisePropertyChanged(nameof(TensorRtEngineDynamicSelected));
+                this.RaisePropertyChanged(nameof(TensorRtEngineStaticSelected));
+                this.RaisePropertyChanged(nameof(TensorRtEngineStaticOnnxSelected));
+                this.RaisePropertyChanged(nameof(TensorRtEngineStaticBf16Selected));
             }
         }
 
@@ -1027,8 +1055,14 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public bool ShowAdvancedSettings
         {
             get => _showAdvancedSettings;
-            set => this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value);
+            set 
+            { 
+                this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value); 
+                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
+            }
         }
+
+        public bool ShowTensorRtEngineSettings => ShowAdvancedSettings && TensorRtSelected;
 
         public void AddModel()
         {
@@ -1097,6 +1131,26 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             NcnnSelected = true;
             TensorRtSelected = false;
             DirectMlSelected = false;
+        }
+
+        public void SetDynamicEngine()
+        {
+            TensorRtEngineSettings = MainWindowViewModel._tensorRtDynamicEngine;
+        }
+
+        public void SetStaticEngine()
+        {
+            TensorRtEngineSettings = MainWindowViewModel._tensorRtStaticEngine;
+        }
+
+        public void SetStaticOnnx()
+        {
+            TensorRtEngineSettings = MainWindowViewModel._tensorRtStaticOnnx;
+        }
+
+        public void SetStaticBf16Engine()
+        {
+            TensorRtEngineSettings = MainWindowViewModel._tensorRtStaticBf16Engine;
         }
 
         public void Validate()

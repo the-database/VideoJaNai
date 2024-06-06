@@ -619,6 +619,105 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Dynamic Engine.
+        /// </summary>
+        public static string TensorRtDynamicEngineLabel {
+            get {
+                return ResourceManager.GetString("TensorRtDynamicEngineLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to TensorRT Engine Presets.
+        /// </summary>
+        public static string TensorRtEnginePresetsLabel {
+            get {
+                return ResourceManager.GetString("TensorRtEnginePresetsLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Engine generation settings to pass to the trtexec command. Choose a preset below or edit the text to use custom settings..
+        /// </summary>
+        public static string TensorRtEngineSettingsDescription {
+            get {
+                return ResourceManager.GetString("TensorRtEngineSettingsDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to TensorRT Engine Settings.
+        /// </summary>
+        public static string TensorRtEngineSettingsLabel {
+            get {
+                return ResourceManager.GetString("TensorRtEngineSettingsLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Generate a dynamic engine which supports resolutions up to 1920x1080. Works with Compact, SPAN, 4x ESRGAN, etc..
+        /// </summary>
+        public static string TensorRtPresetsDescriptionDynamicEngine {
+            get {
+                return ResourceManager.GetString("TensorRtPresetsDescriptionDynamicEngine", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Generate a static engine which supports a single resolution, in bfloat16 mode. %video_resolution% refers to the resolution of the video being upscaled. Necessary for DAT models. .
+        /// </summary>
+        public static string TensorRtPresetsDescriptionStaticBf16Engine {
+            get {
+                return ResourceManager.GetString("TensorRtPresetsDescriptionStaticBf16Engine", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Generate a static engine which supports a single resolution. %video_resolution% refers to the resolution of the video being upscaled. Necessary for models that don&apos;t support dynamic engines, such as 2x ESRGAN. .
+        /// </summary>
+        public static string TensorRtPresetsDescriptionStaticEngine {
+            get {
+                return ResourceManager.GetString("TensorRtPresetsDescriptionStaticEngine", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Generate an engine from a static ONNX model. Necessary for SwinIR models..
+        /// </summary>
+        public static string TensorRtPresetsDescriptionStaticOnnx {
+            get {
+                return ResourceManager.GetString("TensorRtPresetsDescriptionStaticOnnx", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Static Engine bfloat16.
+        /// </summary>
+        public static string TensorRtStaticEngineBf16Label {
+            get {
+                return ResourceManager.GetString("TensorRtStaticEngineBf16Label", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Static Engine.
+        /// </summary>
+        public static string TensorRtStaticEngineLabel {
+            get {
+                return ResourceManager.GetString("TensorRtStaticEngineLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Static ONNX.
+        /// </summary>
+        public static string TensorRtStaticOnnxLabel {
+            get {
+                return ResourceManager.GetString("TensorRtStaticOnnxLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Upscale.
         /// </summary>
         public static string UpscaleButtonText {
