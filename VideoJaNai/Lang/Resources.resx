@@ -303,6 +303,40 @@
   <data name="SingleVideoUpscaleTabHeader" xml:space="preserve">
     <value>Single Video Upscale</value>
   </data>
+  <data name="TensorRtDynamicEngineLabel" xml:space="preserve">
+    <value>Dynamic Engine</value>
+  </data>
+  <data name="TensorRtEnginePresetsLabel" xml:space="preserve">
+    <value>TensorRT Engine Presets</value>
+  </data>
+  <data name="TensorRtEngineSettingsDescription" xml:space="preserve">
+    <value>Engine generation settings to pass to the trtexec command. Choose a preset below or edit the text to use custom settings.</value>
+    <comment> </comment>
+  </data>
+  <data name="TensorRtEngineSettingsLabel" xml:space="preserve">
+    <value>TensorRT Engine Settings</value>
+  </data>
+  <data name="TensorRtPresetsDescriptionDynamicEngine" xml:space="preserve">
+    <value>Generate a dynamic engine which supports resolutions up to 1920x1080. Works with Compact, SPAN, 4x ESRGAN, etc.</value>
+  </data>
+  <data name="TensorRtPresetsDescriptionStaticBf16Engine" xml:space="preserve">
+    <value>Generate a static engine which supports a single resolution, in bfloat16 mode. %video_resolution% refers to the resolution of the video being upscaled. Necessary for DAT models. </value>
+  </data>
+  <data name="TensorRtPresetsDescriptionStaticEngine" xml:space="preserve">
+    <value>Generate a static engine which supports a single resolution. %video_resolution% refers to the resolution of the video being upscaled. Necessary for models that don't support dynamic engines, such as 2x ESRGAN. </value>
+  </data>
+  <data name="TensorRtPresetsDescriptionStaticOnnx" xml:space="preserve">
+    <value>Generate an engine from a static ONNX model. Necessary for SwinIR models.</value>
+  </data>
+  <data name="TensorRtStaticEngineBf16Label" xml:space="preserve">
+    <value>Static Engine bfloat16</value>
+  </data>
+  <data name="TensorRtStaticEngineLabel" xml:space="preserve">
+    <value>Static Engine</value>
+  </data>
+  <data name="TensorRtStaticOnnxLabel" xml:space="preserve">
+    <value>Static ONNX</value>
+  </data>
   <data name="UpscaleButtonText" xml:space="preserve">
     <value>Upscale</value>
   </data>

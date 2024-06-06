@@ -265,10 +265,10 @@
                     <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegX265Selected}" Content="x265 (CPU)" Command="{Binding CurrentWorkflow.SetFfmpegX265}" />
                     <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegX264Selected}" Content="x264 (CPU)" Command="{Binding CurrentWorkflow.SetFfmpegX264}" />
                     <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegLosslessSelected}" Content="Lossless (CPU)" Command="{Binding CurrentWorkflow.SetFfmpegLossless}" />
-                    <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>NVENC HEVC</Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionNvencHevc}" />
-<Bold><hypertext:Hyperlink Url="https://ffmpeg.org/ffmpeg-codecs.html#libx265" Text="x265 (CPU)" /></Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionX265}" />
-<Bold><hypertext:Hyperlink Url="https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb" Text="x264 (CPU)" /></Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionX264}" />
-<Bold>Lossless (CPU)</Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionLossless}" /></TextBlock>
+                    <TextBlock Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Run FontWeight="Bold">NVENC HEVC</Run>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionNvencHevc}" />
+<hypertext:Hyperlink FontWeight="Bold" Url="https://ffmpeg.org/ffmpeg-codecs.html#libx265" Text="x265 (CPU)" />: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionX265}" />
+<hypertext:Hyperlink FontWeight="Bold" Url="https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb" Text="x264 (CPU)" />: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionX264}" />
+<Run FontWeight="Bold">Lossless (CPU)</Run>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionLossless}" /></TextBlock>
                   </StackPanel>
                 </StackPanel>
               </Border>
@@ -355,7 +355,27 @@
             <TextBlock Foreground="Gray" Width="900" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>TensorRT</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" />
 <Bold>DirectML</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" />
 <Bold>NCNN</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionNcnn}" /></TextBlock>
-          </StackPanel>            
+          </StackPanel>
+
+              <StackPanel IsVisible="{Binding CurrentWorkflow.ShowTensorRtEngineSettings}">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
+                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.TensorRtEngineSettingsLabel}" />
+                  <TextBox Margin="0,0,5,0" Text="{Binding CurrentWorkflow.TensorRtEngineSettings}" IsReadOnly="False" Width="900" TextWrapping="Wrap" Height="50" />
+                  <TextBlock Width="400" TextWrapping="WrapWithOverflow" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0" Text="{x:Static lang:Resources.TensorRtEngineSettingsDescription}" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
+                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.TensorRtEnginePresetsLabel}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.TensorRtEngineDynamicSelected}" Content="{x:Static lang:Resources.TensorRtDynamicEngineLabel}" Command="{Binding CurrentWorkflow.SetDynamicEngine}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.TensorRtEngineStaticSelected}" Content="{x:Static lang:Resources.TensorRtStaticEngineLabel}" Command="{Binding CurrentWorkflow.SetStaticEngine}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.TensorRtEngineStaticOnnxSelected}" Content="{x:Static lang:Resources.TensorRtStaticOnnxLabel}" Command="{Binding CurrentWorkflow.SetStaticOnnx}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.TensorRtEngineStaticBf16Selected}" Content="{x:Static lang:Resources.TensorRtStaticEngineBf16Label}" Command="{Binding CurrentWorkflow.SetStaticBf16Engine}" />
+                  <TextBlock Width="720" TextWrapping="WrapWithOverflow" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Run FontWeight="Bold" Text="{x:Static lang:Resources.TensorRtDynamicEngineLabel}" />: <Run Text="{x:Static lang:Resources.TensorRtPresetsDescriptionDynamicEngine}" />
+<Run FontWeight="Bold" Text="{x:Static lang:Resources.TensorRtStaticEngineLabel}" />: <Run Text="{x:Static lang:Resources.TensorRtPresetsDescriptionStaticEngine}" />
+<Run FontWeight="Bold" Text="{x:Static lang:Resources.TensorRtStaticOnnxLabel}" />: <Run Text="{x:Static lang:Resources.TensorRtPresetsDescriptionStaticOnnx}" />
+<Run FontWeight="Bold" Text="{x:Static lang:Resources.TensorRtStaticEngineBf16Label}" />: <Run Text="{x:Static lang:Resources.TensorRtPresetsDescriptionStaticBf16Engine}" /></TextBlock>
+                </StackPanel>
+              </StackPanel>
             </StackPanel>
           </Border>
 
