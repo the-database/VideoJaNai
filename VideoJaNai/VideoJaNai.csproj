@@ -41,12 +41,14 @@
     <PackageReference Include="FluentAvaloniaUI" Version="2.1.0-preview6" />
     <PackageReference Include="HyperText.Avalonia" Version="11.0.0-rc1" />
     <PackageReference Include="Material.Icons.Avalonia" Version="2.1.10" />
+    <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.4.3" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Salaros.ConfigParser" Version="0.3.8" />
     <PackageReference Include="SevenZipExtractor" Version="1.0.17" />
     <PackageReference Include="SharpCompress" Version="0.37.2" />
     <PackageReference Include="SharpZipLib" Version="1.4.2" />
     <PackageReference Include="Splat.Autofac" Version="15.1.1" />
+    <PackageReference Include="System.Management.Automation" Version="7.4.3" />
     <PackageReference Include="Velopack" Version="0.0.571-gc0a9476" />
   </ItemGroup>
 

@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Management.Automation;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
@@ -691,30 +692,67 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         private async Task InstallPython()
         {
-            // Download Python tgz
-            BackendSetupMainStatus = "Downloading Python...";
-            var download = PythonService.PYTHON_DOWNLOADS["win32"];
-            var targetPath = Path.Join(_pythonService.BackendDirectory, download.Filename);
-            await Downloader.DownloadFileAsync(download.Url, targetPath, (progress) =>
+            // Download Python Installer
+            BackendSetupMainStatus = "Downloading Embedded Python Installer...";
+            var downloadUrl = "https://raw.githubusercontent.com/jtmoon79/PythonEmbed4Win/main/PythonEmbed4Win.ps1";
+            var targetPath = Path.Join(_pythonService.BackendDirectory, "PythonEmbed4Win.ps1");
+            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
             {
-                BackendSetupMainStatus = $"Downloading Python ({progress}%)...";
+                BackendSetupMainStatus = $"Downloading Embedded Python Installer ({progress}%)...";
             });
 
-            // Extract Python tgz
-            BackendSetupMainStatus = "Extracting Python...";
-            _pythonService.ExtractTgz(targetPath, _pythonService.BackendDirectory);
+            // Install Python 
+            BackendSetupMainStatus = "Installing Embedded Python...";
+
+            using (PowerShell powerShell = PowerShell.Create())
+            {
+                powerShell.AddScript("Set-ExecutionPolicy RemoteSigned -Scope Process -Force");
+                powerShell.AddScript("Import-Module Microsoft.PowerShell.Archive");
+                powerShell.AddScript(File.ReadAllText(targetPath));
+                powerShell.AddParameter("Version", PythonService.PYTHON_DOWNLOADS["win32"].Version);
+                powerShell.AddParameter("Path", _pythonService.PythonDirectory);
+
+                if (Directory.Exists(_pythonService.PythonDirectory))
+                {
+                    Directory.Delete(_pythonService.PythonDirectory, true);
+                }
+
+                PSDataCollection<PSObject> outputCollection = [];
+                outputCollection.DataAdded += (sender, e) =>
+                {
+                    Debug.WriteLine("DataAdded");
+                    Debug.WriteLine(e.Index);
+                    Debug.WriteLine(outputCollection[e.Index]);
+                    BackendSetupSubStatusQueueEnqueue(outputCollection[e.Index].ToString());
+                };
+
+                try
+                {
+                    IAsyncResult asyncResult = powerShell.BeginInvoke<PSObject, PSObject>(null, outputCollection);
+                    powerShell.EndInvoke(asyncResult);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"An error occurred: {ex.Message}");
+                }
+
+                if (powerShell.Streams.Error.Count > 0)
+                {
+                    foreach (var error in powerShell.Streams.Error)
+                    {
+                        Debug.WriteLine($"Error: {error}");
+                    }
+                }
+            }
+
             File.Delete(targetPath);
-
-            var pthDirectory = Path.GetDirectoryName(_pythonService.PythonPath) ?? throw new ArgumentNullException("pthDirectory");
-
-            _pythonService.AddPythonPth(pthDirectory);
         }
 
         private async Task InstallVapourSynth()
         {
             BackendSetupMainStatus = "Downloading VapourSynth...";
-            //var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R69/VapourSynth64-Portable-R69.zip";
-            var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R65/VapourSynth64-Portable-R65.zip";
+            var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R69/VapourSynth64-Portable-R69.zip";
+            //var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R65/VapourSynth64-Portable-R65.zip";
             var targetPath = Path.Join(_pythonService.BackendDirectory, "vapoursynth.zip");
             await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
             {
@@ -742,8 +780,8 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             BackendSetupMainStatus = "Extracting vs-mlrt (this may take several minutes)...";
             using (ArchiveFile archiveFile = new(targetPath))
             {
-                //var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vs-plugins");
-                var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vapoursynth64", "plugins");
+                var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vs-plugins");
+                //var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vapoursynth64", "plugins");
                 Directory.CreateDirectory(targetDirectory);
                 archiveFile.Extract(targetDirectory);
             }
