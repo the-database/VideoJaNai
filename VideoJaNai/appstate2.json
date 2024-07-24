@@ -78,7 +78,7 @@
       },
       {
         "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
-        "WorkflowName": "Default Workflow",
+        "WorkflowName": "Workflow 3",
         "WorkflowIndex": 2,
         "SelectedTabIndex": 0,
         "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
@@ -114,7 +114,7 @@
       },
       {
         "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
-        "WorkflowName": "Default Workflow",
+        "WorkflowName": "Workflow 4",
         "WorkflowIndex": 3,
         "SelectedTabIndex": 4,
         "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
@@ -150,7 +150,7 @@
       },
       {
         "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
-        "WorkflowName": "Default Workflow",
+        "WorkflowName": "Workflow 5",
         "WorkflowIndex": 4,
         "SelectedTabIndex": 0,
         "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
@@ -186,7 +186,7 @@
       },
       {
         "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
-        "WorkflowName": "Default Workflow",
+        "WorkflowName": "Workflow 6",
         "WorkflowIndex": 5,
         "SelectedTabIndex": 0,
         "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
@@ -222,7 +222,7 @@
       },
       {
         "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
-        "WorkflowName": "Default Workflow",
+        "WorkflowName": "Worfklow 7",
         "WorkflowIndex": 6,
         "SelectedTabIndex": 7,
         "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
@@ -258,7 +258,7 @@
       },
       {
         "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
-        "WorkflowName": "Default Workflow",
+        "WorkflowName": "Workflow 8",
         "WorkflowIndex": 7,
         "SelectedTabIndex": 0,
         "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
@@ -294,7 +294,7 @@
       },
       {
         "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
-        "WorkflowName": "Default Workflow",
+        "WorkflowName": "Workflow 9",
         "WorkflowIndex": 8,
         "SelectedTabIndex": 0,
         "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
@@ -330,7 +330,7 @@
       },
       {
         "$type": "VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai",
-        "WorkflowName": "Default Workflow",
+        "WorkflowName": "Worfklow 10",
         "WorkflowIndex": 9,
         "SelectedTabIndex": 0,
         "FfmpegVideoSettings": "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M",
