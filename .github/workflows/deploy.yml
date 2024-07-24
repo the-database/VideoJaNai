@@ -1,0 +1,28 @@
+name: Deploy to GitHub Releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number for the release'
+        required: true
+        default: ''
+
+jobs:
+  deploy-to-github-releases:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Install .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish Application
+        run: dotnet publish VideoJaNai/VideoJaNai.csproj -c Release -o publish -r win-x64
+      - name: Create Velopack Release
+        run: |
+          dotnet tool install -g vpk --prerelease
+          vpk download github --repoUrl https://github.com/the-database/VideoJaNai
+          vpk pack -u VideoJaNai -v ${{ github.event.inputs.version }} -p publish  -i ./VideoJaNai/assets/logo.ico -e VideoJaNai.exe
+          vpk upload github --repoUrl https://github.com/the-database/VideoJaNai --publish --releaseName "${{ github.event.inputs.version }}" --tag ${{ github.event.inputs.version }} --token ${{ secrets.GITHUB_TOKEN }} --pre
