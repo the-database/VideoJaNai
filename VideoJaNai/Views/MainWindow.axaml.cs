@@ -1,24 +1,19 @@
-using VideoJaNai.ViewModels;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Documents;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
-using Avalonia.ReactiveUI;
 using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Windowing;
 using Material.Icons.Avalonia;
-using ReactiveUI;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Velopack;
+using VideoJaNai.ViewModels;
 
 namespace VideoJaNai.Views
 {
@@ -75,28 +70,28 @@ namespace VideoJaNai.Views
 
         private void ConsoleScrollViewer_PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
         {
-            if (e.Property.Name == "Offset")
+            if (e.Property.Name == "Offset" && sender is ScrollViewer consoleScrollViewer)
             {
-                var consoleScrollViewer = this.FindControl<ScrollViewer>("ConsoleScrollViewer");
-
                 if (e.NewValue is Vector newVector)
                 {
                     _autoScrollConsole = newVector.Y == consoleScrollViewer?.ScrollBarMaximum.Y;
                 }
             }
-            
+
         }
 
         private void ConsoleTextBlock_PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
         {
-            if (e.Property.Name == "Text")
+            if (e.Property.Name == "Text" && sender is TextBlock textBlock)
             {
-                var consoleScrollViewer = this.FindControl<ScrollViewer>("ConsoleScrollViewer");
-                if (consoleScrollViewer != null)
+                if (textBlock.Parent is ScrollViewer consoleScrollViewer)
                 {
-                    if (_autoScrollConsole)
+                    if (consoleScrollViewer != null)
                     {
-                        consoleScrollViewer.ScrollToEnd();
+                        if (_autoScrollConsole)
+                        {
+                            consoleScrollViewer.ScrollToEnd();
+                        }
                     }
                 }
             }
@@ -110,12 +105,12 @@ namespace VideoJaNai.Views
             {
                 consoleScrollViewer.Width = Width - 340; // Adjust the width as needed
             }
-            
+
         }
 
         private async void OpenInputFileButtonClick(object? sender, RoutedEventArgs e)
         {
-            
+
 
             // Get the resources
             var resources = Application.Current.Resources;
@@ -123,7 +118,7 @@ namespace VideoJaNai.Views
             {
                 var resourceValue = resources[resourceKey];
 
-                
+
                 //if (resourceValue.HasDynamicResource())
                 //{
                 //    // This resource has a dynamic reference
@@ -149,7 +144,8 @@ namespace VideoJaNai.Views
                 //using var streamReader = new StreamReader(stream);
                 //// Reads all the content of file as a text.
                 //var fileContent = await streamReader.ReadToEndAsync();
-                if (DataContext is MainWindowViewModel vm) {
+                if (DataContext is MainWindowViewModel vm)
+                {
                     vm.CurrentWorkflow.InputFilePath = files[0].TryGetLocalPath() ?? "";
                 }
             }
@@ -217,23 +213,21 @@ namespace VideoJaNai.Views
             // Start async operation to open the dialog.
             var storageProvider = topLevel.StorageProvider;
 
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            if (DataContext is MainWindowViewModel vm)
             {
-                Title = "Open ONNX Model File",
-                AllowMultiple = false,
-                FileTypeFilter = [new("ONNX Model File") { Patterns = ["*.onnx"], MimeTypes = ["*/*"] }, FilePickerFileTypes.All],
-                SuggestedStartLocation = await storageProvider.TryGetFolderFromPathAsync(new Uri(Path.GetFullPath(@".\mpv-upscale-2x_animejanai\animejanai\onnx"))),
-            });
 
-            if (files.Count >= 1)
-            {
-                //// Open reading stream from the first file.
-                //await using var stream = await files[0].OpenReadAsync();
-                //using var streamReader = new StreamReader(stream);
-                //// Reads all the content of file as a text.
-                //var fileContent = await streamReader.ReadToEndAsync();
-                if (DataContext is MainWindowViewModel vm)
+                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
+                    Title = "Open ONNX Model File",
+                    AllowMultiple = false,
+                    FileTypeFilter = [new("ONNX Model File") { Patterns = ["*.onnx"], MimeTypes = ["*/*"] }, FilePickerFileTypes.All],
+                    SuggestedStartLocation = await storageProvider.TryGetFolderFromPathAsync(new Uri(vm.ModelsDirectory))
+                });
+
+                if (files.Count >= 1)
+                {
+
+
                     // TODO 
                     //vm.InputFilePath = files[0].TryGetLocalPath() ?? "";
                     if (sender is Button button && button.DataContext is UpscaleModel item)
@@ -244,7 +238,8 @@ namespace VideoJaNai.Views
                         vm.CurrentWorkflow.UpscaleSettings[index].OnnxModelPath = files[0].TryGetLocalPath() ?? string.Empty;
                         vm.CurrentWorkflow.Validate();
                     }
-                    
+
+
                 }
             }
         }
@@ -495,7 +490,7 @@ namespace VideoJaNai.Views
                 Width = 100,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 HorizontalContentAlignment = HorizontalAlignment.Center,
-                VerticalAlignment= VerticalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 0)
             };
