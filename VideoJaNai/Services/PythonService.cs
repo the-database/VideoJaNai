@@ -26,11 +26,11 @@ namespace AnimeJaNaiConverterGui.Services
                 "win32",
                 new PythonDownload
                 {
-                    //Url = "https://github.com/indygreg/python-build-standalone/releases/download/20240713/cpython-3.12.4+20240713-x86_64-pc-windows-msvc-shared-install_only.tar.gz",
-                    Url = "https://github.com/indygreg/python-build-standalone/releases/download/20240415/cpython-3.11.9+20240415-x86_64-pc-windows-msvc-shared-install_only.tar.gz",
+                    Url = "https://github.com/indygreg/python-build-standalone/releases/download/20240713/cpython-3.12.4+20240713-x86_64-pc-windows-msvc-shared-install_only.tar.gz",
+                    //Url = "https://github.com/indygreg/python-build-standalone/releases/download/20240415/cpython-3.11.9+20240415-x86_64-pc-windows-msvc-shared-install_only.tar.gz",
                     Path = "python.exe",
-                    Version = "3.12.4",
-                    //Version = "3.11.9",
+                    //Version = "3.12.4",
+                    Version = "3.11.9",
                     Filename = "Python.tar.gz"
                 }
             },
@@ -143,8 +143,9 @@ namespace AnimeJaNaiConverterGui.Services
                     "packaging"
                 };
 
-                return $@"{PythonPath} -m pip install {PythonDirectory}\wheel\VapourSynth-69-cp312-cp312-win_amd64.whl && {PythonPath} -m pip install {string.Join(" ", dependencies)}";
-                //return $@"{PythonPath} -m pip install {PythonDirectory}\wheel\VapourSynth-65-cp311-cp311-win_amd64.whl && {PythonPath} -m pip install {string.Join(" ", dependencies)}";
+                //return $@"{PythonPath} -m pip install {PythonDirectory}\wheel\VapourSynth-69-cp312-cp312-win_amd64.whl && {PythonPath} -m pip install {string.Join(" ", dependencies)}";
+                return $@"{PythonPath} -m pip install {PythonDirectory}\wheel\VapourSynth-65-cp311-cp311-win_amd64.whl && {PythonPath} -m pip install {string.Join(" ", dependencies)}";
+                //return $@"{PythonPath} -m pip install {string.Join(" ", dependencies)}";
             }
         }
 

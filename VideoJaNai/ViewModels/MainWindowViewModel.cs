@@ -663,16 +663,21 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 // TODO test full reinstall, to test pip install packaging
                 if (!_pythonService.IsPythonInstalled())
                 {
+                    // 1. Install embedded Python + portable VS
+                    //await InstallPortableVapourSynth();
                     await InstallPython();
                     await InstallVapourSynth();
 
-                    // 3. Install VapourSynth Python wheel
+                    // 2. Python dependencies
                     await RunInstallCommand(_pythonService.InstallUpdatePythonDependenciesCommand);
-                    // 4. VapourSynth ffms2
+
+                    // 3. VapourSynth plugins
                     await RunInstallCommand(_pythonService.InstallVapourSynthPluginsCommand);
 
+                    // 4. vs-mlrt
+                    await InstallVsmlrt();
 
-                    await InstallVsmlrt(); // TODO
+                    // 5. ffmpeg
                     await InstallFfmpeg();
                 }
                 else
@@ -748,22 +753,91 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             File.Delete(targetPath);
         }
 
+        private async Task InstallPortableVapourSynth()
+        {
+            // Download Python Installer
+            var vsVersion = 65;
+            BackendSetupMainStatus = "Downloading Portable VapourSynth Installer...";
+            var downloadUrl = $"https://github.com/vapoursynth/vapoursynth/releases/download/R69/Install-Portable-VapourSynth-R69.ps1";
+            var targetPath = Path.Join(_pythonService.BackendDirectory, "installvs.ps1");
+            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            {
+                BackendSetupMainStatus = $"Downloading Portable VapourSynth Installer ({progress}%)...";
+            });
+
+            // Install Python 
+            BackendSetupMainStatus = "Installing Embedded Python with Portable VapourSynth...";
+
+            using (PowerShell powerShell = PowerShell.Create())
+            {
+                powerShell.AddScript("Set-ExecutionPolicy RemoteSigned -Scope Process -Force");
+                powerShell.AddScript("Import-Module Microsoft.PowerShell.Archive");
+
+                var scriptContents = File.ReadAllText(targetPath);
+                // Force Python 3.11
+                scriptContents = scriptContents.Replace("$PythonVersionMid = 12", "$PythonVersionMid = 11");
+
+                powerShell.AddScript(scriptContents);
+                powerShell.AddParameter("Unattended");
+                powerShell.AddParameter("TargetFolder", _pythonService.PythonDirectory);
+                powerShell.AddParameter("VSVersion", vsVersion);
+
+                if (Directory.Exists(_pythonService.PythonDirectory))
+                {
+                    Directory.Delete(_pythonService.PythonDirectory, true);
+                }
+
+                PSDataCollection<PSObject> outputCollection = [];
+                outputCollection.DataAdded += (sender, e) =>
+                {
+                    Debug.WriteLine("DataAdded");
+                    Debug.WriteLine(e.Index);
+                    Debug.WriteLine(outputCollection[e.Index]);
+                    BackendSetupSubStatusQueueEnqueue(outputCollection[e.Index].ToString());
+                };
+
+                try
+                {
+                    IAsyncResult asyncResult = powerShell.BeginInvoke<PSObject, PSObject>(null, outputCollection);
+                    powerShell.EndInvoke(asyncResult);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"An error occurred: {ex.Message}");
+                }
+
+                if (powerShell.Streams.Error.Count > 0)
+                {
+                    foreach (var error in powerShell.Streams.Error)
+                    {
+                        Debug.WriteLine($"Error: {error}");
+                    }
+                }
+            }
+
+            File.Delete(targetPath);
+        }
+
         private async Task InstallVapourSynth()
         {
             BackendSetupMainStatus = "Downloading VapourSynth...";
-            var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R69/VapourSynth64-Portable-R69.zip";
-            //var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R65/VapourSynth64-Portable-R65.zip";
-            var targetPath = Path.Join(_pythonService.BackendDirectory, "vapoursynth.zip");
+            //var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R69/VapourSynth64-Portable-R69.zip";
+            var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R65/VapourSynth64-Portable-R65.7z";
+            var targetPath = Path.Join(_pythonService.BackendDirectory, "vapoursynth.7z");
             await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
             {
                 BackendSetupMainStatus = $"Downloading VapourSynth ({progress}%)...";
             });
 
             BackendSetupMainStatus = "Extracting VapourSynth...";
-            _pythonService.ExtractZip(targetPath, _pythonService.PythonDirectory, (double progress) =>
+            //_pythonService.ExtractZip(targetPath, _pythonService.PythonDirectory, (double progress) =>
+            //{
+            //    BackendSetupMainStatus = $"Extracting VapourSynth ({progress}%)...";
+            //});
+            using (ArchiveFile archiveFile = new(targetPath))
             {
-                BackendSetupMainStatus = $"Extracting VapourSynth ({progress}%)...";
-            });
+                archiveFile.Extract(_pythonService.PythonDirectory);
+            }
             File.Delete(targetPath);
         }
 
@@ -780,8 +854,8 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             BackendSetupMainStatus = "Extracting vs-mlrt (this may take several minutes)...";
             using (ArchiveFile archiveFile = new(targetPath))
             {
-                var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vs-plugins");
-                //var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vapoursynth64", "plugins");
+                //var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vs-plugins");
+                var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vapoursynth64", "plugins");
                 Directory.CreateDirectory(targetDirectory);
                 archiveFile.Extract(targetDirectory);
             }
