@@ -1,6 +1,6 @@
 # https://github.com/hooke007/MPV_lazy/blob/main/k7sfunc.py
 
-from distutils.version import LooseVersion
+from packaging.version import parse
 import fractions
 import math
 import os
@@ -103,7 +103,7 @@ def rife(
             import vsmlrt
         except ImportError:
             raise ImportError(f"模块 {func_name} 依赖错误：缺失脚本 vsmlrt")
-    if LooseVersion(vsmlrt.__version__) < LooseVersion("3.18.22"):
+    if parse(vsmlrt.__version__) < parse("3.18.22"):
         raise ImportError(f"模块 {func_name} 依赖错误：缺失脚本 vsmlrt 的版本号过低，至少 3.18.22")
 
     core.num_threads = vs_t
