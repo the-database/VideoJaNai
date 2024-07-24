@@ -451,7 +451,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             if (CurrentWorkflow.SelectedTabIndex == 0)
             {
                 ct.ThrowIfCancellationRequested();
-                await CheckEngines(CurrentWorkflow.InputFilePath); // TODO restore
+                await CheckEngines(CurrentWorkflow.InputFilePath);
                 ct.ThrowIfCancellationRequested();
                 var outputFilePath = Path.Join(
                             Path.GetFullPath(CurrentWorkflow.OutputFolderPath),
@@ -658,9 +658,6 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             {
                 IsExtractingBackend = true;
 
-                Debug.WriteLine(_pythonService.PythonPath);
-
-                // TODO test full reinstall, to test pip install packaging
                 if (!_pythonService.IsPythonInstalled())
                 {
                     // 1. Install embedded Python + portable VS
@@ -672,8 +669,6 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     // 3. VapourSynth plugins
                     await RunInstallCommand(_pythonService.InstallVapourSynthPluginsCommand);
                     await InstallVapourSynthMiscFilters();
-                    // TODO misc filters
-                    // TODO move vsmlrt.py up one level
 
                     // 4. vs-mlrt
                     await InstallVsmlrt();
@@ -683,8 +678,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 }
                 else
                 {
-                    //await RunInstallCommand(_pythonService.InstallUpdatePythonDependenciesCommand); // TODO
-                    //await RunInstallCommand(_pythonService.InstallVapourSynthPluginsCommand);
+
                 }
 
                 if (!_pythonService.AreModelsInstalled())
@@ -694,64 +688,6 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
                 IsExtractingBackend = false;
             });
-        }
-
-        private async Task InstallPython()
-        {
-            // Download Python Installer
-            BackendSetupMainStatus = "Downloading Embedded Python Installer...";
-            var downloadUrl = "https://raw.githubusercontent.com/jtmoon79/PythonEmbed4Win/main/PythonEmbed4Win.ps1";
-            var targetPath = Path.Join(_pythonService.BackendDirectory, "PythonEmbed4Win.ps1");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
-            {
-                BackendSetupMainStatus = $"Downloading Embedded Python Installer ({progress}%)...";
-            });
-
-            // Install Python 
-            BackendSetupMainStatus = "Installing Embedded Python...";
-
-            using (PowerShell powerShell = PowerShell.Create())
-            {
-                powerShell.AddScript("Set-ExecutionPolicy RemoteSigned -Scope Process -Force");
-                powerShell.AddScript("Import-Module Microsoft.PowerShell.Archive");
-                powerShell.AddScript(File.ReadAllText(targetPath));
-                powerShell.AddParameter("Version", PythonService.PYTHON_DOWNLOADS["win32"].Version);
-                powerShell.AddParameter("Path", _pythonService.PythonDirectory);
-
-                if (Directory.Exists(_pythonService.PythonDirectory))
-                {
-                    Directory.Delete(_pythonService.PythonDirectory, true);
-                }
-
-                PSDataCollection<PSObject> outputCollection = [];
-                outputCollection.DataAdded += (sender, e) =>
-                {
-                    Debug.WriteLine("DataAdded");
-                    Debug.WriteLine(e.Index);
-                    Debug.WriteLine(outputCollection[e.Index]);
-                    BackendSetupSubStatusQueueEnqueue(outputCollection[e.Index].ToString());
-                };
-
-                try
-                {
-                    IAsyncResult asyncResult = powerShell.BeginInvoke<PSObject, PSObject>(null, outputCollection);
-                    powerShell.EndInvoke(asyncResult);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"An error occurred: {ex.Message}");
-                }
-
-                if (powerShell.Streams.Error.Count > 0)
-                {
-                    foreach (var error in powerShell.Streams.Error)
-                    {
-                        Debug.WriteLine($"Error: {error}");
-                    }
-                }
-            }
-
-            File.Delete(targetPath);
         }
 
         private async Task InstallPortableVapourSynth()
