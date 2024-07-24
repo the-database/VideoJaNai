@@ -13,6 +13,7 @@ namespace AnimeJaNaiConverterGui.Services
         string FfmpegPath { get; }
         string PythonPath { get; }
         string VspipePath { get; }
+        string VapourSynthPluginsPath { get; }
         string AnimeJaNaiDirectory { get; }
         string InstallUpdatePythonDependenciesCommand { get; }
         string InstallVapourSynthPluginsCommand { get; }
