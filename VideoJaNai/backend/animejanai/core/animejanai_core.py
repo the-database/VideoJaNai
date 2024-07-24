@@ -13,10 +13,10 @@ TOTAL_NUM_STREAMS = 4
 core = vs.core
 core.num_threads = 4  # can influence ram usage
 
-plugin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           r"..\..\python\vs-plugins\vsmlrt-cuda")
 # plugin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-#                            r"..\..\python\vapoursynth64\plugins\vsmlrt-cuda")
+#                            r"..\..\python\vs-plugins\vsmlrt-cuda")
+plugin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           r"..\..\python\vapoursynth64\plugins\vsmlrt-cuda")
 
 
 model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -39,7 +39,7 @@ def init_logger():
     rfh.setLevel(logging.DEBUG)
     logger.handlers.clear()
     logger.addHandler(rfh)
-    # logger.addHandler(logging.StreamHandler())
+    logger.addHandler(logging.StreamHandler())
 
 
 def write_current_log_empty():
@@ -110,7 +110,7 @@ def create_dynamic_engine(onnx_name, width, height):
 
     # SwinIR test
     commands = [os.path.join(plugin_path, "trtexec"), "--fp16", f"--onnx={onnx_path}",
-                    #"--minShapes=input:1x3x8x8", "--optShapes=input:1x3x1080x1920", "--maxShapes=input:1x3x1080x1920",
+                    "--minShapes=input:1x3x8x8", "--optShapes=input:1x3x1080x1920", "--maxShapes=input:1x3x1080x1920",
                     "--skipInference", "--infStreams=4", "--builderOptimizationLevel=4",
                     f"--saveEngine={engine_path}", "--tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT"]
 
@@ -244,6 +244,7 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
                 clip = run_animejanai_upscale(clip, backend, model_conf, num_streams)
 
             except Exception as e:
+                logger.debug("hello?",e)
                 clip = vs.core.resize.Spline36(clip, format=vs.RGBS, matrix_in_s=colorspace,
                                               width=clip.width * resize_factor_before_upscale / 100,
                                               height=clip.height * resize_factor_before_upscale / 100)
