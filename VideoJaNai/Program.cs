@@ -1,16 +1,17 @@
 ﻿using Avalonia;
 using Avalonia.ReactiveUI;
-using Salaros.Configuration.Logging;
-using System;
-using Velopack;
-using Microsoft.Extensions.Logging;
 using ReactiveUI;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using Velopack;
 
 namespace VideoJaNai
 {
     internal class Program
     {
+        public static bool WasFirstRun { get; private set; }
         public static readonly string AppStateFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "VideoJaNai"
@@ -26,7 +27,26 @@ namespace VideoJaNai
         [STAThread]
         public static void Main(string[] args)
         {
-            VelopackApp.Build().Run();
+            VelopackApp.Build()
+                .WithBeforeUninstallFastCallback((v) =>
+                {
+                    // On uninstall, delete backend directories
+                    List<string> dirNames = new() { "python", "animejanai", "ffmpeg" };
+                    var dirs = dirNames.Select(name => Path.Combine(AppStateFolder, name));
+
+                    foreach (var dir in dirs)
+                    {
+                        if (Directory.Exists(dir))
+                        {
+                            Directory.Delete(dir, true);
+                        }
+                    }
+                })
+                .WithFirstRun(_ =>
+                {
+                    WasFirstRun = true;
+                })
+                .Run();
 
             BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
