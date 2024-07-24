@@ -61,7 +61,8 @@ def read_config_by_chain(flat_conf, section, chain, num_models):
         'rife_ensemble': parse_bool(flat_conf[section].get(f'chain_{chain}_rife_ensemble', 'no')),
         'rife_scene_detect_threshold': float(flat_conf[section].get(f'chain_{chain}_rife_scene_detect_threshold', 0.150)),
         'final_resize_height': float(flat_conf[section].get(f'chain_{chain}_final_resize_height', 0)),
-        'final_resize_factor': float(flat_conf[section].get(f'chain_{chain}_final_resize_factor', 100))
+        'final_resize_factor': float(flat_conf[section].get(f'chain_{chain}_final_resize_factor', 100)),
+        'tensorrt_engine_settings': flat_conf[section].get(f'chain_{chain}_tensorrt_engine_settings', "")
     }
 
 
@@ -76,7 +77,7 @@ def read_config_by_chain_model(flat_conf, section, chain, model):
 
 
 def read_config():
-    parser = configparser.ConfigParser()
+    parser = configparser.ConfigParser(interpolation=None)
     flat_conf = {}
     conf = {'slot_1001': {'chain_1': {'max_fps': 31.0,
                         'max_px': 921600.0,

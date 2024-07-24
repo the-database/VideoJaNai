@@ -95,7 +95,7 @@ def rife(
             [46, 4131, 414, 4141].index(model)]
     mdl_pth = plg_dir + "/models/" + mdl_pname + mdl_fname + ".onnx"
     if not os.path.exists(mdl_pth):
-        raise vs.Error(f"模块 {func_name} 所请求的模型缺失")
+        raise vs.Error(f"{func_name}: Model not found: {mdl_pth}")
 
     global vsmlrt
     if vsmlrt is None:

@@ -619,7 +619,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Dynamic Engine.
+        ///   Looks up a localized string similar to Dynamic Engine fp16.
         /// </summary>
         public static string TensorRtDynamicEngineLabel {
             get {
@@ -664,7 +664,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Generate a static engine which supports a single resolution, in bfloat16 mode. %video_resolution% refers to the resolution of the video being upscaled. Necessary for DAT models. .
+        ///   Looks up a localized string similar to Generate a static engine which supports a single resolution, in bfloat16 mode (only supported on RTX 3000 series and later). %video_resolution% refers to the resolution of the video being upscaled. Necessary for DAT models. .
         /// </summary>
         public static string TensorRtPresetsDescriptionStaticBf16Engine {
             get {
@@ -691,7 +691,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Static Engine bfloat16.
+        ///   Looks up a localized string similar to Static Engine bf16.
         /// </summary>
         public static string TensorRtStaticEngineBf16Label {
             get {
@@ -700,7 +700,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Static Engine.
+        ///   Looks up a localized string similar to Static Engine fp16.
         /// </summary>
         public static string TensorRtStaticEngineLabel {
             get {
@@ -709,7 +709,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Static ONNX.
+        ///   Looks up a localized string similar to Static ONNX fp16.
         /// </summary>
         public static string TensorRtStaticOnnxLabel {
             get {

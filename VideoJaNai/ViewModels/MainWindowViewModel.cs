@@ -168,10 +168,10 @@ namespace VideoJaNai.ViewModels
         public static readonly string _ffmpegHevcNvenc = "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M -max_interleave_delta 0";
         public static readonly string _ffmpegLossless = "ffv1 -max_interleave_delta 0";
 
-        public static readonly string _tensorRtDynamicEngine = "--fp16 --minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x1080x1920 --inputIOFormats=fp32:chw --outputIOFormats=fp32:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
-        public static readonly string _tensorRtStaticEngine = "--fp16 --optShapes=input:%video_resolution% --inputIOFormats=fp32:chw --outputIOFormats=fp32:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
-        public static readonly string _tensorRtStaticOnnx = "--fp16 --inputIOFormats=fp32:chw --outputIOFormats=fp32:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
-        public static readonly string _tensorRtStaticBf16Engine = "--bf16 --optShapes=input:%video_resolution% --inputIOFormats=fp32:chw --outputIOFormats=fp32:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
+        public static readonly string _tensorRtDynamicEngine = "--fp16 --minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x1080x1920 --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
+        public static readonly string _tensorRtStaticEngine = "--fp16 --optShapes=input:%video_resolution% --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
+        public static readonly string _tensorRtStaticOnnx = "--fp16 --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
+        public static readonly string _tensorRtStaticBf16Engine = "--bf16 --optShapes=input:%video_resolution% --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
 
         private bool _showConsole = false;
         public bool ShowConsole
@@ -671,6 +671,9 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
                     // 3. VapourSynth plugins
                     await RunInstallCommand(_pythonService.InstallVapourSynthPluginsCommand);
+                    await InstallVapourSynthMiscFilters();
+                    // TODO misc filters
+                    // TODO move vsmlrt.py up one level
 
                     // 4. vs-mlrt
                     await InstallVsmlrt();
@@ -812,26 +815,30 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             File.Delete(targetPath);
         }
 
-        private async Task InstallVapourSynth()
+        private async Task InstallVapourSynthMiscFilters()
         {
-            BackendSetupMainStatus = "Downloading VapourSynth...";
-            //var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R69/VapourSynth64-Portable-R69.zip";
-            var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R65/VapourSynth64-Portable-R65.7z";
-            var targetPath = Path.Join(_pythonService.BackendDirectory, "vapoursynth.7z");
+            BackendSetupMainStatus = "Downloading VapourSynth Misc Filters...";
+            var downloadUrl = "https://github.com/vapoursynth/vs-miscfilters-obsolete/releases/download/R2/miscfilters-r2.7z";
+            var targetPath = Path.Join(_pythonService.BackendDirectory, "miscfilters.7z");
             await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
             {
-                BackendSetupMainStatus = $"Downloading VapourSynth ({progress}%)...";
+                BackendSetupMainStatus = $"Downloading VapourSynth Misc Filters ({progress}%)...";
             });
 
-            BackendSetupMainStatus = "Extracting VapourSynth...";
-            //_pythonService.ExtractZip(targetPath, _pythonService.PythonDirectory, (double progress) =>
-            //{
-            //    BackendSetupMainStatus = $"Extracting VapourSynth ({progress}%)...";
-            //});
+            BackendSetupMainStatus = "Extracting VapourSynth Misc Filters...";
+            var targetExtractPath = Path.Combine(_pythonService.VapourSynthPluginsPath, "temp");
+            Directory.CreateDirectory(targetExtractPath);
+
             using (ArchiveFile archiveFile = new(targetPath))
             {
-                archiveFile.Extract(_pythonService.PythonDirectory);
+                archiveFile.Extract(targetExtractPath);
+
+                File.Copy(
+                    Path.Combine(targetExtractPath, "win64", "MiscFilters.dll"),
+                    Path.Combine(_pythonService.VapourSynthPluginsPath, "MiscFilters.dll")
+                );
             }
+            Directory.Delete(targetExtractPath, true);
             File.Delete(targetPath);
         }
 
@@ -848,10 +855,10 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             BackendSetupMainStatus = "Extracting vs-mlrt (this may take several minutes)...";
             using (ArchiveFile archiveFile = new(targetPath))
             {
-                var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vs-plugins");
-                //var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vapoursynth64", "plugins");
+                var targetDirectory = Path.Join(_pythonService.VapourSynthPluginsPath);
                 Directory.CreateDirectory(targetDirectory);
                 archiveFile.Extract(targetDirectory);
+                File.Move(Path.Combine(targetDirectory, "vsmlrt.py"), Path.Combine(_pythonService.PythonDirectory, "vsmlrt.py"));
             }
 
             File.Delete(targetPath);

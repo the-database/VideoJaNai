@@ -47,6 +47,7 @@ namespace AnimeJaNaiConverterGui.Services
         public string FfmpegDirectory => Path.Join(BackendDirectory, "ffmpeg");
         public string AnimeJaNaiDirectory => Path.Join(BackendDirectory, "animejanai");
         public string PythonPath => Path.GetFullPath(Path.Join(PythonDirectory, PYTHON_DOWNLOADS["win32"].Path));
+        public string VapourSynthPluginsPath => Path.Combine(PythonDirectory, "vs-plugins");
         public string FfmpegPath => Path.GetFullPath(Path.Join(FfmpegDirectory, "ffmpeg.exe"));
         public string VspipePath => Path.GetFullPath(Path.Join(PythonDirectory, "VSPipe.exe"));
         public string VsrepoPath => Path.GetFullPath(Path.Join(PythonDirectory, "vsrepo.py"));

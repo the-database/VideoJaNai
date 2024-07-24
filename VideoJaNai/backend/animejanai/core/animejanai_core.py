@@ -6,6 +6,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 import rife_cuda
 import animejanai_config
+import zlib
 
 # trtexec num_streams
 TOTAL_NUM_STREAMS = 4
@@ -15,8 +16,6 @@ core.num_threads = 4  # can influence ram usage
 
 plugin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            r"..\..\python\vs-plugins\vsmlrt-cuda")
-# plugin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-#                            r"..\..\python\vapoursynth64\plugins\vsmlrt-cuda")
 
 
 model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -69,50 +68,19 @@ def use_dynamic_engine(width, height):
     return width <= 1920 and height <= 1080
 
 
-def get_static_engine_path(onnx_name, width, height):
-    return os.path.join(model_path, f"{onnx_name}-static-{width}x{height}.engine")
+def get_engine_path(onnx_name, trt_settings):
+    return os.path.join(model_path, f"{onnx_name}.{zlib.crc32(trt_settings.encode())}.engine")
 
 
-def get_dynamic_engine_path(onnx_name):
-    return os.path.join(model_path, f"{onnx_name}.engine")
-
-
-def create_static_engine(onnx_name, width, height):
+def create_custom_engine(onnx_name, trt_settings):
     onnx_path = os.path.join(model_path, f"{onnx_name}.onnx")
     if not os.path.isfile(onnx_path):
         raise FileNotFoundError(onnx_path)
 
-    engine_path = get_static_engine_path(onnx_name, width, height)
+    engine_path = get_engine_path(onnx_name, trt_settings)
 
-    commands = [os.path.join(plugin_path, "trtexec"), "--fp16", f"--onnx={onnx_path}",
-                    f"--optShapes=input:1x3x{height}x{width}",
-                    "--skipInference", "--infStreams=4", "--builderOptimizationLevel=4",
-                    "--inputIOFormats=fp16:chw", "--outputIOFormats=fp16:chw",
-                    f"--saveEngine={engine_path}", "--tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT"]
-
-    logger.debug(' '.join(commands))
-
-    subprocess.run(commands,
-                   cwd=plugin_path)
-
-
-def create_dynamic_engine(onnx_name, width, height):
-    onnx_path = os.path.join(model_path, f"{onnx_name}.onnx")
-    if not os.path.isfile(onnx_path):
-        raise FileNotFoundError(onnx_path)
-
-    engine_path = get_dynamic_engine_path(onnx_name)
-
-    # commands = [os.path.join(plugin_path, "trtexec"), "--fp16", f"--onnx={onnx_path}",
-    #                 "--minShapes=input:1x3x8x8", "--optShapes=input:1x3x1080x1920", "--maxShapes=input:1x3x1080x1920",
-    #                 "--skipInference", "--infStreams=4", "--builderOptimizationLevel=4",
-    #                 f"--saveEngine={engine_path}", "--tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT"]
-
-    # SwinIR test
-    commands = [os.path.join(plugin_path, "trtexec"), "--fp16", f"--onnx={onnx_path}",
-                    "--minShapes=input:1x3x8x8", "--optShapes=input:1x3x1080x1920", "--maxShapes=input:1x3x1080x1920",
-                    "--skipInference", "--infStreams=4", "--builderOptimizationLevel=4",
-                    f"--saveEngine={engine_path}", "--tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT"]
+    commands = [os.path.join(plugin_path, "trtexec"), f"--onnx={onnx_path}", f"--saveEngine={engine_path}",
+                    *trt_settings.split(" ")]
 
     logger.debug(' '.join(commands))
 
@@ -130,7 +98,7 @@ def scale_to_1080(clip, w=1920, h=1080):
     return vs.core.resize.Spline36(clip, width=prescalewidth, height=prescaleheight)
 
 
-def upscale2x(clip, backend, engine_name, num_streams):
+def upscale2x(clip, backend, engine_name, num_streams, trt_settings=None):
     if engine_name is None:
         return clip
     network_path = os.path.join(model_path, f"{engine_name}.onnx")
@@ -151,59 +119,20 @@ def upscale2x(clip, backend, engine_name, num_streams):
             fp16=True,
             network_path=network_path)
 
+    assert trt_settings is not None
+
     # TensorRT
-    # if static engine already exists, use it
-    static_engine_path = get_static_engine_path(engine_name, clip.width, clip.height)
-    if os.path.isfile(static_engine_path):
-        logger.debug(f'Static shapes engine already exists, use static shapes engine at {static_engine_path}')
-        return upscale2x_trt_static(clip, engine_name, num_streams)
-
-    # use dynamic engine if video is 1920x1080 or smaller
-    if use_dynamic_engine(clip.width, clip.height):
-        try:
-            logger.debug('Trying dynamic shapes engine')
-            return upscale2x_trt_dynamic(clip, engine_name, num_streams)
-        except Exception as e:
-            logger.debug(f'Failed to generate dynamic shapes engine; fall back to static shapes engine. Error was: {e}')
-            # fall back to static engine since not all models support dynamic shapes
-            # return upscale2x_trt_static(clip, engine_name, num_streams)  # TODO maybe restore
-
-    # use static engine if the video is larger than 1920x1080
-    # logger.debug('Using static shapes engine for video higher than 1080p')
-    # return upscale2x_trt_static(clip, engine_name, num_streams)  #TODO maybe restore
+    return upscale2x_trt(clip, engine_name, num_streams, trt_settings)
 
 
-def upscale2x_trt_static(clip, engine_name, num_streams):
-    engine_path = get_static_engine_path(engine_name, clip.width, clip.height)
-
+def upscale2x_trt(clip, engine_name, num_streams, trt_settings):
+    engine_path = get_engine_path(engine_name, trt_settings)
     if not os.path.isfile(engine_path):
-        create_static_engine(engine_name, clip.width, clip.height)
+        create_custom_engine(engine_name, trt_settings)
 
     if not os.path.exists(engine_path):
-        logger.debug("Engine failed to generate, exiting")
-        exit(1)
-
-    return core.trt.Model(
-        clip,
-        engine_path=engine_path,
-        num_streams=num_streams
-    )
-
-
-def upscale2x_trt_dynamic(clip, engine_name, num_streams):
-    # logger.debug("upscale2x_trt_dynamic")
-    engine_path = get_dynamic_engine_path(engine_name)
-
-    logger.debug(f"engine_path? a={engine_name}; b={num_streams}; c={engine_path}; d={os.path.isfile(engine_path)}")
-
-    if not os.path.isfile(engine_path):
-        create_dynamic_engine(engine_name, clip.width, clip.height)
-
-    if not os.path.exists(engine_path):
-        logger.debug("Engine failed to generate, exiting")
-        exit(1)
-
-    logger.debug(f'clip format? {clip.format};; {clip.format == vs.RGBH}; {clip.format == vs.RGBS}')
+        logger.debug("Engine failed to generate, exiting. Please make sure your TensorRT Engine Settings are appropriate for the type of model you are using.")
+        sys.exit(1)
 
     return core.trt.Model(
         clip,
@@ -213,7 +142,11 @@ def upscale2x_trt_dynamic(clip, engine_name, num_streams):
 
 
 def run_animejanai(clip, container_fps, chain_conf, backend):
+    logger.debug(f"chain_conf {chain_conf}")
     models = chain_conf.get('models', [])
+    trt_settings = chain_conf.get("tensorrt_engine_settings")
+    if trt_settings is not None:
+        trt_settings = trt_settings.replace("%video_resolution%", f"1x3x{clip.height}x{clip.width}")
     colorspace = "709"
     colorlv = 1
     try:
@@ -241,10 +174,9 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
                 if resize_factor_before_upscale != 100:
                     current_logger_steps.append(f'Applied Resize Factor Before Upscale: {resize_factor_before_upscale}%;    New Video Resolution: {clip.width}x{clip.height}')
 
-                clip = run_animejanai_upscale(clip, backend, model_conf, num_streams)
+                clip = run_animejanai_upscale(clip, backend, model_conf, trt_settings, num_streams)
 
             except Exception as e:
-                logger.debug("hello?",e)
                 clip = vs.core.resize.Spline36(clip, format=vs.RGBS, matrix_in_s=colorspace,
                                               width=clip.width * resize_factor_before_upscale / 100,
                                               height=clip.height * resize_factor_before_upscale / 100)
@@ -252,7 +184,7 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
                 if resize_factor_before_upscale != 100:
                     current_logger_steps.append(f'Applied Resize Factor Before Upscale: {resize_factor_before_upscale}%;    New Video Resolution: {clip.width}x{clip.height}')
 
-                clip = run_animejanai_upscale(clip, backend, model_conf, num_streams)
+                clip = run_animejanai_upscale(clip, backend, model_conf, trt_settings, num_streams)
 
             current_logger_steps.append(f"Applied Model: {model_conf['name']};    New Video Resolution: {clip.width}x{clip.height}")
 
@@ -287,7 +219,7 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
     clip.set_output()
 
 
-def run_animejanai_upscale(clip, backend, model_conf, num_streams):
+def run_animejanai_upscale(clip, backend, model_conf, trt_settings, num_streams):
 
     if model_conf['resize_height_before_upscale'] != 0 and model_conf['resize_height_before_upscale'] != clip.height:
         clip = scale_to_1080(clip, model_conf['resize_height_before_upscale'] * 16 / 9,
@@ -295,7 +227,7 @@ def run_animejanai_upscale(clip, backend, model_conf, num_streams):
         current_logger_steps.append(f"Applied Resize Height Before Upscale: {model_conf['resize_height_before_upscale']}px;    New Video Resolution: {clip.width}x{clip.height}")
 
     # upscale 2x
-    return upscale2x(clip, backend, model_conf['name'], num_streams)
+    return upscale2x(clip, backend, model_conf['name'], num_streams, trt_settings)
 
 
 # keybinding: 1-9
