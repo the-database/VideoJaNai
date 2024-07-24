@@ -664,9 +664,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 if (!_pythonService.IsPythonInstalled())
                 {
                     // 1. Install embedded Python + portable VS
-                    //await InstallPortableVapourSynth();
-                    await InstallPython();
-                    await InstallVapourSynth();
+                    await InstallPortableVapourSynth();
 
                     // 2. Python dependencies
                     await RunInstallCommand(_pythonService.InstallUpdatePythonDependenciesCommand);
@@ -756,7 +754,6 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         private async Task InstallPortableVapourSynth()
         {
             // Download Python Installer
-            var vsVersion = 65;
             BackendSetupMainStatus = "Downloading Portable VapourSynth Installer...";
             var downloadUrl = $"https://github.com/vapoursynth/vapoursynth/releases/download/R69/Install-Portable-VapourSynth-R69.ps1";
             var targetPath = Path.Join(_pythonService.BackendDirectory, "installvs.ps1");
@@ -774,13 +771,10 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 powerShell.AddScript("Import-Module Microsoft.PowerShell.Archive");
 
                 var scriptContents = File.ReadAllText(targetPath);
-                // Force Python 3.11
-                scriptContents = scriptContents.Replace("$PythonVersionMid = 12", "$PythonVersionMid = 11");
 
                 powerShell.AddScript(scriptContents);
                 powerShell.AddParameter("Unattended");
                 powerShell.AddParameter("TargetFolder", _pythonService.PythonDirectory);
-                powerShell.AddParameter("VSVersion", vsVersion);
 
                 if (Directory.Exists(_pythonService.PythonDirectory))
                 {
@@ -854,8 +848,8 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             BackendSetupMainStatus = "Extracting vs-mlrt (this may take several minutes)...";
             using (ArchiveFile archiveFile = new(targetPath))
             {
-                //var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vs-plugins");
-                var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vapoursynth64", "plugins");
+                var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vs-plugins");
+                //var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vapoursynth64", "plugins");
                 Directory.CreateDirectory(targetDirectory);
                 archiveFile.Extract(targetDirectory);
             }

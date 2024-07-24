@@ -13,10 +13,10 @@ TOTAL_NUM_STREAMS = 4
 core = vs.core
 core.num_threads = 4  # can influence ram usage
 
-# plugin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-#                            r"..\..\python\vs-plugins\vsmlrt-cuda")
 plugin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           r"..\..\python\vapoursynth64\plugins\vsmlrt-cuda")
+                           r"..\..\python\vs-plugins\vsmlrt-cuda")
+# plugin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+#                            r"..\..\python\vapoursynth64\plugins\vsmlrt-cuda")
 
 
 model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
