@@ -13,8 +13,12 @@ TOTAL_NUM_STREAMS = 4
 core = vs.core
 core.num_threads = 4  # can influence ram usage
 
+# plugin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+#                            r"..\..\python\vs-plugins\vsmlrt-cuda")
 plugin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           r"..\..\vapoursynth64\plugins\vsmlrt-cuda")
+                           r"..\..\python\vapoursynth64\plugins\vsmlrt-cuda")
+
+
 model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            r"..\onnx")
 
@@ -35,6 +39,7 @@ def init_logger():
     rfh.setLevel(logging.DEBUG)
     logger.handlers.clear()
     logger.addHandler(rfh)
+    logger.addHandler(logging.StreamHandler())
 
 
 def write_current_log_empty():
@@ -233,14 +238,12 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
                 clip = vs.core.resize.Spline36(clip, format=vs.RGBH, matrix_in_s=colorspace,
                                               width=clip.width * resize_factor_before_upscale / 100,
                                               height=clip.height * resize_factor_before_upscale / 100)
-
                 if resize_factor_before_upscale != 100:
                     current_logger_steps.append(f'Applied Resize Factor Before Upscale: {resize_factor_before_upscale}%;    New Video Resolution: {clip.width}x{clip.height}')
 
                 clip = run_animejanai_upscale(clip, backend, model_conf, num_streams)
 
-                current_logger_steps.append(f"Applied Model: {model_conf['name']};    New Video Resolution: {clip.width}x{clip.height}")
-            except:
+            except Exception as e:
                 clip = vs.core.resize.Spline36(clip, format=vs.RGBS, matrix_in_s=colorspace,
                                               width=clip.width * resize_factor_before_upscale / 100,
                                               height=clip.height * resize_factor_before_upscale / 100)
@@ -249,7 +252,8 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
                     current_logger_steps.append(f'Applied Resize Factor Before Upscale: {resize_factor_before_upscale}%;    New Video Resolution: {clip.width}x{clip.height}')
 
                 clip = run_animejanai_upscale(clip, backend, model_conf, num_streams)
-                current_logger_steps.append(f"Applied Model: {model_conf['name']};    New Video Resolution: {clip.width}x{clip.height}")
+
+            current_logger_steps.append(f"Applied Model: {model_conf['name']};    New Video Resolution: {clip.width}x{clip.height}")
 
     if chain_conf['final_resize_height'] != 0 and chain_conf['final_resize_height'] != clip.height:
         clip = scale_to_1080(clip, round(chain_conf['final_resize_height'] * clip.width / clip.height), round(chain_conf['final_resize_height']))
@@ -327,7 +331,7 @@ def run_animejanai_with_keybinding(clip, container_fps, keybinding):
             write_current_log()
             return
 
-    current_logger_info.append(f"No Chains Activated")
+    current_logger_info.append("No Chains Activated")
     write_current_log()
     clip.set_output()
 

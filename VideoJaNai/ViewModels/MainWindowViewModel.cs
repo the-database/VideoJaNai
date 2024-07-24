@@ -1,17 +1,15 @@
-﻿using Avalonia.Collections;
-using Avalonia.Controls;
-using DynamicData;
+﻿using AnimeJaNaiConverterGui.Services;
+using Avalonia.Collections;
 using Newtonsoft.Json;
 using ReactiveUI;
-using Salaros.Configuration;
 using SevenZipExtractor;
+using Splat;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
@@ -29,8 +27,14 @@ namespace VideoJaNai.ViewModels
         private readonly UpdateManager _um;
         private UpdateInfo? _update = null;
 
-        public MainWindowViewModel()
+        private readonly IPythonService _pythonService;
+        private readonly IUpdateManagerService _updateManagerService;
+
+        public MainWindowViewModel(IPythonService? pythonService = null, IUpdateManagerService? updateManagerService = null)
         {
+            _pythonService = pythonService ?? Locator.Current.GetService<IPythonService>()!;
+            _updateManagerService = updateManagerService ?? Locator.Current.GetService<IUpdateManagerService>()!;
+
             var g1 = this.WhenAnyValue
             (
                 x => x.SelectedWorkflowIndex
@@ -114,6 +118,31 @@ namespace VideoJaNai.ViewModels
             }
         }
 
+        private string _backendSetupMainStatus = string.Empty;
+        public string BackendSetupMainStatus
+        {
+            get => this._backendSetupMainStatus;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _backendSetupMainStatus, value);
+            }
+        }
+
+        public string BackendSetupSubStatusText => string.Join("\n", BackendSetupSubStatusQueue);
+
+        private static readonly int BACKEND_SETUP_SUB_STATUS_QUEUE_CAPACITY = 50;
+
+        private ConcurrentQueue<string> _backendSetupSubStatusQueue = new();
+        public ConcurrentQueue<string> BackendSetupSubStatusQueue
+        {
+            get => this._backendSetupSubStatusQueue;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _backendSetupSubStatusQueue, value);
+                this.RaisePropertyChanged(nameof(BackendSetupSubStatusText));
+            }
+        }
+
         public string ConsoleText => string.Join("\n", ConsoleQueue);
 
         private static readonly int CONSOLE_QUEUE_CAPACITY = 1000;
@@ -129,12 +158,14 @@ namespace VideoJaNai.ViewModels
             }
         }
 
+        public string ModelsDirectory => _pythonService.ModelsDirectory;
+
         private string _overwriteCommand => CurrentWorkflow.OverwriteExistingVideos ? "-y" : "";
 
-        public static readonly string _ffmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\"";
-        public static readonly string _ffmpegX264 = "libx264 -crf 13 -preset slow";
-        public static readonly string _ffmpegHevcNvenc = "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M";
-        public static readonly string _ffmpegLossless = "ffv1";
+        public static readonly string _ffmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\" -max_interleave_delta 0";
+        public static readonly string _ffmpegX264 = "libx264 -crf 13 -preset slow -max_interleave_delta 0";
+        public static readonly string _ffmpegHevcNvenc = "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M -max_interleave_delta 0";
+        public static readonly string _ffmpegLossless = "ffv1 -max_interleave_delta 0";
 
         public static readonly string _tensorRtDynamicEngine = "--fp16 --minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x1080x1920 --inputIOFormats=fp32:chw --outputIOFormats=fp32:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
         public static readonly string _tensorRtStaticEngine = "--fp16 --optShapes=input:%video_resolution% --inputIOFormats=fp32:chw --outputIOFormats=fp32:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
@@ -154,9 +185,9 @@ namespace VideoJaNai.ViewModels
         public bool RequestShowAppSettings
         {
             get => _showAppSettings;
-            set 
-            { 
-                this.RaiseAndSetIfChanged(ref _showAppSettings, value); 
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _showAppSettings, value);
                 this.RaisePropertyChanged(nameof(ShowAppSettings));
                 this.RaisePropertyChanged(nameof(ShowMainForm));
             }
@@ -189,11 +220,11 @@ namespace VideoJaNai.ViewModels
 
 
         private bool _upscaling = false;
-        [IgnoreDataMember] 
+        [IgnoreDataMember]
         public bool Upscaling
         {
             get => _upscaling;
-            set 
+            set
             {
                 this.RaiseAndSetIfChanged(ref _upscaling, value);
                 this.RaisePropertyChanged(nameof(UpscaleEnabled));
@@ -279,7 +310,7 @@ namespace VideoJaNai.ViewModels
 
                     var outputFilePath = Path.Join(
                                                     Path.GetFullPath(CurrentWorkflow.OutputFolderPath),
-                                                    CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(CurrentWorkflow.InputFilePath))); 
+                                                    CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(CurrentWorkflow.InputFilePath)));
 
                     if (File.Exists(outputFilePath))
                     {
@@ -301,7 +332,7 @@ namespace VideoJaNai.ViewModels
                     List<string> statuses = new();
                     var existFileCount = 0;
                     var totalFileCount = 0;
-                    
+
                     var videos = Directory.EnumerateFiles(CurrentWorkflow.InputFolderPath, "*.*", SearchOption.AllDirectories)
                         .Where(file => VIDEO_EXTENSIONS.Any(ext => file.ToLower().EndsWith(ext)));
                     var filesCount = 0;
@@ -333,7 +364,7 @@ namespace VideoJaNai.ViewModels
 
                     statuses.Add($"{filesCount} video file{videoS} ({existFileCount} video file{existVideoS} already exist{existS} and will be {overwriteText})");
                     totalFileCount += filesCount;
-                    
+
                     InputStatusText = $"{string.Join(" and ", statuses)}";
                     return totalFileCount;
                 }
@@ -344,7 +375,7 @@ namespace VideoJaNai.ViewModels
 
         public void SetupAnimeJaNaiConfSlot1()
         {
-            var confPath = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\animejanai\animejanai.conf");
+            var confPath = Path.Combine(_pythonService.AnimeJaNaiDirectory, "animejanai.conf");
             var backend = CurrentWorkflow.DirectMlSelected ? "DirectML" : CurrentWorkflow.NcnnSelected ? "NCNN" : "TensorRT";
             HashSet<string> filesNeedingEngine = new();
             var configText = new StringBuilder($@"[global]
@@ -356,7 +387,7 @@ profile_name=encode
 
             for (var i = 0; i < CurrentWorkflow.UpscaleSettings.Count; i++)
             {
-                var targetCopyPath = @$".\mpv-upscale-2x_animejanai\animejanai\onnx\{Path.GetFileName(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath)}";
+                var targetCopyPath = Path.Combine(_pythonService.ModelsDirectory, Path.GetFileName(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath)); // TODO @$".\mpv-upscale-2x_animejanai\animejanai\onnx\{
 
                 if (Path.GetFullPath(targetCopyPath) != Path.GetFullPath(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath))
                 {
@@ -397,7 +428,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
                 //if (!File.Exists(enginePath))
                 //{
-                    await GenerateEngine(inputFilePath);
+                await GenerateEngine(inputFilePath);
                 //}
             }
 
@@ -411,39 +442,39 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
             //var task = Task.Run(async () =>
             //{
-                ct.ThrowIfCancellationRequested();
-                ConsoleQueueClear();
-                Upscaling = true;
-                SetupAnimeJaNaiConfSlot1();
+            ct.ThrowIfCancellationRequested();
+            ConsoleQueueClear();
+            Upscaling = true;
+            SetupAnimeJaNaiConfSlot1();
 
-                if (CurrentWorkflow.SelectedTabIndex == 0)
+            if (CurrentWorkflow.SelectedTabIndex == 0)
+            {
+                ct.ThrowIfCancellationRequested();
+                await CheckEngines(CurrentWorkflow.InputFilePath); // TODO restore
+                ct.ThrowIfCancellationRequested();
+                var outputFilePath = Path.Join(
+                            Path.GetFullPath(CurrentWorkflow.OutputFolderPath),
+                            CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(CurrentWorkflow.InputFilePath)));
+                await RunUpscaleSingle(CurrentWorkflow.InputFilePath, outputFilePath);
+                ct.ThrowIfCancellationRequested();
+            }
+            else
+            {
+                var files = Directory.GetFiles(CurrentWorkflow.InputFolderPath).Where(file => VIDEO_EXTENSIONS.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)).ToList();
+
+                foreach (var file in files)
                 {
                     ct.ThrowIfCancellationRequested();
-                    await CheckEngines(CurrentWorkflow.InputFilePath);
+                    await CheckEngines(file);
                     ct.ThrowIfCancellationRequested();
                     var outputFilePath = Path.Join(
-                                Path.GetFullPath(CurrentWorkflow.OutputFolderPath),
-                                CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(CurrentWorkflow.InputFilePath)));
-                    await RunUpscaleSingle(CurrentWorkflow.InputFilePath, outputFilePath);
+                            Path.GetFullPath(CurrentWorkflow.OutputFolderPath),
+                            CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(file)));
+                    ct.ThrowIfCancellationRequested();
+                    await RunUpscaleSingle(file, outputFilePath);
                     ct.ThrowIfCancellationRequested();
                 }
-                else
-                {
-                    var files = Directory.GetFiles(CurrentWorkflow.InputFolderPath).Where(file => VIDEO_EXTENSIONS.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)).ToList();
-
-                    foreach (var file in files)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        await CheckEngines(file);
-                        ct.ThrowIfCancellationRequested();
-                        var outputFilePath = Path.Join(
-                                Path.GetFullPath(CurrentWorkflow.OutputFolderPath),
-                                CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(file)));
-                        ct.ThrowIfCancellationRequested();
-                        await RunUpscaleSingle(file, outputFilePath);
-                        ct.ThrowIfCancellationRequested();
-                    }
-                }
+            }
 
             CurrentWorkflow.Valid = true;
             //}, ct);
@@ -481,20 +512,23 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 Upscaling = false;
                 CurrentWorkflow.Validate();
             }
-            catch { }
-            
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+            }
+
         }
 
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
-            var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_encode.vpy - | ffmpeg {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {CurrentWorkflow.FfmpegVideoSettings} -max_interleave_delta 0 -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
+            var cmd = $@"{_pythonService.VspipePath} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_encode.vpy - | {_pythonService.FfmpegPath} {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {CurrentWorkflow.FfmpegVideoSettings} -max_interleave_delta 0 -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
             ConsoleQueueEnqueue($"Upscaling with command: {cmd}");
             await RunCommand($@" /C {cmd}");
         }
 
         public async Task GenerateEngine(string inputFilePath)
         {
-            var cmd = $@"..\..\VSPipe.exe -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ./animejanai_encode.vpy -p .";
+            var cmd = $@"{_pythonService.VspipePath} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ./animejanai_encode.vpy -p .";
             ConsoleQueueEnqueue($"Generating TensorRT engine with command: {cmd}");
             await RunCommand($@" /C {cmd}");
         }
@@ -511,7 +545,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 process.StartInfo.RedirectStandardError = true;
                 process.StartInfo.UseShellExecute = false;
                 process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.WorkingDirectory = Path.GetFullPath(@".\mpv-upscale-2x_animejanai\animejanai\core");
+                process.StartInfo.WorkingDirectory = Path.Combine(_pythonService.AnimeJaNaiDirectory, "core");
 
                 // Create a StreamWriter to write the output to a log file
                 using (var outputFile = new StreamWriter("error.log", append: true))
@@ -558,6 +592,16 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
             ConsoleQueue.Enqueue(value);
             this.RaisePropertyChanged(nameof(ConsoleText));
+        }
+
+        private void BackendSetupSubStatusQueueEnqueue(string value)
+        {
+            while (BackendSetupSubStatusQueue.Count > BACKEND_SETUP_SUB_STATUS_QUEUE_CAPACITY)
+            {
+                BackendSetupSubStatusQueue.TryDequeue(out var _);
+            }
+            BackendSetupSubStatusQueue.Enqueue(value);
+            this.RaisePropertyChanged(nameof(BackendSetupSubStatusText));
         }
 
         public void ResetCurrentWorkflow()
@@ -609,20 +653,230 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         public void CheckAndExtractBackend()
         {
-            Task.Run(() =>
+            Task.Run(async () =>
             {
-                var backendArchivePath = Path.GetFullPath("./mpv-upscale-2x_animejanai.7z");
+                IsExtractingBackend = true;
 
-                if (File.Exists(backendArchivePath))
+                Debug.WriteLine(_pythonService.PythonPath);
+
+                // TODO test full reinstall, to test pip install packaging
+                if (!_pythonService.IsPythonInstalled())
                 {
-                    IsExtractingBackend = true;
-                    using ArchiveFile archiveFile = new(backendArchivePath);
-                    archiveFile.Extract(".");
-                    archiveFile.Dispose();
-                    File.Delete(backendArchivePath);
-                    IsExtractingBackend = false;
+                    await InstallPython();
+                    await InstallVapourSynth();
+
+                    // 3. Install VapourSynth Python wheel
+                    await RunInstallCommand(_pythonService.InstallUpdatePythonDependenciesCommand);
+                    // 4. VapourSynth ffms2
+                    await RunInstallCommand(_pythonService.InstallVapourSynthPluginsCommand);
+
+
+                    await InstallVsmlrt(); // TODO
+                    await InstallFfmpeg();
                 }
-            });            
+                else
+                {
+                    //await RunInstallCommand(_pythonService.InstallUpdatePythonDependenciesCommand); // TODO
+                    //await RunInstallCommand(_pythonService.InstallVapourSynthPluginsCommand);
+                }
+
+                if (!_pythonService.AreModelsInstalled())
+                {
+                    await InstallModels();
+                }
+
+                IsExtractingBackend = false;
+            });
+        }
+
+        private async Task InstallPython()
+        {
+            // Download Python tgz
+            BackendSetupMainStatus = "Downloading Python...";
+            var download = PythonService.PYTHON_DOWNLOADS["win32"];
+            var targetPath = Path.Join(_pythonService.BackendDirectory, download.Filename);
+            await Downloader.DownloadFileAsync(download.Url, targetPath, (progress) =>
+            {
+                BackendSetupMainStatus = $"Downloading Python ({progress}%)...";
+            });
+
+            // Extract Python tgz
+            BackendSetupMainStatus = "Extracting Python...";
+            _pythonService.ExtractTgz(targetPath, _pythonService.BackendDirectory);
+            File.Delete(targetPath);
+
+            var pthDirectory = Path.GetDirectoryName(_pythonService.PythonPath) ?? throw new ArgumentNullException("pthDirectory");
+
+            _pythonService.AddPythonPth(pthDirectory);
+        }
+
+        private async Task InstallVapourSynth()
+        {
+            BackendSetupMainStatus = "Downloading VapourSynth...";
+            //var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R69/VapourSynth64-Portable-R69.zip";
+            var downloadUrl = "https://github.com/vapoursynth/vapoursynth/releases/download/R65/VapourSynth64-Portable-R65.zip";
+            var targetPath = Path.Join(_pythonService.BackendDirectory, "vapoursynth.zip");
+            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            {
+                BackendSetupMainStatus = $"Downloading VapourSynth ({progress}%)...";
+            });
+
+            BackendSetupMainStatus = "Extracting VapourSynth...";
+            _pythonService.ExtractZip(targetPath, _pythonService.PythonDirectory, (double progress) =>
+            {
+                BackendSetupMainStatus = $"Extracting VapourSynth ({progress}%)...";
+            });
+            File.Delete(targetPath);
+        }
+
+        private async Task InstallVsmlrt()
+        {
+            BackendSetupMainStatus = "Downloading vs-mlrt...";
+            var downloadUrl = "https://github.com/AmusementClub/vs-mlrt/releases/download/v14.test3/vsmlrt-windows-x64-cuda.v14.test3.7z";
+            var targetPath = Path.Join(_pythonService.BackendDirectory, "vsmlrt.7z");
+            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            {
+                BackendSetupMainStatus = $"Downloading vs-mlrt ({progress}%)...";
+            });
+
+            BackendSetupMainStatus = "Extracting vs-mlrt (this may take several minutes)...";
+            using (ArchiveFile archiveFile = new(targetPath))
+            {
+                //var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vs-plugins");
+                var targetDirectory = Path.Join(_pythonService.PythonDirectory, "vapoursynth64", "plugins");
+                Directory.CreateDirectory(targetDirectory);
+                archiveFile.Extract(targetDirectory);
+            }
+
+            File.Delete(targetPath);
+        }
+
+        private async Task InstallFfmpeg()
+        {
+            BackendSetupMainStatus = "Downloading ffmpeg...";
+            var downloadUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z";
+            var targetPath = Path.Join(_pythonService.BackendDirectory, "ffmpeg.7z");
+            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            {
+                BackendSetupMainStatus = $"Downloading ffmpeg ({progress}%)...";
+            });
+
+            BackendSetupMainStatus = "Extracting ffmpeg...";
+            using (ArchiveFile ffmpegArchive = new(targetPath))
+            {
+                ffmpegArchive.Extract(_pythonService.FfmpegDirectory);
+            }
+
+            var directories = Directory.GetDirectories(_pythonService.FfmpegDirectory);
+
+            if (directories.Length > 0)
+            {
+                var files = Directory.GetFiles(Path.Combine(directories.First(), "bin"));
+
+                foreach (string file in files)
+                {
+                    string fileName = Path.GetFileName(file);
+                    string destinationPath = Path.Combine(_pythonService.FfmpegDirectory, fileName);
+                    File.Move(file, destinationPath);
+                }
+                try
+                {
+                    Directory.Delete(directories.First(), true);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex);
+                }
+            }
+            File.Delete(targetPath);
+        }
+
+        public async Task<string[]> RunInstallCommand(string cmd)
+        {
+            Debug.WriteLine(cmd);
+
+            // Create a new process to run the CMD command
+            using (var process = new Process())
+            {
+                process.StartInfo.FileName = "cmd.exe";
+                process.StartInfo.Arguments = @$"/C {cmd}";
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.CreateNoWindow = true;
+                process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+                process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
+                process.StartInfo.WorkingDirectory = _pythonService.PythonDirectory;
+
+                var result = string.Empty;
+
+                // Create a StreamWriter to write the output to a log file
+                try
+                {
+                    //using var outputFile = new StreamWriter("error.log", append: true);
+                    process.ErrorDataReceived += (sender, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
+                        {
+                            //Debug.WriteLine($"STDERR = {e.Data}");
+                            BackendSetupSubStatusQueueEnqueue(e.Data);
+                        }
+                    };
+
+                    process.OutputDataReceived += (sender, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
+                        {
+                            result = e.Data;
+                            //Debug.WriteLine($"STDOUT = {e.Data}");
+                            BackendSetupSubStatusQueueEnqueue(e.Data);
+                        }
+                    };
+
+                    process.Start();
+                    process.BeginOutputReadLine();
+                    process.BeginErrorReadLine(); // Start asynchronous reading of the output
+                    await process.WaitForExitAsync();
+                }
+                catch (IOException) { }
+            }
+
+            return [];
+        }
+
+        private async Task InstallModels()
+        {
+            // 6. Download ONNX models
+            var downloadUrl = "https://github.com/the-database/mpv-upscale-2x_animejanai/releases/download/3.0.0/2x_AnimeJaNai_HD_V3_ModelsOnly.zip";
+            Directory.CreateDirectory(_pythonService.ModelsDirectory);
+            var targetPath = Path.Join(_pythonService.ModelsDirectory, "models.zip");
+            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            {
+                BackendSetupMainStatus = $"Downloading AnimeJaNai models ({progress}%)...";
+            });
+
+            BackendSetupMainStatus = "Extracting AnimeJaNai models...";
+            _pythonService.ExtractZip(targetPath, _pythonService.ModelsDirectory, (double progress) =>
+            {
+                BackendSetupMainStatus = $"Extracting AnimeJaNai models ({progress}%)...";
+            });
+
+            var directories = Directory.GetDirectories(_pythonService.ModelsDirectory);
+            if (directories.Length > 0)
+            {
+                var files = Directory.GetFiles(directories.First(), "*.onnx");
+
+                foreach (string file in files)
+                {
+                    string fileName = Path.GetFileName(file);
+                    string destinationPath = Path.Combine(_pythonService.ModelsDirectory, fileName);
+                    File.Move(file, destinationPath);
+                }
+
+                Directory.Delete(directories.First(), true);
+            }
+
+            File.Delete(targetPath);
         }
 
         public async Task CheckForUpdates()
@@ -717,9 +971,9 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public UpscaleWorkflow()
         {
             this.WhenAnyValue(
-                x => x.InputFilePath, 
+                x => x.InputFilePath,
                 x => x.OutputFilename,
-                x => x.InputFolderPath, 
+                x => x.InputFolderPath,
                 x => x.OutputFolderPath,
                 x => x.SelectedTabIndex,
                 x => x.OverwriteExistingVideos
@@ -1055,9 +1309,9 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public bool ShowAdvancedSettings
         {
             get => _showAdvancedSettings;
-            set 
-            { 
-                this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value); 
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value);
                 this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
             }
         }
