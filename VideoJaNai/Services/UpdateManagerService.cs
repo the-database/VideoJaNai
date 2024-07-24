@@ -11,7 +11,7 @@ namespace AnimeJaNaiConverterGui.Services
 
         public UpdateManagerService()
         {
-            _um = new UpdateManager(new GithubSource("https://github.com/the-database/AnimeJaNaiConverterGui", null, false));
+            _um = new UpdateManager(new GithubSource("https://github.com/the-database/VideoJaNai", null, false));
         }
 
         public string AppVersion { get => _um?.CurrentVersion?.ToString() ?? ""; }
