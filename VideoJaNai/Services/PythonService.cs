@@ -45,7 +45,7 @@ namespace AnimeJaNaiConverterGui.Services
         public string BackendDirectory => (_updateManagerService?.IsInstalled ?? false) ? Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"VideoJaNai") : Path.GetFullPath(@".\backend");
         public string PythonDirectory => Path.Join(BackendDirectory, "python");
         public string FfmpegDirectory => Path.Join(BackendDirectory, "ffmpeg");
-        public string AnimeJaNaiDirectory => Path.Join(BackendDirectory, "animejanai");
+        public string AnimeJaNaiDirectory => Path.GetFullPath("./backend/animejanai");
         public string PythonPath => Path.GetFullPath(Path.Join(PythonDirectory, PYTHON_DOWNLOADS["win32"].Path));
         public string VapourSynthPluginsPath => Path.Combine(PythonDirectory, "vs-plugins");
         public string FfmpegPath => Path.GetFullPath(Path.Join(FfmpegDirectory, "ffmpeg.exe"));

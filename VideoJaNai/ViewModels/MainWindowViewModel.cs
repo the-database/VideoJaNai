@@ -382,6 +382,7 @@ namespace VideoJaNai.ViewModels
             var configText = new StringBuilder($@"[global]
 logging=yes
 backend={backend}
+backend_path={_pythonService.BackendDirectory}
 [slot_1]
 profile_name=encode
 ");
@@ -522,14 +523,14 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
-            var cmd = $@"{_pythonService.VspipePath} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ./animejanai_encode.vpy - | {_pythonService.FfmpegPath} {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {CurrentWorkflow.FfmpegVideoSettings} -max_interleave_delta 0 -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
+            var cmd = $@"{Path.GetRelativePath(_pythonService.BackendDirectory, _pythonService.VspipePath)} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ""{Path.GetFullPath("./backend/animejanai/core/animejanai_encode.vpy")}"" - | {_pythonService.FfmpegPath} {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {CurrentWorkflow.FfmpegVideoSettings} -max_interleave_delta 0 -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
             ConsoleQueueEnqueue($"Upscaling with command: {cmd}");
             await RunCommand($@" /C {cmd}");
         }
 
         public async Task GenerateEngine(string inputFilePath)
         {
-            var cmd = $@"{_pythonService.VspipePath} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ./animejanai_encode.vpy -p .";
+            var cmd = $@"{Path.GetRelativePath(_pythonService.BackendDirectory, _pythonService.VspipePath)} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ""{Path.GetFullPath("./backend/animejanai/core/animejanai_encode.vpy")}"" -p .";
             ConsoleQueueEnqueue($"Generating TensorRT engine with command: {cmd}");
             await RunCommand($@" /C {cmd}");
         }
@@ -546,7 +547,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 process.StartInfo.RedirectStandardError = true;
                 process.StartInfo.UseShellExecute = false;
                 process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.WorkingDirectory = Path.Combine(_pythonService.AnimeJaNaiDirectory, "core");
+                process.StartInfo.WorkingDirectory = _pythonService.BackendDirectory;
 
                 // Create a StreamWriter to write the output to a log file
                 using (var outputFile = new StreamWriter("error.log", append: true))

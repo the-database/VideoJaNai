@@ -14,10 +14,7 @@ TOTAL_NUM_STREAMS = 4
 core = vs.core
 core.num_threads = 4  # can influence ram usage
 
-plugin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           r"..\..\python\vs-plugins\vsmlrt-cuda")
-
-
+plugin_path = None
 model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            r"..\onnx")
 
@@ -270,11 +267,14 @@ def run_animejanai_with_keybinding(clip, container_fps, keybinding):
 
 
 def init():
-    global config, current_logger_info, current_logger_steps
+    global config, current_logger_info, current_logger_steps, plugin_path
     current_logger_info = []
     current_logger_steps = []
     write_current_log_empty()
     config = animejanai_config.read_config()
+    backend_path = config["global"]["backend_path"]
+    plugin_path = os.path.join(backend_path, "python/vs-plugins/vsmlrt-cuda")
+
     if config['global']['logging']:
         init_logger()
 
