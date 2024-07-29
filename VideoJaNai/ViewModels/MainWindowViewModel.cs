@@ -13,6 +13,7 @@ using System.Linq;
 using System.Management.Automation;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Velopack;
@@ -50,15 +51,6 @@ namespace VideoJaNai.ViewModels
 
         private CancellationTokenSource? _cancellationTokenSource;
         private Process? _runningProcess = null;
-
-        private static readonly Dictionary<string, string> rifeModelMapping = new()
-        {
-            { "RIFE 4.14", 414.ToString() },
-            { "RIFE 4.14 Lite", 4141.ToString() },
-            { "RIFE 4.13", 413.ToString() },
-            { "RIFE 4.13 Lite", 413.ToString() },
-            { "RIFE 4.6", 46.ToString() },
-        };
 
         public bool IsInstalled => _um?.IsInstalled ?? false;
 
@@ -210,15 +202,20 @@ namespace VideoJaNai.ViewModels
         }
 
         public string LeftStatus => !CurrentWorkflow.Valid ? ValidationText.Replace("\n", " ") : $"{InputStatusText} selected for upscaling.";
-        //public string LeftStatus
-        //{
-        //    get 
-        //    {
-        //        return !Valid ? ValidationText.Replace("\n", " ") : $"{InputStatusText} selected for upscaling.";
-        //    }
-        //}
 
+        private bool _runningPython = false;
+        [IgnoreDataMember]
+        public bool RunningPython
+        {
+            get => _runningPython;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _runningPython, value);
+                this.RaisePropertyChanged(nameof(AllowReinstall));
+            }
+        }
 
+        public bool AllowReinstall => !RunningPython && !Upscaling;
 
         private bool _upscaling = false;
         [IgnoreDataMember]
@@ -230,7 +227,17 @@ namespace VideoJaNai.ViewModels
                 this.RaiseAndSetIfChanged(ref _upscaling, value);
                 this.RaisePropertyChanged(nameof(UpscaleEnabled));
                 this.RaisePropertyChanged(nameof(LeftStatus));
+                this.RaisePropertyChanged(nameof(AllowReinstall));
             }
+        }
+
+        public string PythonPath => _pythonService.PythonPath;
+
+        private string _pythonPipList = string.Empty;
+        public string PythonPipList
+        {
+            get => _pythonPipList;
+            set => this.RaiseAndSetIfChanged(ref _pythonPipList, value);
         }
 
         private bool _isExtractingBackend = false;
@@ -374,6 +381,116 @@ namespace VideoJaNai.ViewModels
             return 0;
         }
 
+        private List<string>? _rifeModels = null;
+
+        public List<string> RifeModels
+        {
+            get
+            {
+                if (_rifeModels == null)
+                {
+                    var models = new List<string>();
+                    var modelsPath = Path.Combine(_pythonService.VsmlrtModelsPath, "rife");
+
+                    if (!Directory.Exists(modelsPath))
+                    {
+                        return [];
+                    }
+
+                    var files = Directory.GetFiles(modelsPath, searchPattern: "*.onnx");
+
+                    foreach (var file in files)
+                    {
+                        Debug.WriteLine(file);
+                        var m = Regex.Match(Path.GetFileName(file), @"rife_v(\d+)\.(\d+)(_lite)?(_ensemble)?.onnx");
+                        if (m.Success)
+                        {
+                            var model = m.Groups[1].Value + m.Groups[2].Value;
+                            if (file.Contains("_lite"))
+                            {
+                                model += "1";
+                            }
+
+                            if (!models.Contains(model))
+                            {
+                                models.Add(model);
+                            }
+                        }
+                    }
+
+                    models.Sort(delegate (string m1, string m2)
+                    {
+                        var m1i = decimal.Parse(m1[..Math.Min(3, m1.Length)]);
+                        var m2i = decimal.Parse(m2[..Math.Min(3, m2.Length)]);
+
+                        if (m1.Length > 3)
+                        {
+                            m1i += .1m;
+                        }
+
+                        if (m2.Length > 3)
+                        {
+                            m2i += .1m;
+                        }
+
+                        return m2i.CompareTo(m1i);
+                    });
+
+                    _rifeModels = [.. models.Select(m => RifeValueToLabel(m))];
+                }
+
+                return _rifeModels;
+            }
+        }
+
+        public static string RifeLabelToValue(string rifeLabel)
+        {
+            var m = Regex.Match(rifeLabel, @"RIFE (\d+)\.(\d+)( Lite)?");
+            if (m.Success)
+            {
+                var value = $"{m.Groups[1].Value}{m.Groups[2].Value}";
+                if (m.Groups[3].Success)
+                {
+                    value += "1";
+                }
+                return value;
+            }
+            else if (string.IsNullOrEmpty(rifeLabel))
+            {
+                return rifeLabel;
+            }
+
+            throw new ArgumentException(rifeLabel);
+        }
+
+        public static string RifeValueToLabel(string rifeValue)
+        {
+            string dec;
+
+            if (string.IsNullOrEmpty(rifeValue))
+            {
+                return rifeValue;
+            }
+
+            if (rifeValue.Length == 2)
+            {
+                dec = rifeValue[1].ToString();
+            }
+            else
+            {
+                dec = rifeValue.Substring(1, 2);
+            }
+
+            var modelName = $"RIFE {rifeValue[0]}.{dec}";
+
+            if (rifeValue.Length >= 4 && rifeValue.EndsWith('1'))
+            {
+                modelName += " Lite";
+            }
+
+            return modelName;
+        }
+
         public void SetupAnimeJaNaiConfSlot1()
         {
             var confPath = Path.Combine(_pythonService.AnimeJaNaiDirectory, "animejanai.conf");
@@ -406,7 +523,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             configText.AppendLine($"chain_1_rife={rife}");
             configText.AppendLine($"chain_1_rife_factor_numerator={CurrentWorkflow.RifeFactorNumerator}");
             configText.AppendLine($"chain_1_rife_factor_denominator={CurrentWorkflow.RifeFactorDenominator}");
-            configText.AppendLine($"chain_1_rife_model={rifeModelMapping[CurrentWorkflow.RifeModel]}");
+            configText.AppendLine($"chain_1_rife_model={RifeLabelToValue(CurrentWorkflow.RifeModel)}");
             configText.AppendLine($"chain_1_rife_ensemble={ensemble}");
             configText.AppendLine($"chain_1_rife_scene_detect_threshold={CurrentWorkflow.RifeSceneDetectThreshold}");
             configText.AppendLine($"chain_1_final_resize_height={CurrentWorkflow.FinalResizeHeight}");
@@ -653,9 +770,9 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             File.WriteAllText(fullPath, lines);
         }
 
-        public void CheckAndExtractBackend()
+        public async Task CheckAndExtractBackend()
         {
-            Task.Run(async () =>
+            await Task.Run(async () =>
             {
                 IsExtractingBackend = true;
 
@@ -670,16 +787,26 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     // 3. VapourSynth plugins
                     await RunInstallCommand(_pythonService.InstallVapourSynthPluginsCommand);
                     await InstallVapourSynthMiscFilters();
+                    await InstallVapourSynthAkarin();
 
                     // 4. vs-mlrt
                     await InstallVsmlrt();
 
-                    // 5. ffmpeg
-                    await InstallFfmpeg();
+                    // 5. RIFE models
+                    await InstallRife();
+
+                    CleanupInstall();
                 }
                 else
                 {
+                    var installedVsmlrtVersion = new Version(await RunVsmlrtVersion());
 
+                    if (installedVsmlrtVersion.CompareTo(_pythonService.VsmlrtMinVersion) < 0)
+                    {
+                        Directory.Delete(_pythonService.PythonDirectory, true);
+                        await CheckAndExtractBackend();
+                        return;
+                    }
                 }
 
                 if (!_pythonService.AreModelsInstalled())
@@ -687,8 +814,105 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     await InstallModels();
                 }
 
+                if (!_pythonService.IsFfmpegInstalled())
+                {
+                    await InstallFfmpeg();
+                }
+
                 IsExtractingBackend = false;
+
+                RunningPython = true;
+                var pipList = await RunPythonPipList();
+                PythonPipList = $"Python Packages:\n{pipList}\n\nVapourSynth Plugins:\nLoading...";
+                var vsrepos = await RunVsrepoInstalled();
+                var vsmlrtVer = await RunVsmlrtVersion();
+                PythonPipList = $"Python Packages:\n{pipList}\n\nVapourSynth Plugins:\n{vsrepos}\n\nvsmlrt.py Version:\n{vsmlrtVer}";
+                RunningPython = false;
             });
+        }
+
+        public async Task ReinstallBackend()
+        {
+            if (Directory.Exists(_pythonService.ModelsDirectory))
+            {
+                Directory.Delete(_pythonService.ModelsDirectory, true);
+            }
+
+            if (Directory.Exists(_pythonService.FfmpegDirectory))
+            {
+                Directory.Delete(_pythonService.FfmpegDirectory, true);
+            }
+
+            if (Directory.Exists(_pythonService.PythonDirectory))
+            {
+                Directory.Delete(_pythonService.PythonDirectory, true);
+            }
+
+            await CheckAndExtractBackend();
+        }
+
+        public async Task<string> RunVsmlrtVersion()
+        {
+            return await RunPythonGetOutput(@$"""{Path.Combine(_pythonService.AnimeJaNaiDirectory, "core", "vsmlrt_version.py")}""");
+        }
+
+        public async Task<string> RunVsrepoInstalled()
+        {
+            return await RunPythonGetOutput(@".\vsrepo.py -p installed");
+        }
+
+        public async Task<string> RunPythonPipList()
+        {
+            return await RunPythonGetOutput("-m pip list");
+        }
+
+        public async Task<string> RunPythonGetOutput(string args)
+        {
+            List<string> result = [];
+
+            // Create a new process to run the CMD command
+            using (var process = new Process())
+            {
+                _runningProcess = process;
+                process.StartInfo.FileName = "cmd.exe";
+                process.StartInfo.Arguments = @$"/C .\python.exe {args}";
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.CreateNoWindow = true;
+                process.StartInfo.WorkingDirectory = _pythonService.PythonDirectory;
+                process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+                process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
+
+                // Create a StreamWriter to write the output to a log file
+                try
+                {
+                    process.ErrorDataReceived += (sender, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
+                        {
+                            Debug.WriteLine(e.Data);
+                        }
+                    };
+
+                    process.OutputDataReceived += (sender, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
+                        {
+                            result.Add(e.Data);
+                            Debug.WriteLine(e.Data);
+                        }
+                    };
+
+                    process.Start();
+                    process.BeginOutputReadLine();
+                    process.BeginErrorReadLine();
+                    await process.WaitForExitAsync();
+                }
+                catch (IOException) { }
+            }
+
+            return string.Join("\n", result);
         }
 
         private async Task InstallPortableVapourSynth()
@@ -779,6 +1003,27 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             File.Delete(targetPath);
         }
 
+        async Task InstallVapourSynthAkarin()
+        {
+            Console.WriteLine("Downloading VapourSynth Akarin...");
+            var downloadUrl = "https://github.com/AkarinVS/vapoursynth-plugin/releases/download/v0.96/akarin-release-lexpr-amd64-v0.96g3.7z";
+            var targetPath = Path.GetFullPath("akarin.7z");
+            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            {
+                Console.WriteLine($"Downloading VapourSynth Akarin ({progress}%)...");
+            });
+
+            Console.WriteLine("Extracting VapourSynth Akarin...");
+            var targetExtractPath = _pythonService.VapourSynthPluginsPath;
+            Directory.CreateDirectory(targetExtractPath);
+
+            using (ArchiveFile archiveFile = new(targetPath))
+            {
+                archiveFile.Extract(targetExtractPath);
+            }
+            File.Delete(targetPath);
+        }
+
         private async Task InstallVsmlrt()
         {
             BackendSetupMainStatus = "Downloading vs-mlrt...";
@@ -799,6 +1044,49 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
 
             File.Delete(targetPath);
+        }
+
+        async Task InstallRife()
+        {
+            List<string> models = [
+                "rife_v4.7.7z",
+                "rife_v4.8.7z",
+                "rife_v4.9.7z",
+                "rife_v4.10.7z",
+                "rife_v4.11.7z",
+                "rife_v4.12.7z",
+                "rife_v4.12_lite.7z",
+                "rife_v4.13.7z",
+                "rife_v4.13_lite.7z",
+                "rife_v4.14.7z",
+                "rife_v4.14_lite.7z",
+                "rife_v4.15.7z",
+                "rife_v4.15_lite.7z",
+                "rife_v4.16_lite.7z",
+                "rife_v4.17.7z",
+                "rife_v4.17_lite.7z",
+                "rife_v4.18.7z",
+                "rife_v4.19.7z",
+                "rife_v4.20.7z",
+            ];
+
+            var downloadUrlBase = "https://github.com/AmusementClub/vs-mlrt/releases/download/external-models/";
+
+            foreach (var model in models)
+            {
+                var downloadUrl = downloadUrlBase + model;
+                var targetPath = Path.GetFullPath(model);
+                await Downloader.DownloadFileAsync(downloadUrl, targetPath, _ => { });
+
+                using (ArchiveFile archiveFile = new(targetPath))
+                {
+                    Directory.CreateDirectory(_pythonService.VsmlrtModelsPath);
+                    archiveFile.Extract(_pythonService.VsmlrtModelsPath);
+                    var onnxFiles = Directory.GetFiles(Path.Combine(_pythonService.VsmlrtModelsPath, "rife"));
+                }
+
+                File.Delete(targetPath);
+            }
         }
 
         private async Task InstallFfmpeg()
@@ -839,6 +1127,28 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 }
             }
             File.Delete(targetPath);
+        }
+
+        private void CleanupInstall()
+        {
+            List<string> dirs = ["doc", "vs-temp-dl", "Scripts", "sdk", "wheel"];
+
+            foreach (var dir in dirs)
+            {
+                var targetDir = Path.Combine(_pythonService.BackendDirectory, dir);
+                if (Directory.Exists(targetDir))
+                {
+                    Directory.Delete(targetDir, true);
+                }
+            }
+
+            foreach (var dir in Directory.GetDirectories(_pythonService.VsmlrtModelsPath))
+            {
+                if (Path.GetFileName(dir) != "rife")
+                {
+                    Directory.Delete(dir, true);
+                }
+            }
         }
 
         public async Task<string[]> RunInstallCommand(string cmd)
@@ -1306,15 +1616,9 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             set => this.RaiseAndSetIfChanged(ref _enableRife, value);
         }
 
-        private List<string> _rifeModelList = ["RIFE 4.14", "RIFE 4.14 Lite", "RIFE 4.13", "RIFE 4.13 Lite", "RIFE 4.6"];
+        public List<string> RifeModelList { get => Vm?.RifeModels; }
 
-        public List<string> RifeModelList
-        {
-            get => _rifeModelList;
-            set => this.RaiseAndSetIfChanged(ref _rifeModelList, value);
-        }
-
-        private string _rifeModel = "RIFE 4.14";
+        private string _rifeModel = "RIFE 4.20";
         [DataMember]
         public string RifeModel
         {

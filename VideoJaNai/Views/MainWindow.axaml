@@ -8,7 +8,6 @@
         xmlns:ui="using:FluentAvalonia.UI.Controls"
         xmlns:lang="clr-namespace:VideoJaNai.Lang"
         mc:Ignorable="d" d:DesignWidth="1920" d:DesignHeight="1080"
-        Width="1920" Height="1080"
         WindowStartupLocation="CenterScreen"
         x:Class="VideoJaNai.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -420,7 +419,8 @@
       </DockPanel>
 
       <!-- Settings Overlay -->
-      <StackPanel IsVisible="{Binding ShowAppSettings}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0,0,0,30" Grid.Column="1">
+      <ScrollViewer IsVisible="{Binding ShowAppSettings}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0,0,0,30" Grid.Column="1">
+        <StackPanel>
         <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="20">
           <DockPanel>
             <TextBlock DockPanel.Dock="Left" FontWeight="Bold" Text="{x:Static lang:Resources.AppSettingsHeader}" />
@@ -468,6 +468,30 @@
             </StackPanel>
           </Border>
 
+          <!-- Python Environment -->
+          <DockPanel Margin="0,10,0,0">
+            <TextBlock DockPanel.Dock="Left" FontWeight="Bold" Text="Python Environment"></TextBlock>
+          </DockPanel>
+          <Border Classes="border">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                <SelectableTextBlock FontFamily="Consolas" Margin="0,0,5,0" VerticalAlignment="Center" Text="{Binding PythonPath}" />
+              </StackPanel>
+
+              <ScrollViewer Margin="0,10,0,0" Background="#111111" Height="450" HorizontalScrollBarVisibility="Auto" Foreground="Gray"  PropertyChanged="ConsoleScrollViewer_PropertyChanged">
+                <SelectableTextBlock Margin="20" Text="{Binding PythonPipList}" FontFamily="Consolas" PropertyChanged="ConsoleTextBlock_PropertyChanged" />
+              </ScrollViewer>
+
+              <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
+                <Button FontWeight="Bold" Background="Red" Content="Reinstall Python Environment" Click="ReinstallBackendClick" IsEnabled="{Binding AllowReinstall}" />
+                <TextBlock Foreground="Gray" Width="400" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
+                  Reinstall the Python environment. Try this if you are having any problems getting upscales to work. This process may take several minutes.
+                </TextBlock>
+              </StackPanel>
+
+            </StackPanel>
+          </Border>
+
           <Border Classes="border">
             <ToggleButton DockPanel.Dock="Right" Margin="10,10,0,10" IsChecked="{Binding !RequestShowAppSettings}">
               <StackPanel Orientation="Horizontal">
@@ -478,6 +502,7 @@
           </Border>
         </StackPanel>
       </StackPanel>
+      </ScrollViewer>
     </Grid>
     <Grid IsVisible="{Binding IsExtractingBackend}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
       <StackPanel>

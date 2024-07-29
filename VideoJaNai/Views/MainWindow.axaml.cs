@@ -56,7 +56,7 @@ namespace VideoJaNai.Views
                     // Cancel close to show dialog
                     e.Cancel = true;
 
-                    _userWantsToQuit = await ShowConfirmationDialog("If you exit now, all unfinished upscales will be canceled. Are you sure you want to exit?");
+                    _userWantsToQuit = await ShowConfirmationDialog("Cancel unfinished upscales?", "If you exit now, all unfinished upscales will be canceled. Are you sure you want to exit?");
 
                     // Close if the user confirmed
                     if (_userWantsToQuit)
@@ -436,13 +436,26 @@ namespace VideoJaNai.Views
             }
         }
 
-        private async Task<bool> ShowConfirmationDialog(string message)
+        private async void ReinstallBackendClick(object? sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm)
+            {
+                var confirm = await ShowConfirmationDialog("Reinstall Python Backend", "The existing Python backend will be removed and then reinstalled. Your workflow settings will be preserved. This process will take several minutes. Proceed?");
+
+                if (confirm)
+                {
+                    await vm.ReinstallBackend();
+                }
+            }
+        }
+
+        private async Task<bool> ShowConfirmationDialog(string title, string message)
         {
             var dialog = new Window
             {
-                Title = "Cancel unfinished upscales?",
+                Title = title,
                 Width = 480,
-                Height = 160,
+                Height = 200,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 //Icon = Icon, // TODO
                 CanResize = false,

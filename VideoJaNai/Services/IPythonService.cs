@@ -1,4 +1,5 @@
 ﻿using Avalonia.Collections;
+using System;
 
 namespace AnimeJaNaiConverterGui.Services
 {
@@ -6,6 +7,7 @@ namespace AnimeJaNaiConverterGui.Services
     {
         bool IsPythonInstalled();
         bool AreModelsInstalled();
+        bool IsFfmpegInstalled();
         string PythonDirectory { get; }
         string ModelsDirectory { get; }
         string BackendDirectory { get; }
@@ -14,6 +16,8 @@ namespace AnimeJaNaiConverterGui.Services
         string PythonPath { get; }
         string VspipePath { get; }
         string VapourSynthPluginsPath { get; }
+        string VsmlrtModelsPath { get; }
+        Version VsmlrtMinVersion { get; }
         string AnimeJaNaiDirectory { get; }
         string InstallUpdatePythonDependenciesCommand { get; }
         string InstallVapourSynthPluginsCommand { get; }
