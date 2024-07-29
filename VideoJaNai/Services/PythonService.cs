@@ -41,19 +41,22 @@ namespace AnimeJaNaiConverterGui.Services
             _updateManagerService = updateManagerService ?? Locator.Current.GetService<IUpdateManagerService>()!;
         }
 
-        public string ModelsDirectory => Path.Join(AnimeJaNaiDirectory, "onnx");
         public string BackendDirectory => (_updateManagerService?.IsInstalled ?? false) ? Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"VideoJaNai") : Path.GetFullPath(@".\backend");
+        public string ModelsDirectory => Path.Join(BackendDirectory, "onnx");
         public string PythonDirectory => Path.Join(BackendDirectory, "python");
         public string FfmpegDirectory => Path.Join(BackendDirectory, "ffmpeg");
         public string AnimeJaNaiDirectory => Path.GetFullPath("./backend/animejanai");
         public string PythonPath => Path.GetFullPath(Path.Join(PythonDirectory, PYTHON_DOWNLOADS["win32"].Path));
         public string VapourSynthPluginsPath => Path.Combine(PythonDirectory, "vs-plugins");
+        public string VsmlrtModelsPath => Path.Combine(VapourSynthPluginsPath, "models");
         public string FfmpegPath => Path.GetFullPath(Path.Join(FfmpegDirectory, "ffmpeg.exe"));
         public string VspipePath => Path.GetFullPath(Path.Join(PythonDirectory, "VSPipe.exe"));
         public string VsrepoPath => Path.GetFullPath(Path.Join(PythonDirectory, "vsrepo.py"));
+        public Version VsmlrtMinVersion => new("3.20.4"); // vsmlrt v14.test3
 
         public bool IsPythonInstalled() => File.Exists(PythonPath);
         public bool AreModelsInstalled() => Directory.Exists(ModelsDirectory) && Directory.GetFiles(ModelsDirectory).Length > 0;
+        public bool IsFfmpegInstalled() => File.Exists(FfmpegPath);
 
         public class PythonDownload
         {
