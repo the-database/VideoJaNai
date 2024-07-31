@@ -309,6 +309,18 @@
   <data name="TensorRtEnginePresetsLabel" xml:space="preserve">
     <value>TensorRT Engine Presets</value>
   </data>
+  <data name="TensorRtEngineSettingsAutoDescription" xml:space="preserve">
+    <value>The appropriate TensorRT engine settings will be determined automatically based on the selected models. In most cases this shouldn't need to be changed.</value>
+  </data>
+  <data name="TensorRtEngineSettingsAutoLabel" xml:space="preserve">
+    <value>Use Automatic TensorRT Engine Settings</value>
+  </data>
+  <data name="TensorRtEngineSettingsAutoNo" xml:space="preserve">
+    <value>No</value>
+  </data>
+  <data name="TensorRtEngineSettingsAutoYes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
   <data name="TensorRtEngineSettingsDescription" xml:space="preserve">
     <value>Engine generation settings to pass to the trtexec command. Choose a preset below or edit the text to use custom settings.</value>
   </data>

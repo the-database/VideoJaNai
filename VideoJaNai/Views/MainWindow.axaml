@@ -356,14 +356,22 @@
 <Bold>NCNN</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionNcnn}" /></TextBlock>
           </StackPanel>
 
-              <StackPanel IsVisible="{Binding CurrentWorkflow.ShowTensorRtEngineSettings}">
+              <StackPanel IsVisible="{Binding CurrentWorkflow.ShowAdvancedSettings}">
+
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
+                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.TensorRtEngineSettingsAutoLabel}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.TensorRtEngineSettingsAuto}" Content="{x:Static lang:Resources.TensorRtEngineSettingsAutoYes}" Command="{Binding CurrentWorkflow.SetTensorRtEngineSettingsAutoYes}" />
+                  <ToggleButton IsChecked="{Binding !CurrentWorkflow.TensorRtEngineSettingsAuto}" Content="{x:Static lang:Resources.TensorRtEngineSettingsAutoNo}" Command="{Binding CurrentWorkflow.SetTensorRtEngineSettingsAutoNo}" />
+                  <TextBlock Width="500" TextWrapping="WrapWithOverflow" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0" Text="{x:Static lang:Resources.TensorRtEngineSettingsAutoDescription}" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10" IsVisible="{Binding !CurrentWorkflow.TensorRtEngineSettingsAuto}">
                   <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.TensorRtEngineSettingsLabel}" />
                   <TextBox Margin="0,0,5,0" Text="{Binding CurrentWorkflow.TensorRtEngineSettings}" IsReadOnly="False" Width="900" TextWrapping="Wrap" Height="50" />
                   <TextBlock Width="400" TextWrapping="WrapWithOverflow" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0" Text="{x:Static lang:Resources.TensorRtEngineSettingsDescription}" />
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10" IsVisible="{Binding !CurrentWorkflow.TensorRtEngineSettingsAuto}">
                   <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.TensorRtEnginePresetsLabel}" />
                   <ToggleButton IsChecked="{Binding CurrentWorkflow.TensorRtEngineDynamicSelected}" Content="{x:Static lang:Resources.TensorRtDynamicEngineLabel}" Command="{Binding CurrentWorkflow.SetDynamicEngine}" />
                   <ToggleButton IsChecked="{Binding CurrentWorkflow.TensorRtEngineStaticSelected}" Content="{x:Static lang:Resources.TensorRtStaticEngineLabel}" Command="{Binding CurrentWorkflow.SetStaticEngine}" />
