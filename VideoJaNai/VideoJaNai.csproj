@@ -31,13 +31,13 @@
 
   <ItemGroup>
     <PackageReference Include="Autofac" Version="8.0.0" />
-    <PackageReference Include="Avalonia" Version="11.1.0" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.1.0" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.1.0" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.1.0" />
+    <PackageReference Include="Avalonia" Version="11.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.1.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.1.1" />
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.1.0" />
-    <PackageReference Include="Avalonia.ReactiveUI" Version="11.1.0" />
+    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.1.1" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="11.1.1" />
     <PackageReference Include="FluentAvaloniaUI" Version="2.1.0-preview6" />
     <PackageReference Include="HyperText.Avalonia" Version="11.0.0-rc1" />
     <PackageReference Include="Material.Icons.Avalonia" Version="2.1.10" />
@@ -49,7 +49,7 @@
     <PackageReference Include="SharpZipLib" Version="1.4.2" />
     <PackageReference Include="Splat.Autofac" Version="15.1.1" />
     <PackageReference Include="System.Management.Automation" Version="7.4.4" />
-    <PackageReference Include="Velopack" Version="0.0.571-gc0a9476" />
+    <PackageReference Include="Velopack" Version="0.0.583" />
   </ItemGroup>
 
 
