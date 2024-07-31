@@ -805,18 +805,21 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 }
                 else
                 {
-                    try
+                    if (Program.WasFirstRun)
                     {
-                        var installedVsmlrtVersion = new Version(await RunVsmlrtVersion());
-
-                        if (installedVsmlrtVersion.CompareTo(_pythonService.VsmlrtMinVersion) < 0)
+                        try
                         {
-                            Directory.Delete(_pythonService.PythonDirectory, true);
-                            await CheckAndExtractBackend();
-                            return;
+                            var installedVsmlrtVersion = new Version(await RunVsmlrtVersion());
+
+                            if (installedVsmlrtVersion.CompareTo(_pythonService.VsmlrtMinVersion) < 0)
+                            {
+                                Directory.Delete(_pythonService.PythonDirectory, true);
+                                await CheckAndExtractBackend();
+                                return;
+                            }
                         }
+                        catch (Exception) { }
                     }
-                    catch (Exception) { }
                 }
 
                 if (!_pythonService.AreModelsInstalled())
