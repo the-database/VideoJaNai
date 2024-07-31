@@ -6,6 +6,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 import rife_cuda
 import animejanai_config
+from animejanai_onnx import determine_engine_settings
 import zlib
 
 # trtexec num_streams
@@ -94,6 +95,19 @@ def scale_to_1080(clip, w=1920, h=1080):
     return vs.core.resize.Spline36(clip, width=prescalewidth, height=prescaleheight)
 
 
+def bf16_is_available():
+    # WARNING: assumes nvidia smi is available
+    result = subprocess.run(
+        ["nvidia-smi", "--query-gpu=name,compute_cap", "--format=csv,noheader"],
+        capture_output=True, text=True, check=True
+    )
+    output = result.stdout.strip().split('\n')
+    for line in output:
+        name, compute_cap = line.split(', ')
+        compute_major, _ = map(int, compute_cap.split('.'))
+        return compute_major >= 8
+
+
 def upscale2x(clip, backend, engine_name, num_streams, trt_settings=None):
     if engine_name is None:
         return clip
@@ -114,6 +128,24 @@ def upscale2x(clip, backend, engine_name, num_streams, trt_settings=None):
             clip,
             fp16=True,
             network_path=network_path)
+
+    if not trt_settings:
+        engine_settings = determine_engine_settings(network_path)
+        use_bf16 = bf16_is_available() and engine_settings["precision"] != "fp16"
+        precision = "bf16" if use_bf16 else "fp16"
+        io_format = "fp32" if use_bf16 else "fp16"
+        
+        if "omit_shape_args" in engine_settings:
+            # hard code precision, hack for SwinIR
+            trt_settings = f"--fp16 --inputIOFormats={io_format}:chw --outputIOFormats={io_format}:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference"
+        elif "use_static_shapes" in engine_settings:
+            trt_settings = f"--{precision} --optShapes=input:1x3x{clip.height}x{clip.width} --inputIOFormats={io_format}:chw --outputIOFormats={io_format}:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference"
+        else:
+            trt_settings = f"--{precision} --minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x1080x1920 --inputIOFormats={io_format}:chw --outputIOFormats={io_format}:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference"
+
+    trt_settings = trt_settings.replace("%video_resolution%", f"1x3x{clip.height}x{clip.width}")
+
+    logger.debug("trt_settings %s", trt_settings)
 
     assert trt_settings is not None
 
@@ -141,8 +173,6 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
     logger.debug(f"chain_conf {chain_conf}")
     models = chain_conf.get('models', [])
     trt_settings = chain_conf.get("tensorrt_engine_settings")
-    if trt_settings is not None:
-        trt_settings = trt_settings.replace("%video_resolution%", f"1x3x{clip.height}x{clip.width}")
     colorspace = "709"
     colorlv = 1
     try:

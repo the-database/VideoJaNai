@@ -637,6 +637,42 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The appropriate TensorRT engine settings will be determined automatically based on the selected models. In most cases this shouldn&apos;t need to be changed..
+        /// </summary>
+        public static string TensorRtEngineSettingsAutoDescription {
+            get {
+                return ResourceManager.GetString("TensorRtEngineSettingsAutoDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use Automatic TensorRT Engine Settings.
+        /// </summary>
+        public static string TensorRtEngineSettingsAutoLabel {
+            get {
+                return ResourceManager.GetString("TensorRtEngineSettingsAutoLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No.
+        /// </summary>
+        public static string TensorRtEngineSettingsAutoNo {
+            get {
+                return ResourceManager.GetString("TensorRtEngineSettingsAutoNo", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Yes.
+        /// </summary>
+        public static string TensorRtEngineSettingsAutoYes {
+            get {
+                return ResourceManager.GetString("TensorRtEngineSettingsAutoYes", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Engine generation settings to pass to the trtexec command. Choose a preset below or edit the text to use custom settings..
         /// </summary>
         public static string TensorRtEngineSettingsDescription {

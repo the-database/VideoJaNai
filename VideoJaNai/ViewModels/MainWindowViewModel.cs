@@ -8,6 +8,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Management.Automation;
@@ -25,6 +26,8 @@ namespace VideoJaNai.ViewModels
     public class MainWindowViewModel : ViewModelBase
     {
         public static readonly List<string> VIDEO_EXTENSIONS = [".mkv", ".mp4", ".mpg", ".mpeg", ".avi", ".mov", ".wmv"];
+
+        private static readonly CultureInfo ENGLISH_CULTURE = CultureInfo.GetCultureInfo("en-US");
 
         private readonly UpdateManager _um;
         private UpdateInfo? _update = null;
@@ -445,19 +448,22 @@ namespace VideoJaNai.ViewModels
 
         public static string RifeLabelToValue(string rifeLabel)
         {
-            var m = Regex.Match(rifeLabel, @"RIFE (\d+)\.(\d+)( Lite)?");
-            if (m.Success)
-            {
-                var value = $"{m.Groups[1].Value}{m.Groups[2].Value}";
-                if (m.Groups[3].Success)
-                {
-                    value += "1";
-                }
-                return value;
-            }
-            else if (string.IsNullOrEmpty(rifeLabel))
+            if (string.IsNullOrEmpty(rifeLabel))
             {
                 return rifeLabel;
+            }
+            else
+            {
+                var m = Regex.Match(rifeLabel, @"RIFE (\d+)\.(\d+)( Lite)?");
+                if (m.Success)
+                {
+                    var value = $"{m.Groups[1].Value}{m.Groups[2].Value}";
+                    if (m.Groups[3].Success)
+                    {
+                        value += "1";
+                    }
+                    return value;
+                }
             }
 
             throw new ArgumentException(rifeLabel);
@@ -506,29 +512,29 @@ profile_name=encode
 
             for (var i = 0; i < CurrentWorkflow.UpscaleSettings.Count; i++)
             {
-                var targetCopyPath = Path.Combine(_pythonService.ModelsDirectory, Path.GetFileName(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath)); // TODO @$".\mpv-upscale-2x_animejanai\animejanai\onnx\{
+                var targetCopyPath = Path.Combine(_pythonService.ModelsDirectory, Path.GetFileName(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath));
 
                 if (Path.GetFullPath(targetCopyPath) != Path.GetFullPath(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath))
                 {
                     File.Copy(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath, targetCopyPath, true);
                 }
 
-                configText.AppendLine(@$"chain_1_model_{i + 1}_resize_height_before_upscale={CurrentWorkflow.UpscaleSettings[i].ResizeHeightBeforeUpscale}
+                configText.AppendLine(string.Create(ENGLISH_CULTURE, @$"chain_1_model_{i + 1}_resize_height_before_upscale={CurrentWorkflow.UpscaleSettings[i].ResizeHeightBeforeUpscale}
 chain_1_model_{i + 1}_resize_factor_before_upscale={CurrentWorkflow.UpscaleSettings[i].ResizeFactorBeforeUpscale}
-chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath)}");
+chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath)}"));
             }
 
             var rife = CurrentWorkflow.EnableRife ? "yes" : "no";
             var ensemble = CurrentWorkflow.RifeEnsemble ? "yes" : "no";
             configText.AppendLine($"chain_1_rife={rife}");
-            configText.AppendLine($"chain_1_rife_factor_numerator={CurrentWorkflow.RifeFactorNumerator}");
-            configText.AppendLine($"chain_1_rife_factor_denominator={CurrentWorkflow.RifeFactorDenominator}");
+            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_factor_numerator={CurrentWorkflow.RifeFactorNumerator}"));
+            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_factor_denominator={CurrentWorkflow.RifeFactorDenominator}"));
             configText.AppendLine($"chain_1_rife_model={RifeLabelToValue(CurrentWorkflow.RifeModel)}");
             configText.AppendLine($"chain_1_rife_ensemble={ensemble}");
-            configText.AppendLine($"chain_1_rife_scene_detect_threshold={CurrentWorkflow.RifeSceneDetectThreshold}");
-            configText.AppendLine($"chain_1_final_resize_height={CurrentWorkflow.FinalResizeHeight}");
-            configText.AppendLine($"chain_1_final_resize_factor={CurrentWorkflow.FinalResizeFactor}");
-            configText.AppendLine($"chain_1_tensorrt_engine_settings={CurrentWorkflow.TensorRtEngineSettings}");
+            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_scene_detect_threshold={CurrentWorkflow.RifeSceneDetectThreshold}"));
+            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_final_resize_height={CurrentWorkflow.FinalResizeHeight}"));
+            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_final_resize_factor={CurrentWorkflow.FinalResizeFactor}"));
+            configText.AppendLine($"chain_1_tensorrt_engine_settings={(CurrentWorkflow.TensorRtEngineSettingsAuto ? "" : CurrentWorkflow.TensorRtEngineSettings)}");
 
             File.WriteAllText(confPath, configText.ToString());
         }
@@ -799,14 +805,18 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 }
                 else
                 {
-                    var installedVsmlrtVersion = new Version(await RunVsmlrtVersion());
-
-                    if (installedVsmlrtVersion.CompareTo(_pythonService.VsmlrtMinVersion) < 0)
+                    try
                     {
-                        Directory.Delete(_pythonService.PythonDirectory, true);
-                        await CheckAndExtractBackend();
-                        return;
+                        var installedVsmlrtVersion = new Version(await RunVsmlrtVersion());
+
+                        if (installedVsmlrtVersion.CompareTo(_pythonService.VsmlrtMinVersion) < 0)
+                        {
+                            Directory.Delete(_pythonService.PythonDirectory, true);
+                            await CheckAndExtractBackend();
+                            return;
+                        }
                     }
+                    catch (Exception) { }
                 }
 
                 if (!_pythonService.AreModelsInstalled())
@@ -822,11 +832,15 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 IsExtractingBackend = false;
 
                 RunningPython = true;
-                var pipList = await RunPythonPipList();
-                PythonPipList = $"Python Packages:\n{pipList}\n\nVapourSynth Plugins:\nLoading...";
-                var vsrepos = await RunVsrepoInstalled();
-                var vsmlrtVer = await RunVsmlrtVersion();
-                PythonPipList = $"Python Packages:\n{pipList}\n\nVapourSynth Plugins:\n{vsrepos}\n\nvsmlrt.py Version:\n{vsmlrtVer}";
+                try
+                {
+                    var pipList = await RunPythonPipList();
+                    PythonPipList = $"Python Packages:\n{pipList}";
+                    //var vsrepos = await RunVsrepoInstalled(); // too slow
+                    var vsmlrtVer = await RunVsmlrtVersion();
+                    PythonPipList = $"Python Packages:\n{pipList}\n\nvsmlrt.py Version:\n{vsmlrtVer}";
+                }
+                catch (Exception ex) { }
                 RunningPython = false;
             });
         }
@@ -1517,6 +1531,14 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public bool TensorRtEngineStaticOnnxSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticOnnx;
         public bool TensorRtEngineStaticBf16Selected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticBf16Engine;
 
+        private bool _tensorRtEngineSettingsAuto = true;
+        [DataMember]
+        public bool TensorRtEngineSettingsAuto
+        {
+            get => _tensorRtEngineSettingsAuto;
+            set => this.RaiseAndSetIfChanged(ref _tensorRtEngineSettingsAuto, value);
+        }
+
 
         private string _tensorRtEngineSettings = MainWindowViewModel._tensorRtDynamicEngine;
         [DataMember]
@@ -1759,6 +1781,16 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public void SetStaticBf16Engine()
         {
             TensorRtEngineSettings = MainWindowViewModel._tensorRtStaticBf16Engine;
+        }
+
+        public void SetTensorRtEngineSettingsAutoYes()
+        {
+            TensorRtEngineSettingsAuto = true;
+        }
+
+        public void SetTensorRtEngineSettingsAutoNo()
+        {
+            TensorRtEngineSettingsAuto = false;
         }
 
         public void Validate()

@@ -144,11 +144,10 @@ namespace AnimeJaNaiConverterGui.Services
             get
             {
                 string[] dependencies = {
-                    "packaging"
+                    "packaging",
+                    "onnx",
                 };
 
-                //return $@"{PythonPath} -m pip install {PythonDirectory}\wheel\VapourSynth-69-cp312-cp312-win_amd64.whl && {PythonPath} -m pip install {string.Join(" ", dependencies)}";
-                //return $@"{PythonPath} -m pip install {PythonDirectory}\wheel\VapourSynth-65-cp311-cp311-win_amd64.whl && {PythonPath} -m pip install {string.Join(" ", dependencies)}";
                 return $@"{PythonPath} -m pip install {string.Join(" ", dependencies)}";
             }
         }
