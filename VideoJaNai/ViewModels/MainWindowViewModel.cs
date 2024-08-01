@@ -850,11 +850,6 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         public async Task ReinstallBackend()
         {
-            if (Directory.Exists(_pythonService.ModelsDirectory))
-            {
-                Directory.Delete(_pythonService.ModelsDirectory, true);
-            }
-
             if (Directory.Exists(_pythonService.FfmpegDirectory))
             {
                 Directory.Delete(_pythonService.FfmpegDirectory, true);
