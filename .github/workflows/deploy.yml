@@ -25,4 +25,4 @@ jobs:
           dotnet tool install -g vpk --prerelease
           vpk download github --repoUrl https://github.com/the-database/VideoJaNai
           vpk pack -u VideoJaNai -v ${{ github.event.inputs.version }} -p publish  -i ./VideoJaNai/assets/logo.ico -e VideoJaNai.exe
-          vpk upload github --repoUrl https://github.com/the-database/VideoJaNai --publish --releaseName "${{ github.event.inputs.version }}" --tag ${{ github.event.inputs.version }} --token ${{ secrets.GITHUB_TOKEN }} --pre
+          vpk upload github --repoUrl https://github.com/the-database/VideoJaNai --releaseName "${{ github.event.inputs.version }}" --tag ${{ github.event.inputs.version }} --token ${{ secrets.GITHUB_TOKEN }}
