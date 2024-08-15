@@ -52,7 +52,7 @@ namespace AnimeJaNaiConverterGui.Services
         public string FfmpegPath => Path.GetFullPath(Path.Join(FfmpegDirectory, "ffmpeg.exe"));
         public string VspipePath => Path.GetFullPath(Path.Join(PythonDirectory, "VSPipe.exe"));
         public string VsrepoPath => Path.GetFullPath(Path.Join(PythonDirectory, "vsrepo.py"));
-        public Version VsmlrtMinVersion => new("3.20.4"); // vsmlrt v14.test3
+        public Version VsmlrtMinVersion => new("3.21.14"); // vsmlrt v15.2
 
         public bool IsPythonInstalled() => File.Exists(PythonPath);
         public bool AreModelsInstalled() => Directory.Exists(ModelsDirectory) && Directory.GetFiles(ModelsDirectory).Length > 0;
