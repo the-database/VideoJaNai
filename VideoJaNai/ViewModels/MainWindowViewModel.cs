@@ -48,6 +48,16 @@ namespace VideoJaNai.ViewModels
                 CurrentWorkflow?.Validate();
             });
 
+
+
+            this.WhenAnyValue(x => x.ShowAppSettings).Subscribe(async x =>
+            {
+                if (x && string.IsNullOrWhiteSpace(PythonPipList))
+                {
+                    await PopulatePythonPipList();
+                }
+            });
+
             _um = new UpdateManager(new GithubSource("https://github.com/the-database/VideoJaNai", null, false));
             CheckForUpdates();
         }
@@ -252,6 +262,16 @@ namespace VideoJaNai.ViewModels
                 this.RaiseAndSetIfChanged(ref _isExtractingBackend, value);
                 this.RaisePropertyChanged(nameof(RequestShowAppSettings));
                 this.RaisePropertyChanged(nameof(ShowMainForm));
+            }
+        }
+
+        private bool _extractingBackendFailed = false;
+        public bool ExtractingBackendFailed
+        {
+            get => _extractingBackendFailed;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _extractingBackendFailed, value);
             }
         }
 
@@ -719,6 +739,12 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             this.RaisePropertyChanged(nameof(ConsoleText));
         }
 
+        private void BackendSetupSubStatusQueueClear()
+        {
+            BackendSetupSubStatusQueue.Clear();
+            this.RaisePropertyChanged(nameof(BackendSetupSubStatusText));
+        }
+
         private void BackendSetupSubStatusQueueEnqueue(string value)
         {
             while (BackendSetupSubStatusQueue.Count > BACKEND_SETUP_SUB_STATUS_QUEUE_CAPACITY)
@@ -780,28 +806,44 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         {
             await Task.Run(async () =>
             {
+                var failureMsg = "Backend setup failed. Try reinstalling Python environment or report the issue on GitHub if it persists.";
+                BackendSetupSubStatusQueueClear();
                 IsExtractingBackend = true;
 
                 if (!_pythonService.IsPythonInstalled())
                 {
-                    // 1. Install embedded Python + portable VS
-                    await InstallPortableVapourSynth();
+                    try
+                    {
+                        // 1. Install embedded Python + portable VS
+                        await InstallPortableVapourSynth();
 
-                    // 2. Python dependencies
-                    await RunInstallCommand(_pythonService.InstallUpdatePythonDependenciesCommand);
+                        // 2. Python dependencies
+                        await RunInstallCommand(_pythonService.InstallUpdatePythonDependenciesCommand);
 
-                    // 3. VapourSynth plugins
-                    await RunInstallCommand(_pythonService.InstallVapourSynthPluginsCommand);
-                    await InstallVapourSynthMiscFilters();
-                    await InstallVapourSynthAkarin();
+                        // 3. VapourSynth plugins
+                        await RunInstallCommand(_pythonService.InstallVapourSynthPluginsCommand);
+                        await InstallVapourSynthMiscFilters();
+                        await InstallVapourSynthAkarin();
 
-                    // 4. vs-mlrt
-                    await InstallVsmlrt();
+                        // 4. vs-mlrt
+                        await InstallVsmlrt();
 
-                    // 5. RIFE models
-                    await InstallRife();
+                        // 5. RIFE models
+                        await InstallRife();
 
-                    CleanupInstall();
+                        CleanupInstall();
+                    }
+                    catch (Exception ex)
+                    {
+                        BackendSetupSubStatusQueueEnqueue(ex.Message);
+                        if (ex.StackTrace != null)
+                        {
+                            BackendSetupSubStatusQueueEnqueue(ex.StackTrace);
+                        }
+                        ExtractingBackendFailed = true;
+                        BackendSetupMainStatus = failureMsg;
+                        return;
+                    }
                 }
                 else
                 {
@@ -824,28 +866,59 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
                 if (!_pythonService.AreModelsInstalled())
                 {
-                    await InstallModels();
+                    try
+                    {
+                        await InstallModels();
+                    }
+                    catch (Exception ex)
+                    {
+                        BackendSetupSubStatusQueueEnqueue(ex.Message);
+                        if (ex.StackTrace != null)
+                        {
+                            BackendSetupSubStatusQueueEnqueue(ex.StackTrace);
+                        }
+                        ExtractingBackendFailed = true;
+                        BackendSetupMainStatus = failureMsg;
+                        return;
+                    }
                 }
 
                 if (!_pythonService.IsFfmpegInstalled())
                 {
-                    await InstallFfmpeg();
+                    try
+                    {
+                        await InstallFfmpeg();
+                    }
+                    catch (Exception ex)
+                    {
+                        BackendSetupSubStatusQueueEnqueue(ex.Message);
+                        if (ex.StackTrace != null)
+                        {
+                            BackendSetupSubStatusQueueEnqueue(ex.StackTrace);
+                        }
+                        ExtractingBackendFailed = true;
+                        BackendSetupMainStatus = failureMsg;
+                        return;
+                    }
                 }
 
                 IsExtractingBackend = false;
-
-                RunningPython = true;
-                try
-                {
-                    var pipList = await RunPythonPipList();
-                    PythonPipList = $"Python Packages:\n{pipList}";
-                    //var vsrepos = await RunVsrepoInstalled(); // too slow
-                    var vsmlrtVer = await RunVsmlrtVersion();
-                    PythonPipList = $"Python Packages:\n{pipList}\n\nvsmlrt.py Version:\n{vsmlrtVer}";
-                }
-                catch (Exception ex) { }
-                RunningPython = false;
             });
+        }
+
+        public async Task PopulatePythonPipList()
+        {
+            RunningPython = true;
+            try
+            {
+                var pipList = await RunPythonPipList();
+                PythonPipList = $"Python Packages:\n{pipList}";
+                //var vsrepos = await RunVsrepoInstalled(); // too slow
+                var vsmlrtVer = await RunVsmlrtVersion();
+                PythonPipList = $"Python Packages:\n{pipList}\n\nvsmlrt.py Version:\n{vsmlrtVer}";
+            }
+            catch (Exception) { }
+            RunningPython = false;
         }
 
         public async Task ReinstallBackend()
@@ -1039,7 +1112,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         private async Task InstallVsmlrt()
         {
             BackendSetupMainStatus = "Downloading vs-mlrt...";
-            var downloadUrl = "https://github.com/AmusementClub/vs-mlrt/releases/download/v14.test3/vsmlrt-windows-x64-cuda.v14.test3.7z";
+            var downloadUrl = "https://github.com/AmusementClub/vs-mlrt/releases/download/v15.2/vsmlrt-windows-x64-cuda.v15.2.7z";
             var targetPath = Path.Join(_pythonService.BackendDirectory, "vsmlrt.7z");
             await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
             {
@@ -1080,6 +1153,8 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 "rife_v4.18.7z",
                 "rife_v4.19.7z",
                 "rife_v4.20.7z",
+                "rife_v4.21.7z",
+                "rife_v4.22.7z",
             ];
 
             var downloadUrlBase = "https://github.com/AmusementClub/vs-mlrt/releases/download/external-models/";
@@ -1638,7 +1713,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         public List<string> RifeModelList { get => Vm?.RifeModels; }
 
-        private string _rifeModel = "RIFE 4.20";
+        private string _rifeModel = "RIFE 4.22";
         [DataMember]
         public string RifeModel
         {
