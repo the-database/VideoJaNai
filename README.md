@@ -13,7 +13,8 @@ VideoJaNai (previously called AnimeJaNaiConverterGui) provides a Windows GUI for
 - [chaiNNer](https://github.com/chaiNNer-org/chaiNNer): General purpose tool for AI upscaling, which can be used to convert PyTorch (*.pth) models to ONNX models. 
 
 ## Related Projects
-- [mpv-upscale-2x_animejanai](https://github.com/the-database/mpv-upscale-2x_animejanai): A video player which supports real-time upscaling using compact ONNX models on higher end NVIDIA cards.
+- [mpv-upscale-2x_animejanai](https://github.com/the-database/mpv-upscale-2x_animejanai): A video player which supports real-time upscaling using compact ONNX models on higher end GPUs.
+- [traiNNer-redux](https://github.com/the-database/traiNNer-redux): Software for training upscaling models
 
 ## Acknowledgments 
 - [MPV_lazy](https://github.com/hooke007/MPV_lazy) 
