@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -10,29 +11,70 @@ namespace AnimeJaNaiConverterGui.Services
     {
         public delegate void ProgressChanged(double percentage);
 
-        public static async Task DownloadFileAsync(string url, string destinationFilePath, ProgressChanged progressChanged)
+        public static async Task DownloadFileAsync(string url, string destinationFilePath, ProgressChanged progressChanged, int maxRetries = 10)
         {
-            using HttpClient client = new();
-            using HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            long totalBytes = 0;
+            long totalRead = 0;
+            int retryCount = 0;
+            bool downloadComplete = false;
 
-            response.EnsureSuccessStatusCode();
-
-            long totalBytes = response.Content.Headers.ContentLength ?? -1L;
-            using Stream contentStream = await response.Content.ReadAsStreamAsync(), fileStream = new FileStream(destinationFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
-
-            var totalRead = 0L;
-            var buffer = new byte[8192];
-            int read;
-
-            while ((read = await contentStream.ReadAsync(buffer)) > 0)
+            while (!downloadComplete && retryCount < maxRetries)
             {
-                await fileStream.WriteAsync(buffer.AsMemory(0, read));
-                totalRead += read;
-
-                if (totalBytes != -1)
+                try
                 {
-                    double percentage = Math.Round((double)totalRead / totalBytes * 100, 0);
-                    progressChanged?.Invoke(percentage);
+                    using HttpClient client = new();
+                    using HttpRequestMessage request = new(HttpMethod.Get, url)
+                    {
+                        Version = HttpVersion.Version30
+                    };
+
+                    if (totalRead > 0)
+                    {
+                        request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(totalRead, null); // resume
+                    }
+
+                    using HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                    response.EnsureSuccessStatusCode();
+
+                    totalBytes = response.Content.Headers.ContentLength ?? -1L;
+                    using Stream contentStream = await response.Content.ReadAsStreamAsync(),
+                                 fileStream = new FileStream(destinationFilePath, FileMode.Append, FileAccess.Write, FileShare.None, 8192, true);
+
+                    var buffer = new byte[8192];
+                    int read;
+
+                    while ((read = await contentStream.ReadAsync(buffer)) > 0)
+                    {
+                        await fileStream.WriteAsync(buffer.AsMemory(0, read));
+                        totalRead += read;
+
+                        if (totalBytes != -1)
+                        {
+                            double percentage = Math.Round((double)totalRead / totalBytes * 100, 0);
+                            progressChanged?.Invoke(percentage);
+                        }
+                    }
+
+                    downloadComplete = true;
+                }
+                catch (HttpRequestException e)
+                {
+                    retryCount++;
+                    if (retryCount >= maxRetries)
+                    {
+                        throw; // Re-throw if max retries are reached
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(2 * retryCount));
+                }
+                catch (TaskCanceledException e)
+                {
+                    retryCount++;
+                    if (retryCount >= maxRetries)
+                    {
+                        throw new Exception("The download was canceled or timed out.", e);
+                    }
+                    await Task.Delay(TimeSpan.FromSeconds(2 * retryCount));
                 }
             }
         }
