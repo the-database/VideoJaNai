@@ -1,6 +1,7 @@
 ﻿using AnimeJaNaiConverterGui.Services;
 using Avalonia.Collections;
 using Newtonsoft.Json;
+using OctaneEngineCore;
 using ReactiveUI;
 using SevenZipExtractor;
 using Splat;
@@ -34,11 +35,13 @@ namespace VideoJaNai.ViewModels
 
         private readonly IPythonService _pythonService;
         private readonly IUpdateManagerService _updateManagerService;
+        private readonly IEngine _downloadEngine;
 
         public MainWindowViewModel(IPythonService? pythonService = null, IUpdateManagerService? updateManagerService = null)
         {
             _pythonService = pythonService ?? Locator.Current.GetService<IPythonService>()!;
             _updateManagerService = updateManagerService ?? Locator.Current.GetService<IUpdateManagerService>()!;
+            _downloadEngine = Locator.Current.GetService<IEngine>()!;
 
             var g1 = this.WhenAnyValue
             (
@@ -1006,10 +1009,11 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             BackendSetupMainStatus = "Downloading Portable VapourSynth Installer...";
             var downloadUrl = $"https://github.com/vapoursynth/vapoursynth/releases/download/R69/Install-Portable-VapourSynth-R69.ps1";
             var targetPath = Path.Join(_pythonService.BackendDirectory, "installvs.ps1");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            _downloadEngine.SetProgressCallback((progress) =>
             {
-                BackendSetupMainStatus = $"Downloading Portable VapourSynth Installer ({progress}%)...";
+                BackendSetupMainStatus = $"Downloading Portable VapourSynth Installer ({progress * 100}%)...";
             });
+            await _downloadEngine.DownloadFile(downloadUrl, targetPath);
 
             // Install Python 
             BackendSetupMainStatus = "Installing Embedded Python with Portable VapourSynth...";
@@ -1066,10 +1070,11 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             BackendSetupMainStatus = "Downloading VapourSynth Misc Filters...";
             var downloadUrl = "https://github.com/vapoursynth/vs-miscfilters-obsolete/releases/download/R2/miscfilters-r2.7z";
             var targetPath = Path.Join(_pythonService.BackendDirectory, "miscfilters.7z");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            _downloadEngine.SetProgressCallback((progress) =>
             {
-                BackendSetupMainStatus = $"Downloading VapourSynth Misc Filters ({progress}%)...";
+                BackendSetupMainStatus = $"Downloading VapourSynth Misc Filters ({progress * 100}%)...";
             });
+            await _downloadEngine.DownloadFile(downloadUrl, targetPath);
 
             BackendSetupMainStatus = "Extracting VapourSynth Misc Filters...";
             var targetExtractPath = Path.Combine(_pythonService.VapourSynthPluginsPath, "temp");
@@ -1090,15 +1095,16 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         async Task InstallVapourSynthAkarin()
         {
-            Console.WriteLine("Downloading VapourSynth Akarin...");
+            BackendSetupMainStatus = "Downloading VapourSynth Akarin...";
             var downloadUrl = "https://github.com/AkarinVS/vapoursynth-plugin/releases/download/v0.96/akarin-release-lexpr-amd64-v0.96g3.7z";
             var targetPath = Path.GetFullPath("akarin.7z");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            _downloadEngine.SetProgressCallback((progress) =>
             {
-                Console.WriteLine($"Downloading VapourSynth Akarin ({progress}%)...");
+                BackendSetupMainStatus = $"Downloading VapourSynth Akarin ({progress * 100}%)...";
             });
+            await _downloadEngine.DownloadFile(downloadUrl, targetPath);
 
-            Console.WriteLine("Extracting VapourSynth Akarin...");
+            BackendSetupMainStatus = "Extracting VapourSynth Akarin...";
             var targetExtractPath = _pythonService.VapourSynthPluginsPath;
             Directory.CreateDirectory(targetExtractPath);
 
@@ -1114,10 +1120,11 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             BackendSetupMainStatus = "Downloading vs-mlrt...";
             var downloadUrl = "https://github.com/AmusementClub/vs-mlrt/releases/download/v15.2/vsmlrt-windows-x64-cuda.v15.2.7z";
             var targetPath = Path.Join(_pythonService.BackendDirectory, "vsmlrt.7z");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            _downloadEngine.SetProgressCallback(progress =>
             {
-                BackendSetupMainStatus = $"Downloading vs-mlrt ({progress}%)...";
+                BackendSetupMainStatus = $"Downloading vs-mlrt ({progress * 100}%)...";
             });
+            await _downloadEngine.DownloadFile(downloadUrl, targetPath, null, null);
 
             BackendSetupMainStatus = "Extracting vs-mlrt (this may take several minutes)...";
             using (ArchiveFile archiveFile = new(targetPath))
@@ -1163,7 +1170,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             {
                 var downloadUrl = downloadUrlBase + model;
                 var targetPath = Path.GetFullPath(model);
-                await Downloader.DownloadFileAsync(downloadUrl, targetPath, _ => { });
+                await _downloadEngine.DownloadFile(downloadUrl, targetPath);
 
                 using (ArchiveFile archiveFile = new(targetPath))
                 {
@@ -1181,10 +1188,11 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             BackendSetupMainStatus = "Downloading ffmpeg...";
             var downloadUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z";
             var targetPath = Path.Join(_pythonService.BackendDirectory, "ffmpeg.7z");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            _downloadEngine.SetProgressCallback((progress) =>
             {
-                BackendSetupMainStatus = $"Downloading ffmpeg ({progress}%)...";
+                BackendSetupMainStatus = $"Downloading ffmpeg ({progress * 100}%)...";
             });
+            await _downloadEngine.DownloadFile(downloadUrl, targetPath);
 
             BackendSetupMainStatus = "Extracting ffmpeg...";
             using (ArchiveFile ffmpegArchive = new(targetPath))
@@ -1297,15 +1305,16 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             var downloadUrl = "https://github.com/the-database/mpv-upscale-2x_animejanai/releases/download/3.0.0/2x_AnimeJaNai_HD_V3_ModelsOnly.zip";
             Directory.CreateDirectory(_pythonService.ModelsDirectory);
             var targetPath = Path.Join(_pythonService.ModelsDirectory, "models.zip");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            _downloadEngine.SetProgressCallback((progress) =>
             {
-                BackendSetupMainStatus = $"Downloading AnimeJaNai models ({progress}%)...";
+                BackendSetupMainStatus = $"Downloading AnimeJaNai models ({progress * 100}%)...";
             });
+            await _downloadEngine.DownloadFile(downloadUrl, targetPath);
 
             BackendSetupMainStatus = "Extracting AnimeJaNai models...";
             _pythonService.ExtractZip(targetPath, _pythonService.ModelsDirectory, (double progress) =>
             {
-                BackendSetupMainStatus = $"Extracting AnimeJaNai models ({progress}%)...";
+                BackendSetupMainStatus = $"Extracting AnimeJaNai models ({progress * 100}%)...";
             });
 
             var directories = Directory.GetDirectories(_pythonService.ModelsDirectory);
