@@ -54,6 +54,11 @@
 
 
   <ItemGroup>
+    <ProjectReference Include="..\OctaneEngine\OctaneEngine.csproj" />
+  </ItemGroup>
+
+
+  <ItemGroup>
     <None Update="appstate2.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

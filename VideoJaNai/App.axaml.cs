@@ -3,6 +3,7 @@ using Autofac;
 using Avalonia;
 using Avalonia.Markup.Xaml;
 using Avalonia.ReactiveUI;
+using OctaneEngineCore;
 using ReactiveUI;
 using Splat.Autofac;
 using System.IO;
@@ -34,6 +35,7 @@ namespace VideoJaNai
             builder.RegisterType<MainWindowViewModel>().AsSelf();
             builder.RegisterType<PythonService>().As<IPythonService>().SingleInstance();
             builder.RegisterType<UpdateManagerService>().As<IUpdateManagerService>().SingleInstance();
+            builder.AddOctane();
             // etc.
 
             // Register the Adapter to Splat.
