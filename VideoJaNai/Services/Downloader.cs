@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -13,6 +14,11 @@ namespace AnimeJaNaiConverterGui.Services
 
         public static async Task DownloadFileAsync(string url, string destinationFilePath, ProgressChanged progressChanged, int maxRetries = 10)
         {
+            if (File.Exists(destinationFilePath))
+            {
+                File.Delete(destinationFilePath);
+            }
+
             long totalBytes = 0;
             long totalRead = 0;
             int retryCount = 0;
@@ -57,7 +63,7 @@ namespace AnimeJaNaiConverterGui.Services
 
                     downloadComplete = true;
                 }
-                catch (HttpRequestException e)
+                catch (HttpRequestException)
                 {
                     retryCount++;
                     if (retryCount >= maxRetries)

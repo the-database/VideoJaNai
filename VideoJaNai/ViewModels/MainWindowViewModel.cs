@@ -1033,9 +1033,6 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 PSDataCollection<PSObject> outputCollection = [];
                 outputCollection.DataAdded += (sender, e) =>
                 {
-                    Debug.WriteLine("DataAdded");
-                    Debug.WriteLine(e.Index);
-                    Debug.WriteLine(outputCollection[e.Index]);
                     BackendSetupSubStatusQueueEnqueue(outputCollection[e.Index].ToString());
                 };
 
