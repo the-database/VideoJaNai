@@ -666,7 +666,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
-            var cmd = $@"{Path.GetRelativePath(_pythonService.BackendDirectory, _pythonService.VspipePath)} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ""{Path.GetFullPath("./backend/animejanai/core/animejanai_encode.vpy")}"" - | {_pythonService.FfmpegPath} {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {CurrentWorkflow.FfmpegVideoSettings} -max_interleave_delta 0 -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
+            var cmd = $@"{Path.GetRelativePath(_pythonService.BackendDirectory, _pythonService.VspipePath)} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ""{Path.GetFullPath("./backend/animejanai/core/animejanai_encode.vpy")}"" - | ""{_pythonService.FfmpegPath}"" {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {CurrentWorkflow.FfmpegVideoSettings} -max_interleave_delta 0 -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
             ConsoleQueueEnqueue($"Upscaling with command: {cmd}");
             await RunCommand($@" /C {cmd}");
         }

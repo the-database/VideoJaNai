@@ -148,7 +148,7 @@ namespace AnimeJaNaiConverterGui.Services
                     "onnx",
                 };
 
-                return $@"{PythonPath} -m pip install {string.Join(" ", dependencies)}";
+                return $@".\python.exe -m pip install {string.Join(" ", dependencies)}";
             }
         }
 
@@ -160,7 +160,7 @@ namespace AnimeJaNaiConverterGui.Services
                     "ffms2"
                 };
 
-                return $@"{PythonPath} {VsrepoPath} -p update && {PythonPath} {VsrepoPath} -p install {string.Join(" ", dependencies)}";
+                return $@".\python.exe .\vsrepo.py -p update && .\python.exe .\vsrepo.py -p install {string.Join(" ", dependencies)}";
             }
         }
 
