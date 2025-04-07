@@ -1004,7 +1004,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         {
             // Download Python Installer
             BackendSetupMainStatus = "Downloading Portable VapourSynth Installer...";
-            var downloadUrl = $"https://github.com/vapoursynth/vapoursynth/releases/download/R69/Install-Portable-VapourSynth-R69.ps1";
+            var downloadUrl = $"https://github.com/vapoursynth/vapoursynth/releases/download/R70/Install-Portable-VapourSynth-R70.ps1";
             var targetPath = Path.Join(_pythonService.BackendDirectory, "installvs.ps1");
             await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
             {
