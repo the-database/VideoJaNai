@@ -26,11 +26,9 @@ namespace AnimeJaNaiConverterGui.Services
                 "win32",
                 new PythonDownload
                 {
-                    Url = "https://github.com/indygreg/python-build-standalone/releases/download/20240713/cpython-3.12.4+20240713-x86_64-pc-windows-msvc-shared-install_only.tar.gz",
-                    //Url = "https://github.com/indygreg/python-build-standalone/releases/download/20240415/cpython-3.11.9+20240415-x86_64-pc-windows-msvc-shared-install_only.tar.gz",
+                    Url = "https://github.com/astral-sh/python-build-standalone/releases/download/20250205/cpython-3.12.9+20250205-x86_64-pc-windows-msvc-shared-install_only.tar.gz",
                     Path = "python.exe",
-                    //Version = "3.12.4",
-                    Version = "3.11.9",
+                    Version = "3.12.9",
                     Filename = "Python.tar.gz"
                 }
             },
@@ -52,7 +50,7 @@ namespace AnimeJaNaiConverterGui.Services
         public string FfmpegPath => Path.GetFullPath(Path.Join(FfmpegDirectory, "ffmpeg.exe"));
         public string VspipePath => Path.GetFullPath(Path.Join(PythonDirectory, "VSPipe.exe"));
         public string VsrepoPath => Path.GetFullPath(Path.Join(PythonDirectory, "vsrepo.py"));
-        public Version VsmlrtMinVersion => new("3.21.14"); // vsmlrt v15.2
+        public Version VsmlrtMinVersion => new("3.22.13"); // vsmlrt v15.9
 
         public bool IsPythonInstalled() => File.Exists(PythonPath);
         public bool AreModelsInstalled() => Directory.Exists(ModelsDirectory) && Directory.GetFiles(ModelsDirectory).Length > 0;
