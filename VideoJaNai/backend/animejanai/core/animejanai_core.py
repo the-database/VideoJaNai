@@ -173,18 +173,21 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
     logger.debug(f"chain_conf {chain_conf}")
     models = chain_conf.get('models', [])
     trt_settings = chain_conf.get("tensorrt_engine_settings")
-    colorspace = "709"
+    matrix_in = 2 # unknown
     colorlv = 1
     try:
+        matrix_in = clip.get_frame(0).props._Matrix
         colorlv = clip.get_frame(0).props._ColorRange
     except AttributeError:
         pass
+    if matrix_in == 2: # unknown
+        if clip.height < 720:
+            matrix_in = 5 # smpte170m or bt.601
+        else:
+            matrix_in = 1 # bt.709
     fmt_in = clip.format.id
 
     if len(models) > 0:
-        if clip.height < 720:
-            colorspace = "170m"
-
         for model_conf in models:
 
             resize_factor_before_upscale = model_conf['resize_factor_before_upscale']
@@ -194,7 +197,7 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
             num_streams = max(1, TOTAL_NUM_STREAMS // len(models))
 
             try:
-                clip = vs.core.resize.Spline36(clip, format=vs.RGBH, matrix_in_s=colorspace,
+                clip = vs.core.resize.Spline36(clip, format=vs.RGBH, matrix_in=matrix_in,
                                               width=clip.width * resize_factor_before_upscale / 100,
                                               height=clip.height * resize_factor_before_upscale / 100)
                 if resize_factor_before_upscale != 100:
@@ -203,7 +206,7 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
                 clip = run_animejanai_upscale(clip, backend, model_conf, trt_settings, num_streams)
 
             except Exception as e:
-                clip = vs.core.resize.Spline36(clip, format=vs.RGBS, matrix_in_s=colorspace,
+                clip = vs.core.resize.Spline36(clip, format=vs.RGBS, matrix_in=matrix_in,
                                               width=clip.width * resize_factor_before_upscale / 100,
                                               height=clip.height * resize_factor_before_upscale / 100)
 
@@ -225,7 +228,8 @@ def run_animejanai(clip, container_fps, chain_conf, backend):
                           vs.YUV444P10]:
             fmt_out = vs.YUV420P10
 
-        clip = vs.core.resize.Spline36(clip, format=fmt_out, matrix_s=colorspace, range=1 if colorlv == 0 else None)
+        matrix_out = 5 if clip.height < 720 else 1
+        clip = vs.core.resize.Spline36(clip, format=fmt_out, matrix=matrix_out, range=1 if colorlv == 0 else None)
 
     if chain_conf['rife']:
         # TODO rife nvidia or rife other
@@ -252,6 +256,10 @@ def run_animejanai_upscale(clip, backend, model_conf, trt_settings, num_streams)
                              model_conf['resize_height_before_upscale'])
         current_logger_steps.append(f"Applied Resize Height Before Upscale: {model_conf['resize_height_before_upscale']}px;    New Video Resolution: {clip.width}x{clip.height}")
 
+    # Clip out of range values.
+    # Limited range YUV to RGB conversion can produce values less than 0 or more than 1.
+    # Models are not trained to handle them.
+    clip = vs.core.std.Levels(clip, min_in=0.0, max_in=1.0, min_out=0.0, max_out=1.0)
     # upscale 2x
     return upscale2x(clip, backend, model_conf['name'], num_streams, trt_settings)
 
