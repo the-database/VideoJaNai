@@ -40,19 +40,29 @@ namespace AnimeJaNaiConverterGui.Services
         }
 
         public string BackendDirectory => (_updateManagerService?.IsInstalled ?? false) ? Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"VideoJaNai") : Path.GetFullPath(@".\backend");
-        public string ModelsDirectory => Path.Join(BackendDirectory, "onnx");
-        public string PythonDirectory => Path.Join(BackendDirectory, "python");
+        public string AnimeJaNaiDirectory => Path.Join(BackendDirectory, "animejanai");
+        public string ModelsDirectory => Path.Join(AnimeJaNaiDirectory, "onnx");
         public string FfmpegDirectory => Path.Join(BackendDirectory, "ffmpeg");
-        public string AnimeJaNaiDirectory => Path.GetFullPath("./backend/animejanai");
+        public string FfmpegPath => Path.GetFullPath(Path.Join(FfmpegDirectory, "ffmpeg.exe"));
+
+        // libaji native engine paths (replaces the Python/VapourSynth/vs-mlrt backend).
+        public string InferenceDirectory => Path.Join(AnimeJaNaiDirectory, "inference");
+        public string RifeModelsDirectory => Path.Join(AnimeJaNaiDirectory, "rife");
+        public string AjiEncodePath => Path.GetFullPath(Path.Join(InferenceDirectory, "aji_encode.exe"));
+        public string TrtexecPath => Path.GetFullPath(Path.Join(InferenceDirectory, "trtexec.exe"));
+        public string ConfPath => Path.Join(AnimeJaNaiDirectory, "animejanai.conf");
+
+        // Legacy Python/VapourSynth paths — retained until the old installer is removed (see CheckAndExtractBackend rewrite).
+        public string PythonDirectory => Path.Join(BackendDirectory, "python");
         public string PythonPath => Path.GetFullPath(Path.Join(PythonDirectory, PYTHON_DOWNLOADS["win32"].Path));
         public string VapourSynthPluginsPath => Path.Combine(PythonDirectory, "vs-plugins");
         public string VsmlrtModelsPath => Path.Combine(VapourSynthPluginsPath, "models");
-        public string FfmpegPath => Path.GetFullPath(Path.Join(FfmpegDirectory, "ffmpeg.exe"));
         public string VspipePath => Path.GetFullPath(Path.Join(PythonDirectory, "VSPipe.exe"));
         public string VsrepoPath => Path.GetFullPath(Path.Join(PythonDirectory, "vsrepo.py"));
         public Version VsmlrtMinVersion => new("3.22.13"); // vsmlrt v15.9
 
         public bool IsPythonInstalled() => File.Exists(PythonPath);
+        public bool IsInferenceInstalled() => File.Exists(AjiEncodePath);
         public bool AreModelsInstalled() => Directory.Exists(ModelsDirectory) && Directory.GetFiles(ModelsDirectory).Length > 0;
         public bool IsFfmpegInstalled() => File.Exists(FfmpegPath);
 
@@ -173,11 +183,9 @@ namespace AnimeJaNaiConverterGui.Services
 
                     try
                     {
+                        // The libaji engine consumes ONNX models only.
                         var models = new AvaloniaList<string>(Directory.GetFiles(ModelsDirectory).Where(filename =>
-                            Path.GetExtension(filename).Equals(".pth", StringComparison.CurrentCultureIgnoreCase) ||
-                            Path.GetExtension(filename).Equals(".pt", StringComparison.CurrentCultureIgnoreCase) ||
-                            Path.GetExtension(filename).Equals(".ckpt", StringComparison.CurrentCultureIgnoreCase) ||
-                            Path.GetExtension(filename).Equals(".safetensors", StringComparison.CurrentCultureIgnoreCase)
+                            Path.GetExtension(filename).Equals(".onnx", StringComparison.CurrentCultureIgnoreCase)
                         )
                         .Select(filename => Path.GetFileName(filename))
                         .Order().ToList());

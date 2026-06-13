@@ -6,6 +6,7 @@ namespace AnimeJaNaiConverterGui.Services
     public interface IPythonService
     {
         bool IsPythonInstalled();
+        bool IsInferenceInstalled();
         bool AreModelsInstalled();
         bool IsFfmpegInstalled();
         string PythonDirectory { get; }
@@ -19,6 +20,13 @@ namespace AnimeJaNaiConverterGui.Services
         string VsmlrtModelsPath { get; }
         Version VsmlrtMinVersion { get; }
         string AnimeJaNaiDirectory { get; }
+
+        // libaji native engine (replaces the Python/VapourSynth/vs-mlrt backend).
+        string InferenceDirectory { get; }
+        string RifeModelsDirectory { get; }
+        string AjiEncodePath { get; }
+        string TrtexecPath { get; }
+        string ConfPath { get; }
         string InstallUpdatePythonDependenciesCommand { get; }
         string InstallVapourSynthPluginsCommand { get; }
         void ExtractTgz(string gzArchiveName, string destFolder);

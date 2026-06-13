@@ -64,6 +64,31 @@ namespace VideoJaNai.ViewModels
 
         private CancellationTokenSource? _cancellationTokenSource;
         private Process? _runningProcess = null;
+        private readonly IETACalculator _etaCalculator = new ETACalculator(10, 5.0);
+
+        private double _progressValue;
+        [IgnoreDataMember]
+        public double ProgressValue
+        {
+            get => _progressValue;
+            set => this.RaiseAndSetIfChanged(ref _progressValue, value);
+        }
+
+        private string _progressText = string.Empty;
+        [IgnoreDataMember]
+        public string ProgressText
+        {
+            get => _progressText;
+            set => this.RaiseAndSetIfChanged(ref _progressText, value);
+        }
+
+        private string _progressPhase = string.Empty;
+        [IgnoreDataMember]
+        public string ProgressPhase
+        {
+            get => _progressPhase;
+            set => this.RaiseAndSetIfChanged(ref _progressPhase, value);
+        }
 
         public bool IsInstalled => _um?.IsInstalled ?? false;
 
@@ -165,8 +190,6 @@ namespace VideoJaNai.ViewModels
         }
 
         public string ModelsDirectory => _pythonService.ModelsDirectory;
-
-        private string _overwriteCommand => CurrentWorkflow.OverwriteExistingVideos ? "-y" : "";
 
         public static readonly string _ffmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\" -max_interleave_delta 0";
         public static readonly string _ffmpegX264 = "libx264 -crf 13 -preset slow -max_interleave_delta 0";
@@ -519,19 +542,35 @@ namespace VideoJaNai.ViewModels
 
         public void SetupAnimeJaNaiConfSlot1()
         {
-            var confPath = Path.Combine(_pythonService.AnimeJaNaiDirectory, "animejanai.conf");
-            var backend = CurrentWorkflow.DirectMlSelected ? "DirectML" : CurrentWorkflow.NcnnSelected ? "NCNN" : "TensorRT";
-            HashSet<string> filesNeedingEngine = new();
-            var configText = new StringBuilder($@"[global]
-logging=yes
-backend={backend}
-backend_path={_pythonService.BackendDirectory}
-[slot_1]
-profile_name=encode
-");
+            // Emits the canonical config_version=2 schema consumed by the libaji engine
+            // (see AnimeJaNaiConfEditor). NCNN now aliases to DirectML; there is no
+            // backend_path, no per-chain final_resize, and no per-chain tensorrt settings.
+            var backend = CurrentWorkflow.DirectMlSelected || CurrentWorkflow.NcnnSelected ? "DirectML" : "TensorRT";
+
+            var configText = new StringBuilder();
+            configText.AppendLine("[global]");
+            configText.AppendLine("config_version=2");
+            configText.AppendLine("logging=yes");
+            configText.AppendLine($"backend={backend}");
+
+            // trt_engine_settings is global and write-minimal: only persisted when the user
+            // overrides the engine default (Auto off). Otherwise the engine uses its own default.
+            if (!CurrentWorkflow.TensorRtEngineSettingsAuto && !string.IsNullOrWhiteSpace(CurrentWorkflow.TensorRtEngineSettings))
+            {
+                configText.AppendLine($"trt_engine_settings={CurrentWorkflow.TensorRtEngineSettings}");
+            }
+
+            configText.AppendLine("[slot_1]");
+            configText.AppendLine("profile_name=encode");
+            configText.AppendLine("chain_1_min_resolution=0x0");
+            configText.AppendLine("chain_1_max_resolution=0x0");
+            configText.AppendLine("chain_1_min_fps=0");
+            configText.AppendLine("chain_1_max_fps=0");
 
             for (var i = 0; i < CurrentWorkflow.UpscaleSettings.Count; i++)
             {
+                // aji resolves models by bare name against --model-dir, so copy the selected onnx in.
+                Directory.CreateDirectory(_pythonService.ModelsDirectory);
                 var targetCopyPath = Path.Combine(_pythonService.ModelsDirectory, Path.GetFileName(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath));
 
                 if (Path.GetFullPath(targetCopyPath) != Path.GetFullPath(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath))
@@ -547,36 +586,25 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             var rife = CurrentWorkflow.EnableRife ? "yes" : "no";
             var ensemble = CurrentWorkflow.RifeEnsemble ? "yes" : "no";
             configText.AppendLine($"chain_1_rife={rife}");
+            configText.AppendLine($"chain_1_rife_model={RifeLabelToValue(CurrentWorkflow.RifeModel)}");
             configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_factor_numerator={CurrentWorkflow.RifeFactorNumerator}"));
             configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_factor_denominator={CurrentWorkflow.RifeFactorDenominator}"));
-            configText.AppendLine($"chain_1_rife_model={RifeLabelToValue(CurrentWorkflow.RifeModel)}");
-            configText.AppendLine($"chain_1_rife_ensemble={ensemble}");
             configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_scene_detect_threshold={CurrentWorkflow.RifeSceneDetectThreshold}"));
-            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_final_resize_height={CurrentWorkflow.FinalResizeHeight}"));
-            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_final_resize_factor={CurrentWorkflow.FinalResizeFactor}"));
-            configText.AppendLine($"chain_1_tensorrt_engine_settings={(CurrentWorkflow.TensorRtEngineSettingsAuto ? "" : CurrentWorkflow.TensorRtEngineSettings)}");
+            configText.AppendLine($"chain_1_rife_ensemble={ensemble}");
 
-            File.WriteAllText(confPath, configText.ToString());
+            Directory.CreateDirectory(_pythonService.AnimeJaNaiDirectory);
+            File.WriteAllText(_pythonService.ConfPath, configText.ToString());
         }
 
         public async Task CheckEngines(string inputFilePath)
         {
+            // TensorRT builds/caches engines on first use; DirectML needs no prebuild.
             if (!CurrentWorkflow.TensorRtSelected)
             {
                 return;
             }
 
-            for (var i = 0; i < CurrentWorkflow.UpscaleSettings.Count; i++)
-            {
-                // TODO testing
-                //var enginePath = @$".\mpv-upscale-2x_animejanai\animejanai\onnx\{Path.GetFileNameWithoutExtension(UpscaleSettings[i].OnnxModelPath)}.engine";
-
-                //if (!File.Exists(enginePath))
-                //{
-                await GenerateEngine(inputFilePath);
-                //}
-            }
-
+            await GenerateEngine(inputFilePath);
         }
 
         public async Task RunUpscale()
@@ -666,31 +694,99 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
-            var cmd = $@"{Path.GetRelativePath(_pythonService.BackendDirectory, _pythonService.VspipePath)} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ""{Path.GetFullPath("./backend/animejanai/core/animejanai_encode.vpy")}"" - | ""{_pythonService.FfmpegPath}"" {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {CurrentWorkflow.FfmpegVideoSettings} -max_interleave_delta 0 -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
-            ConsoleQueueEnqueue($"Upscaling with command: {cmd}");
-            await RunCommand($@" /C {cmd}");
+            var args = BuildAjiEncodeArgs(inputFilePath, outputFilePath, buildOnly: false);
+            ConsoleQueueEnqueue($"Upscaling with command: {_pythonService.AjiEncodePath} {args}");
+            await RunAjiEncode(args, resetProgress: true);
         }
 
         public async Task GenerateEngine(string inputFilePath)
         {
-            var cmd = $@"{Path.GetRelativePath(_pythonService.BackendDirectory, _pythonService.VspipePath)} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ""{Path.GetFullPath("./backend/animejanai/core/animejanai_encode.vpy")}"" -p .";
-            ConsoleQueueEnqueue($"Generating TensorRT engine with command: {cmd}");
-            await RunCommand($@" /C {cmd}");
+            var args = BuildAjiEncodeArgs(inputFilePath, null, buildOnly: true);
+            ConsoleQueueEnqueue($"Generating TensorRT engine with command: {_pythonService.AjiEncodePath} {args}");
+            await RunAjiEncode(args, resetProgress: false);
         }
 
-        public async Task RunCommand(string command)
+        private string BuildAjiEncodeArgs(string inputFilePath, string? outputFilePath, bool buildOnly)
         {
-            // Create a new process to run the CMD command
+            var backend = CurrentWorkflow.DirectMlSelected || CurrentWorkflow.NcnnSelected ? "directml" : "tensorrt";
+
+            var sb = new StringBuilder();
+            sb.Append(ENGLISH_CULTURE, $"--input \"{inputFilePath}\" ");
+            sb.Append(ENGLISH_CULTURE, $"--conf \"{_pythonService.ConfPath}\" ");
+            sb.Append("--slot 1 ");
+            sb.Append(ENGLISH_CULTURE, $"--model-dir \"{_pythonService.ModelsDirectory}\" ");
+            sb.Append(ENGLISH_CULTURE, $"--rife-model-dir \"{_pythonService.RifeModelsDirectory}\" ");
+            sb.Append(ENGLISH_CULTURE, $"--trtexec \"{_pythonService.TrtexecPath}\" ");
+            sb.Append(ENGLISH_CULTURE, $"--backend {backend} ");
+
+            if (buildOnly)
+            {
+                sb.Append("--build-only ");
+            }
+            else
+            {
+                sb.Append(ENGLISH_CULTURE, $"--output \"{outputFilePath}\" ");
+
+                var (vcodec, vquality) = MapFfmpegSettings(CurrentWorkflow.FfmpegVideoSettings);
+                sb.Append(ENGLISH_CULTURE, $"--vcodec {vcodec} ");
+                if (!string.IsNullOrWhiteSpace(vquality))
+                {
+                    sb.Append(ENGLISH_CULTURE, $"--vquality \"{vquality}\" ");
+                }
+
+                // final_resize has no conf field in the new engine; pass it to aji_encode directly.
+                if (CurrentWorkflow.FinalResizeHeight is int frh && frh > 0)
+                {
+                    sb.Append(ENGLISH_CULTURE, $"--final-resize-height {frh} ");
+                }
+                else if (CurrentWorkflow.FinalResizeFactor is int frf && frf > 0 && frf != 100)
+                {
+                    sb.Append(ENGLISH_CULTURE, $"--final-resize-factor {frf} ");
+                }
+
+                if (CurrentWorkflow.OverwriteExistingVideos)
+                {
+                    sb.Append("--overwrite ");
+                }
+            }
+
+            sb.Append("--progress line");
+            return sb.ToString();
+        }
+
+        // Splits a VideoJaNai ffmpeg preset ("<codec> <encoder args...>") into the aji_encode
+        // --vcodec / --vquality pair. The muxer-level option is dropped (aji_encode owns muxing).
+        private static (string vcodec, string vquality) MapFfmpegSettings(string settings)
+        {
+            var cleaned = settings.Replace("-max_interleave_delta 0", "").Trim();
+            var spaceIdx = cleaned.IndexOf(' ');
+            if (spaceIdx < 0)
+            {
+                return (cleaned, string.Empty);
+            }
+
+            return (cleaned[..spaceIdx], cleaned[(spaceIdx + 1)..].Trim());
+        }
+
+        public async Task RunAjiEncode(string arguments, bool resetProgress)
+        {
+            if (resetProgress)
+            {
+                ResetProgress();
+            }
+
             using (var process = new Process())
             {
                 _runningProcess = process;
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = command;
+                process.StartInfo.FileName = _pythonService.AjiEncodePath;
+                process.StartInfo.Arguments = arguments;
                 process.StartInfo.RedirectStandardOutput = true;
                 process.StartInfo.RedirectStandardError = true;
                 process.StartInfo.UseShellExecute = false;
                 process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.WorkingDirectory = _pythonService.BackendDirectory;
+                process.StartInfo.WorkingDirectory = _pythonService.InferenceDirectory;
+                process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+                process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
 
                 // Create a StreamWriter to write the output to a log file
                 using (var outputFile = new StreamWriter("error.log", append: true))
@@ -710,7 +806,12 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                         {
                             outputFile.WriteLine(e.Data); // Write the output to the log file
 
-                            ConsoleQueueEnqueue(e.Data);
+                            // aji_encode emits machine-readable "PROGRESS ..." lines on stdout;
+                            // route those to the progress bar instead of the console.
+                            if (!TryHandleProgressLine(e.Data))
+                            {
+                                ConsoleQueueEnqueue(e.Data);
+                            }
                         }
                     };
 
@@ -721,6 +822,48 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 }
                 ChildProcessTracker.AddProcess(process);
             }
+        }
+
+        private bool TryHandleProgressLine(string line)
+        {
+            if (!line.StartsWith("PROGRESS", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var phaseMatch = Regex.Match(line, @"phase=(\w+)");
+            if (phaseMatch.Success)
+            {
+                ProgressPhase = phaseMatch.Groups[1].Value;
+            }
+
+            var pctMatch = Regex.Match(line, @"pct=([0-9]+(?:\.[0-9]+)?)");
+            if (pctMatch.Success && double.TryParse(pctMatch.Groups[1].Value, NumberStyles.Float, ENGLISH_CULTURE, out var pct))
+            {
+                ProgressValue = pct;
+
+                if (pct is > 0 and < 100)
+                {
+                    _etaCalculator.Update((float)(pct / 100.0));
+                    ProgressText = _etaCalculator.ETAIsAvailable
+                        ? string.Create(ENGLISH_CULTURE, $"{pct:0.0}% - ETA {_etaCalculator.ETR:hh\\:mm\\:ss}")
+                        : string.Create(ENGLISH_CULTURE, $"{pct:0.0}%");
+                }
+                else
+                {
+                    ProgressText = string.Create(ENGLISH_CULTURE, $"{pct:0.0}%");
+                }
+            }
+
+            return true;
+        }
+
+        private void ResetProgress()
+        {
+            _etaCalculator.Reset();
+            ProgressValue = 0;
+            ProgressText = string.Empty;
+            ProgressPhase = string.Empty;
         }
 
         private void ConsoleQueueClear()

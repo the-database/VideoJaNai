@@ -112,6 +112,11 @@
             </Button>
           </StackPanel>
 
+          <StackPanel IsVisible="{Binding Upscaling}" Margin="20,0,20,5">
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressValue}" Height="18" />
+            <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="Gray" Text="{Binding ProgressText}" />
+          </StackPanel>
+
           <StackPanel IsVisible="{Binding ShowConsole}" >
             <DockPanel>
               <TextBlock DockPanel.Dock="Left" Margin="20,10,0,0" FontWeight="Bold" Text="{x:Static lang:Resources.ConsoleButtonText}" />
