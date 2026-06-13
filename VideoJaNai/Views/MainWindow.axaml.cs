@@ -17,7 +17,7 @@ using VideoJaNai.ViewModels;
 
 namespace VideoJaNai.Views
 {
-    public partial class MainWindow : AppWindow
+    public partial class MainWindow : FAAppWindow
     {
         private bool _autoScrollConsole = true;
         private bool _userWantsToQuit = false;
@@ -155,7 +155,7 @@ namespace VideoJaNai.Views
         {
             if (DataContext is MainWindowViewModel vm)
             {
-                var files = e.Data.GetFiles().ToList();
+                var files = (e.DataTransfer.TryGetFiles() ?? []).ToList();
 
 
                 if (files.Count > 0)
@@ -173,7 +173,7 @@ namespace VideoJaNai.Views
         {
             if (DataContext is MainWindowViewModel vm)
             {
-                var files = e.Data.GetFiles().ToList();
+                var files = (e.DataTransfer.TryGetFiles() ?? []).ToList();
 
 
                 if (files.Count > 0)
@@ -191,7 +191,7 @@ namespace VideoJaNai.Views
         {
             if (DataContext is MainWindowViewModel vm)
             {
-                var files = e.Data.GetFiles().ToList();
+                var files = (e.DataTransfer.TryGetFiles() ?? []).ToList();
 
 
                 if (files.Count > 0)
@@ -321,7 +321,7 @@ namespace VideoJaNai.Views
 
                     if (inPath != null)
                     {
-                        var td = new TaskDialog
+                        var td = new FATaskDialog
                         {
                             Title = "Confirm Workflow Import",
                             ShowProgressBar = false,
@@ -329,19 +329,18 @@ namespace VideoJaNai.Views
                             inPath,
                             Buttons =
                         {
-                            TaskDialogButton.OKButton,
-                            TaskDialogButton.CancelButton
+                            FATaskDialogButton.OKButton,
+                            FATaskDialogButton.CancelButton
                         }
                         };
 
 
                         td.Closing += async (s, e) =>
                         {
-                            if ((TaskDialogStandardResult)e.Result == TaskDialogStandardResult.OK)
+                            if ((FATaskDialogStandardResult)e.Result == FATaskDialogStandardResult.OK)
                             {
                                 var deferral = e.GetDeferral();
 
-                                td.SetProgressBarState(0, TaskDialogProgressState.Indeterminate);
                                 td.ShowProgressBar = true;
 
                                 await Task.Run(() =>
@@ -365,26 +364,25 @@ namespace VideoJaNai.Views
             if (DataContext is MainWindowViewModel vm)
             {
 
-                var td = new TaskDialog
+                var td = new FATaskDialog
                 {
                     Title = "Confirm Workflow Reset",
                     ShowProgressBar = false,
                     Content = $"The current workflow's settings will be reset to the default settings. Any unsaved settings for the current workflow will be lost.",
                     Buttons =
                 {
-                    TaskDialogButton.OKButton,
-                    TaskDialogButton.CancelButton
+                    FATaskDialogButton.OKButton,
+                    FATaskDialogButton.CancelButton
                 }
                 };
 
 
                 td.Closing += async (s, e) =>
                 {
-                    if ((TaskDialogStandardResult)e.Result == TaskDialogStandardResult.OK)
+                    if ((FATaskDialogStandardResult)e.Result == FATaskDialogStandardResult.OK)
                     {
                         var deferral = e.GetDeferral();
 
-                        td.SetProgressBarState(0, TaskDialogProgressState.Indeterminate);
                         td.ShowProgressBar = true;
 
                         await Task.Run(() =>
