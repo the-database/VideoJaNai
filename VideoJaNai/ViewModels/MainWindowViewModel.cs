@@ -543,9 +543,9 @@ namespace VideoJaNai.ViewModels
         public void SetupAnimeJaNaiConfSlot1()
         {
             // Emits the canonical config_version=2 schema consumed by the libaji engine
-            // (see AnimeJaNaiConfEditor). NCNN now aliases to DirectML; there is no
-            // backend_path, no per-chain final_resize, and no per-chain tensorrt settings.
-            var backend = CurrentWorkflow.DirectMlSelected || CurrentWorkflow.NcnnSelected ? "DirectML" : "TensorRT";
+            // (see AnimeJaNaiConfEditor). There is no backend_path, no per-chain
+            // final_resize, and no per-chain tensorrt settings.
+            var backend = CurrentWorkflow.DirectMlSelected ? "DirectML" : "TensorRT";
 
             var configText = new StringBuilder();
             configText.AppendLine("[global]");
@@ -708,7 +708,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         private string BuildAjiEncodeArgs(string inputFilePath, string? outputFilePath, bool buildOnly)
         {
-            var backend = CurrentWorkflow.DirectMlSelected || CurrentWorkflow.NcnnSelected ? "directml" : "tensorrt";
+            var backend = CurrentWorkflow.DirectMlSelected ? "directml" : "tensorrt";
 
             var sb = new StringBuilder();
             sb.Append(ENGLISH_CULTURE, $"--input \"{inputFilePath}\" ");
@@ -1771,18 +1771,6 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
         }
 
-        private bool _ncnnSelected = false;
-        [DataMember]
-        public bool NcnnSelected
-        {
-            get => _ncnnSelected;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _ncnnSelected, value);
-                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
-            }
-        }
-
         public bool TensorRtEngineDynamicSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtDynamicEngine;
         public bool TensorRtEngineStaticSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticEngine;
         public bool TensorRtEngineStaticOnnxSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticOnnx;
@@ -2003,21 +1991,12 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         {
             TensorRtSelected = true;
             DirectMlSelected = false;
-            NcnnSelected = false;
         }
 
         public void SetDirectMlSelected()
         {
             DirectMlSelected = true;
             TensorRtSelected = false;
-            NcnnSelected = false;
-        }
-
-        public void SetNcnnSelected()
-        {
-            NcnnSelected = true;
-            TensorRtSelected = false;
-            DirectMlSelected = false;
         }
 
         public void SetDynamicEngine()
