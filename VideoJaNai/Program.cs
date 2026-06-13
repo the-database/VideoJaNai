@@ -1,5 +1,5 @@
 ﻿using Avalonia;
-using Avalonia.ReactiveUI;
+using ReactiveUI.Avalonia;
 using ReactiveUI;
 using System;
 using System.Collections.Generic;
@@ -28,7 +28,7 @@ namespace VideoJaNai
         public static void Main(string[] args)
         {
             VelopackApp.Build()
-                .WithBeforeUninstallFastCallback((v) =>
+                .OnBeforeUninstallFastCallback((v) =>
                 {
                     // On uninstall, delete backend directories
                     List<string> dirNames = new() { "python", "animejanai", "ffmpeg" };
@@ -42,7 +42,7 @@ namespace VideoJaNai
                         }
                     }
                 })
-                .WithFirstRun(_ =>
+                .OnFirstRun(_ =>
                 {
                     WasFirstRun = true;
                 })
@@ -58,6 +58,13 @@ namespace VideoJaNai
                 .UsePlatformDetect()
                 .WithInterFont()
                 .LogToTrace()
-                .UseReactiveUI();
+                // UseReactiveUI runs WithAvalonia() (which configures a SuspensionHost<Unit>) and then
+                // invokes this callback before committing the suspension host singleton. We override it
+                // with a plain non-generic SuspensionHost (AppState starts null, like the old
+                // RxApp.SuspensionHost) so the app state can be loaded/typed as MainWindowViewModel.
+                // Otherwise GetAppState<MainWindowViewModel>() in App throws InvalidCastException on the
+                // seeded Unit state. This singleton is initialized once, so it must be set here (the
+                // earliest init), not in App.OnFrameworkInitializationCompleted.
+                .UseReactiveUI(b => b.WithSuspensionHost());
     }
 }

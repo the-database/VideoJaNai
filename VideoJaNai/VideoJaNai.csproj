@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -30,26 +30,27 @@
 
 
   <ItemGroup>
-    <PackageReference Include="Autofac" Version="8.2.1" />
-    <PackageReference Include="Avalonia" Version="11.2.6" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.2.6" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.6" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.6" />
-    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.2.6" />
-    <PackageReference Include="Avalonia.ReactiveUI" Version="11.2.6" />
-    <PackageReference Include="FluentAvaloniaUI" Version="2.3.0" />
+    <PackageReference Include="Autofac" Version="9.1.0" />
+    <PackageReference Include="Avalonia" Version="12.0.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
+    <PackageReference Include="FluentAvaloniaUI" Version="3.0.0-preview4" />
     <PackageReference Include="HyperText.Avalonia" Version="11.0.0-rc1" />
-    <PackageReference Include="Material.Icons.Avalonia" Version="2.3.1" />
-    <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.4.7" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Material.Icons.Avalonia" Version="3.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
+    <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.6.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="ReactiveUI.Avalonia" Version="12.0.3" />
     <PackageReference Include="Salaros.ConfigParser" Version="0.3.8" />
     <PackageReference Include="SevenZipExtractor" Version="1.0.19" />
-    <PackageReference Include="SharpCompress" Version="0.39.0" />
+    <PackageReference Include="SharpCompress" Version="0.49.1" />
     <PackageReference Include="SharpZipLib" Version="1.4.2" />
-    <PackageReference Include="Splat.Autofac" Version="15.3.1" />
-    <PackageReference Include="System.Management.Automation" Version="7.4.7" />
-    <PackageReference Include="Velopack" Version="0.0.1053" />
+    <!-- Must stay on 19.4.1 to match the Splat 19.4.1 that ReactiveUI 23.2.28 (via ReactiveUI.Avalonia 12.0.3) requires.
+         Splat.Autofac 20.0.0 pulls Splat.Core 20.0.0, which is binary-incompatible with Splat 19.4.1 and crashes at startup. -->
+    <PackageReference Include="Splat.Autofac" Version="19.4.1" />
+    <PackageReference Include="System.Management.Automation" Version="7.6.2" />
+    <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>
 
 

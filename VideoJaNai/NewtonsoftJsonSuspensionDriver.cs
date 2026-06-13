@@ -7,6 +7,7 @@ using System.Reactive.Linq;
 using System.Reactive;
 using Newtonsoft.Json;
 using System.IO;
+using System.Text.Json.Serialization.Metadata;
 
 namespace VideoJaNai
 {
@@ -40,6 +41,25 @@ namespace VideoJaNai
             var lines = JsonConvert.SerializeObject(state, Settings);
             File.WriteAllText(_file, lines);
             return Observable.Return(Unit.Default);
+        }
+
+        // ReactiveUI 23 added AOT/source-gen-friendly generic overloads to ISuspensionDriver.
+        // We keep using Newtonsoft (with TypeNameHandling.All) for polymorphic state, so the
+        // JsonTypeInfo<T> metadata argument is ignored.
+        public IObservable<Unit> SaveState<T>(T state)
+        {
+            var lines = JsonConvert.SerializeObject(state, Settings);
+            File.WriteAllText(_file, lines);
+            return Observable.Return(Unit.Default);
+        }
+
+        public IObservable<Unit> SaveState<T>(T state, JsonTypeInfo<T> typeInfo) => SaveState(state);
+
+        public IObservable<T?> LoadState<T>(JsonTypeInfo<T> typeInfo)
+        {
+            var lines = File.ReadAllText(_file);
+            var state = JsonConvert.DeserializeObject<T>(lines, Settings);
+            return Observable.Return(state);
         }
     }
 }
