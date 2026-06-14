@@ -13,4 +13,12 @@
     <PackageReference Include="SharpZipLib" Version="1.4.2" />
   </ItemGroup>
 
+  <!-- ONNX models are version-controlled here (small, ~6 MB) and bundled into the core by the
+       assembler; copied next to the built exe so InstallModels can find them at runtime. -->
+  <ItemGroup>
+    <None Include="onnx\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

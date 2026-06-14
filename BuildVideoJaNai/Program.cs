@@ -29,8 +29,6 @@ const string AjiVersion        = "v0.4.0";                 // the-database/anime
 const string SevenZipVersion   = "2501";                  // 7-zip "extra" standalone console
 const string RifeModelsVersion = "models-rife-fp16-1";    // animejanai-inference rife fp16 release
 const string FfmpegVersion     = "8.1.1";                 // gyan.dev ffmpeg shared build (dev DLLs for aji_encode)
-// ONNX models bundled in the core. TODO: bump to the V3.1 set; this is the known-good existing zip.
-const string ModelsUrl = "https://github.com/the-database/mpv-upscale-2x_animejanai/releases/download/3.0.0/2x_AnimeJaNai_HD_V3_ModelsOnly.zip";
 
 // TensorRT runtime files taken from the vs-mlrt cuda archive's vsmlrt-cuda/ directory. Everything
 // else there (cuDNN, cuBLAS, onnxruntime, lean/dispatch runtimes) is unused by aji's TensorRT path.
@@ -225,22 +223,23 @@ async Task InstallRife()
     File.Delete(targetPath);
 }
 
-async Task InstallModels()
+// ONNX models are version-controlled in this project (onnx/, ~6 MB) rather than downloaded — they
+// are small, and this keeps the shipped set in lockstep with the repo (matches mpv-AnimeJaNai's
+// committed model set). The csproj copies onnx/ next to the built exe.
+void InstallModels()
 {
-    Console.WriteLine("Downloading ONNX models...");
-    var targetPath = Path.GetFullPath("models.zip");
-    await DownloadFileAsync(ModelsUrl, targetPath, p => Console.WriteLine($"Downloading models ({p}%)..."));
-
+    var modelsSource = Path.Combine(assemblyDirectory, "onnx");
+    if (!Directory.Exists(modelsSource))
+    {
+        Console.WriteLine($"WARNING: bundled models dir not found at {modelsSource}; no models will ship.");
+        return;
+    }
+    Console.WriteLine("Copying bundled ONNX models...");
     Directory.CreateDirectory(onnxPath);
-    var tempDir = Path.GetFullPath("models-temp");
-    ExtractZip(targetPath, tempDir, _ => { });
-    // Flatten any nested folder: copy every .onnx into onnxPath.
-    foreach (var onnx in Directory.GetFiles(tempDir, "*.onnx", SearchOption.AllDirectories))
+    foreach (var onnx in Directory.GetFiles(modelsSource, "*.onnx", SearchOption.AllDirectories))
     {
         File.Copy(onnx, Path.Combine(onnxPath, Path.GetFileName(onnx)), true);
     }
-    Directory.Delete(tempDir, true);
-    File.Delete(targetPath);
 }
 
 // The TensorRT SLA requires this attribution when redistributing the runtime.
@@ -389,7 +388,7 @@ async Task Main()
     await InstallAji();
     await InstallFfmpeg();
     await InstallRife();
-    await InstallModels();
+    InstallModels();
 
     // The custom updater ships at the install root next to VideoJaNai.exe.
     var updater = ArgValue("--updater");
