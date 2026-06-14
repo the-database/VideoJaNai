@@ -438,7 +438,7 @@ namespace VideoJaNai.Views
         {
             if (DataContext is MainWindowViewModel vm)
             {
-                var confirm = await ShowConfirmationDialog("Reinstall Python Backend", "The existing Python backend will be removed and then reinstalled. Your workflow settings will be preserved. This process will take several minutes. Proceed?");
+                var confirm = await ShowConfirmationDialog("Reinstall components", "The recommended components for your GPU will be re-downloaded. Your workflow settings and models are preserved. This may take several minutes. Proceed?");
 
                 if (confirm)
                 {
