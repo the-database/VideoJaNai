@@ -434,10 +434,6 @@
                     <Button Command="{Binding CheckForUpdates}" Content="{x:Static lang:Resources.CheckForUpdatesNowButtonText}" />
                   </StackPanel>
 
-                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowDownloadButton}">
-                    <Button Command="{Binding DownloadUpdate}" Content="{x:Static lang:Resources.DownloadUpdateButtonText}" />
-                  </StackPanel>
-
                   <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowApplyButton}">
                     <Button Command="{Binding ApplyUpdate}" Content="{x:Static lang:Resources.RestartToUpdateButtonText}" />
                   </StackPanel>

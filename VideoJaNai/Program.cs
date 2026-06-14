@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Velopack;
 
 namespace VideoJaNai
 {
@@ -27,27 +26,8 @@ namespace VideoJaNai
         [STAThread]
         public static void Main(string[] args)
         {
-            VelopackApp.Build()
-                .OnBeforeUninstallFastCallback((v) =>
-                {
-                    // On uninstall, delete backend directories
-                    List<string> dirNames = new() { "python", "animejanai", "ffmpeg" };
-                    var dirs = dirNames.Select(name => Path.Combine(AppStateFolder, name));
-
-                    foreach (var dir in dirs)
-                    {
-                        if (Directory.Exists(dir))
-                        {
-                            Directory.Delete(dir, true);
-                        }
-                    }
-                })
-                .OnFirstRun(_ =>
-                {
-                    WasFirstRun = true;
-                })
-                .Run();
-
+            // Velopack removed: install/uninstall/update are now handled by the Inno installer +
+            // VideoJaNaiUpdater. Uninstall cleanup is the installer's [UninstallDelete].
             BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
         }
