@@ -38,7 +38,11 @@ namespace AnimeJaNaiConverterGui.Services
         public string TrtexecPath => Path.GetFullPath(Path.Join(InferenceDirectory, "trtexec.exe"));
         public string ConfPath => Path.Join(AnimeJaNaiDirectory, "animejanai.conf");
 
-        public bool IsInferenceInstalled() => File.Exists(AjiEncodePath);
+        // "Installed" means the engine can actually run: aji_encode (slim core) AND the TensorRT
+        // runtime (trtexec, which ships in the downloadable trt-runtime component pack, not the
+        // core). Checking only aji_encode would always be true post-install and the first-run
+        // --auto component fallback would never fire when the packs are missing.
+        public bool IsInferenceInstalled() => File.Exists(AjiEncodePath) && File.Exists(TrtexecPath);
         public bool AreModelsInstalled() => Directory.Exists(ModelsDirectory) && Directory.GetFiles(ModelsDirectory).Length > 0;
         public bool IsFfmpegInstalled() => File.Exists(FfmpegPath);
 
