@@ -17,8 +17,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Velopack;
-using Velopack.Sources;
 
 namespace VideoJaNai.ViewModels
 {
@@ -29,8 +27,7 @@ namespace VideoJaNai.ViewModels
 
         private static readonly CultureInfo ENGLISH_CULTURE = CultureInfo.GetCultureInfo("en-US");
 
-        private readonly UpdateManager _um;
-        private UpdateInfo? _update = null;
+        private string? _availableUpdateVersion;
 
         private readonly IPythonService _pythonService;
         private readonly IUpdateManagerService _updateManagerService;
@@ -52,37 +49,50 @@ namespace VideoJaNai.ViewModels
 
             this.WhenAnyValue(x => x.ShowAppSettings).Subscribe(async x =>
             {
-                if (x && string.IsNullOrWhiteSpace(PythonPipList))
+                if (x)
                 {
-                    await PopulatePythonPipList();
+                    await RefreshComponents();
                 }
             });
 
-            _um = new UpdateManager(new GithubSource("https://github.com/the-database/VideoJaNai", null, false));
             CheckForUpdates();
         }
 
         private CancellationTokenSource? _cancellationTokenSource;
         private Process? _runningProcess = null;
+        private readonly IETACalculator _etaCalculator = new ETACalculator(10, 5.0);
 
-        public bool IsInstalled => _um?.IsInstalled ?? false;
+        private double _progressValue;
+        [IgnoreDataMember]
+        public double ProgressValue
+        {
+            get => _progressValue;
+            set => this.RaiseAndSetIfChanged(ref _progressValue, value);
+        }
+
+        private string _progressText = string.Empty;
+        [IgnoreDataMember]
+        public string ProgressText
+        {
+            get => _progressText;
+            set => this.RaiseAndSetIfChanged(ref _progressText, value);
+        }
+
+        private string _progressPhase = string.Empty;
+        [IgnoreDataMember]
+        public string ProgressPhase
+        {
+            get => _progressPhase;
+            set => this.RaiseAndSetIfChanged(ref _progressPhase, value);
+        }
+
+        public bool IsInstalled => _updateManagerService.IsInstalled;
 
         private bool _showCheckUpdateButton = true;
         public bool ShowCheckUpdateButton
         {
             get => _showCheckUpdateButton;
             set => this.RaiseAndSetIfChanged(ref _showCheckUpdateButton, value);
-        }
-
-        private bool _showDownloadButton = false;
-        public bool ShowDownloadButton
-        {
-            get => _showDownloadButton;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _showDownloadButton, value);
-                this.RaisePropertyChanged(nameof(ShowCheckUpdateButton));
-            }
         }
 
         private bool _showApplyButton = false;
@@ -96,7 +106,7 @@ namespace VideoJaNai.ViewModels
             }
         }
 
-        public string AppVersion => _um?.CurrentVersion?.ToString() ?? "";
+        public string AppVersion => _updateManagerService.AppVersion;
 
         private string _updateStatusText = string.Empty;
         public string UpdateStatusText
@@ -166,17 +176,10 @@ namespace VideoJaNai.ViewModels
 
         public string ModelsDirectory => _pythonService.ModelsDirectory;
 
-        private string _overwriteCommand => CurrentWorkflow.OverwriteExistingVideos ? "-y" : "";
-
         public static readonly string _ffmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\" -max_interleave_delta 0";
         public static readonly string _ffmpegX264 = "libx264 -crf 13 -preset slow -max_interleave_delta 0";
         public static readonly string _ffmpegHevcNvenc = "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M -max_interleave_delta 0";
         public static readonly string _ffmpegLossless = "ffv1 -max_interleave_delta 0";
-
-        public static readonly string _tensorRtDynamicEngine = "--fp16 --minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x1080x1920 --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
-        public static readonly string _tensorRtStaticEngine = "--fp16 --optShapes=input:%video_resolution% --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
-        public static readonly string _tensorRtStaticOnnx = "--fp16 --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
-        public static readonly string _tensorRtStaticBf16Engine = "--bf16 --optShapes=input:%video_resolution% --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
 
         private bool _showConsole = false;
         public bool ShowConsole
@@ -216,19 +219,43 @@ namespace VideoJaNai.ViewModels
 
         public string LeftStatus => !CurrentWorkflow.Valid ? ValidationText.Replace("\n", " ") : $"{InputStatusText} selected for upscaling.";
 
-        private bool _runningPython = false;
+        private bool _componentsBusy = false;
         [IgnoreDataMember]
-        public bool RunningPython
+        public bool ComponentsBusy
         {
-            get => _runningPython;
+            get => _componentsBusy;
             set
             {
-                this.RaiseAndSetIfChanged(ref _runningPython, value);
+                this.RaiseAndSetIfChanged(ref _componentsBusy, value);
                 this.RaisePropertyChanged(nameof(AllowReinstall));
             }
         }
 
-        public bool AllowReinstall => !RunningPython && !Upscaling;
+        public bool AllowReinstall => !ComponentsBusy && !Upscaling;
+
+        private AvaloniaList<ComponentItem> _components = new();
+        [IgnoreDataMember]
+        public AvaloniaList<ComponentItem> Components
+        {
+            get => _components;
+            set => this.RaiseAndSetIfChanged(ref _components, value);
+        }
+
+        private string _gpuStatusText = string.Empty;
+        [IgnoreDataMember]
+        public string GpuStatusText
+        {
+            get => _gpuStatusText;
+            set => this.RaiseAndSetIfChanged(ref _gpuStatusText, value);
+        }
+
+        private string _componentStatusText = string.Empty;
+        [IgnoreDataMember]
+        public string ComponentStatusText
+        {
+            get => _componentStatusText;
+            set => this.RaiseAndSetIfChanged(ref _componentStatusText, value);
+        }
 
         private bool _upscaling = false;
         [IgnoreDataMember]
@@ -242,15 +269,6 @@ namespace VideoJaNai.ViewModels
                 this.RaisePropertyChanged(nameof(LeftStatus));
                 this.RaisePropertyChanged(nameof(AllowReinstall));
             }
-        }
-
-        public string PythonPath => _pythonService.PythonPath;
-
-        private string _pythonPipList = string.Empty;
-        public string PythonPipList
-        {
-            get => _pythonPipList;
-            set => this.RaiseAndSetIfChanged(ref _pythonPipList, value);
         }
 
         private bool _isExtractingBackend = false;
@@ -413,7 +431,8 @@ namespace VideoJaNai.ViewModels
                 if (_rifeModels == null)
                 {
                     var models = new List<string>();
-                    var modelsPath = Path.Combine(_pythonService.VsmlrtModelsPath, "rife");
+                    // TODO: re-check this regex/discovery against the new models-rife-fp16-1 filenames.
+                    var modelsPath = _pythonService.RifeModelsDirectory;
 
                     if (!Directory.Exists(modelsPath))
                     {
@@ -519,19 +538,32 @@ namespace VideoJaNai.ViewModels
 
         public void SetupAnimeJaNaiConfSlot1()
         {
-            var confPath = Path.Combine(_pythonService.AnimeJaNaiDirectory, "animejanai.conf");
-            var backend = CurrentWorkflow.DirectMlSelected ? "DirectML" : CurrentWorkflow.NcnnSelected ? "NCNN" : "TensorRT";
-            HashSet<string> filesNeedingEngine = new();
-            var configText = new StringBuilder($@"[global]
-logging=yes
-backend={backend}
-backend_path={_pythonService.BackendDirectory}
-[slot_1]
-profile_name=encode
-");
+            // Emits the canonical config_version=2 schema consumed by the libaji engine
+            // (see AnimeJaNaiConfEditor). There is no backend_path, no per-chain
+            // final_resize, and no per-chain tensorrt settings.
+            var backend = CurrentWorkflow.DirectMlSelected ? "DirectML" : "TensorRT";
+
+            var configText = new StringBuilder();
+            configText.AppendLine("[global]");
+            configText.AppendLine("config_version=2");
+            configText.AppendLine("logging=yes");
+            configText.AppendLine($"backend={backend}");
+
+            // trt_engine_settings is intentionally omitted: with TensorRT 11 the engine builds
+            // stronglyTyped by default (precision is taken from the ONNX model), so VideoJaNai no
+            // longer exposes a precision/engine-settings picker.
+
+            configText.AppendLine("[slot_1]");
+            configText.AppendLine("profile_name=encode");
+            configText.AppendLine("chain_1_min_resolution=0x0");
+            configText.AppendLine("chain_1_max_resolution=0x0");
+            configText.AppendLine("chain_1_min_fps=0");
+            configText.AppendLine("chain_1_max_fps=0");
 
             for (var i = 0; i < CurrentWorkflow.UpscaleSettings.Count; i++)
             {
+                // aji resolves models by bare name against --model-dir, so copy the selected onnx in.
+                Directory.CreateDirectory(_pythonService.ModelsDirectory);
                 var targetCopyPath = Path.Combine(_pythonService.ModelsDirectory, Path.GetFileName(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath));
 
                 if (Path.GetFullPath(targetCopyPath) != Path.GetFullPath(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath))
@@ -547,36 +579,25 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             var rife = CurrentWorkflow.EnableRife ? "yes" : "no";
             var ensemble = CurrentWorkflow.RifeEnsemble ? "yes" : "no";
             configText.AppendLine($"chain_1_rife={rife}");
+            configText.AppendLine($"chain_1_rife_model={RifeLabelToValue(CurrentWorkflow.RifeModel)}");
             configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_factor_numerator={CurrentWorkflow.RifeFactorNumerator}"));
             configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_factor_denominator={CurrentWorkflow.RifeFactorDenominator}"));
-            configText.AppendLine($"chain_1_rife_model={RifeLabelToValue(CurrentWorkflow.RifeModel)}");
-            configText.AppendLine($"chain_1_rife_ensemble={ensemble}");
             configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_scene_detect_threshold={CurrentWorkflow.RifeSceneDetectThreshold}"));
-            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_final_resize_height={CurrentWorkflow.FinalResizeHeight}"));
-            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_final_resize_factor={CurrentWorkflow.FinalResizeFactor}"));
-            configText.AppendLine($"chain_1_tensorrt_engine_settings={(CurrentWorkflow.TensorRtEngineSettingsAuto ? "" : CurrentWorkflow.TensorRtEngineSettings)}");
+            configText.AppendLine($"chain_1_rife_ensemble={ensemble}");
 
-            File.WriteAllText(confPath, configText.ToString());
+            Directory.CreateDirectory(_pythonService.AnimeJaNaiDirectory);
+            File.WriteAllText(_pythonService.ConfPath, configText.ToString());
         }
 
         public async Task CheckEngines(string inputFilePath)
         {
+            // TensorRT builds/caches engines on first use; DirectML needs no prebuild.
             if (!CurrentWorkflow.TensorRtSelected)
             {
                 return;
             }
 
-            for (var i = 0; i < CurrentWorkflow.UpscaleSettings.Count; i++)
-            {
-                // TODO testing
-                //var enginePath = @$".\mpv-upscale-2x_animejanai\animejanai\onnx\{Path.GetFileNameWithoutExtension(UpscaleSettings[i].OnnxModelPath)}.engine";
-
-                //if (!File.Exists(enginePath))
-                //{
-                await GenerateEngine(inputFilePath);
-                //}
-            }
-
+            await GenerateEngine(inputFilePath);
         }
 
         public async Task RunUpscale()
@@ -666,31 +687,101 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
-            var cmd = $@"{Path.GetRelativePath(_pythonService.BackendDirectory, _pythonService.VspipePath)} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" ""{Path.GetFullPath("./backend/animejanai/core/animejanai_encode.vpy")}"" - | ""{_pythonService.FfmpegPath}"" {_overwriteCommand} -i pipe: -i ""{inputFilePath}"" -map 0:v -c:v {CurrentWorkflow.FfmpegVideoSettings} -max_interleave_delta 0 -map 1:t? -map 1:a?  -map 1:s? -c:t copy -c:a copy -c:s copy ""{outputFilePath}""";
-            ConsoleQueueEnqueue($"Upscaling with command: {cmd}");
-            await RunCommand($@" /C {cmd}");
+            var args = BuildAjiEncodeArgs(inputFilePath, outputFilePath, buildOnly: false);
+            ConsoleQueueEnqueue($"Upscaling with command: {_pythonService.AjiEncodePath} {args}");
+            await RunAjiEncode(args, resetProgress: true);
         }
 
         public async Task GenerateEngine(string inputFilePath)
         {
-            var cmd = $@"{Path.GetRelativePath(_pythonService.BackendDirectory, _pythonService.VspipePath)} -c y4m --arg ""slot=1"" --arg ""video_path={inputFilePath}"" --start 0 --end 1 ""{Path.GetFullPath("./backend/animejanai/core/animejanai_encode.vpy")}"" -p .";
-            ConsoleQueueEnqueue($"Generating TensorRT engine with command: {cmd}");
-            await RunCommand($@" /C {cmd}");
+            var args = BuildAjiEncodeArgs(inputFilePath, null, buildOnly: true);
+            ConsoleQueueEnqueue($"Generating TensorRT engine with command: {_pythonService.AjiEncodePath} {args}");
+            await RunAjiEncode(args, resetProgress: false);
         }
 
-        public async Task RunCommand(string command)
+        private string BuildAjiEncodeArgs(string inputFilePath, string? outputFilePath, bool buildOnly)
         {
-            // Create a new process to run the CMD command
+            var backend = CurrentWorkflow.DirectMlSelected ? "directml" : "tensorrt";
+
+            var sb = new StringBuilder();
+            sb.Append(ENGLISH_CULTURE, $"--input \"{inputFilePath}\" ");
+            sb.Append(ENGLISH_CULTURE, $"--conf \"{_pythonService.ConfPath}\" ");
+            sb.Append("--slot 1 ");
+            sb.Append(ENGLISH_CULTURE, $"--model-dir \"{_pythonService.ModelsDirectory}\" ");
+            sb.Append(ENGLISH_CULTURE, $"--rife-model-dir \"{_pythonService.RifeModelsDirectory}\" ");
+            sb.Append(ENGLISH_CULTURE, $"--trtexec \"{_pythonService.TrtexecPath}\" ");
+            sb.Append(ENGLISH_CULTURE, $"--backend {backend} ");
+
+            if (buildOnly)
+            {
+                sb.Append("--build-only ");
+            }
+            else
+            {
+                sb.Append(ENGLISH_CULTURE, $"--output \"{outputFilePath}\" ");
+
+                var (vcodec, vquality) = MapFfmpegSettings(CurrentWorkflow.FfmpegVideoSettings);
+                sb.Append(ENGLISH_CULTURE, $"--vcodec {vcodec} ");
+                if (!string.IsNullOrWhiteSpace(vquality))
+                {
+                    sb.Append(ENGLISH_CULTURE, $"--vquality \"{vquality}\" ");
+                }
+
+                sb.Append(ENGLISH_CULTURE, $"--pix-fmt {CurrentWorkflow.OutputPixFmt} ");
+
+                // final_resize has no conf field in the new engine; pass it to aji_encode directly.
+                if (CurrentWorkflow.FinalResizeHeight is int frh && frh > 0)
+                {
+                    sb.Append(ENGLISH_CULTURE, $"--final-resize-height {frh} ");
+                }
+                else if (CurrentWorkflow.FinalResizeFactor is int frf && frf > 0 && frf != 100)
+                {
+                    sb.Append(ENGLISH_CULTURE, $"--final-resize-factor {frf} ");
+                }
+
+                if (CurrentWorkflow.OverwriteExistingVideos)
+                {
+                    sb.Append("--overwrite ");
+                }
+            }
+
+            sb.Append("--progress line");
+            return sb.ToString();
+        }
+
+        // Splits a VideoJaNai ffmpeg preset ("<codec> <encoder args...>") into the aji_encode
+        // --vcodec / --vquality pair. The muxer-level option is dropped (aji_encode owns muxing).
+        private static (string vcodec, string vquality) MapFfmpegSettings(string settings)
+        {
+            var cleaned = settings.Replace("-max_interleave_delta 0", "").Trim();
+            var spaceIdx = cleaned.IndexOf(' ');
+            if (spaceIdx < 0)
+            {
+                return (cleaned, string.Empty);
+            }
+
+            return (cleaned[..spaceIdx], cleaned[(spaceIdx + 1)..].Trim());
+        }
+
+        public async Task RunAjiEncode(string arguments, bool resetProgress)
+        {
+            if (resetProgress)
+            {
+                ResetProgress();
+            }
+
             using (var process = new Process())
             {
                 _runningProcess = process;
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = command;
+                process.StartInfo.FileName = _pythonService.AjiEncodePath;
+                process.StartInfo.Arguments = arguments;
                 process.StartInfo.RedirectStandardOutput = true;
                 process.StartInfo.RedirectStandardError = true;
                 process.StartInfo.UseShellExecute = false;
                 process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.WorkingDirectory = _pythonService.BackendDirectory;
+                process.StartInfo.WorkingDirectory = _pythonService.InferenceDirectory;
+                process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+                process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
 
                 // Create a StreamWriter to write the output to a log file
                 using (var outputFile = new StreamWriter("error.log", append: true))
@@ -710,7 +801,12 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                         {
                             outputFile.WriteLine(e.Data); // Write the output to the log file
 
-                            ConsoleQueueEnqueue(e.Data);
+                            // aji_encode emits machine-readable "PROGRESS ..." lines on stdout;
+                            // route those to the progress bar instead of the console.
+                            if (!TryHandleProgressLine(e.Data))
+                            {
+                                ConsoleQueueEnqueue(e.Data);
+                            }
                         }
                     };
 
@@ -721,6 +817,48 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 }
                 ChildProcessTracker.AddProcess(process);
             }
+        }
+
+        private bool TryHandleProgressLine(string line)
+        {
+            if (!line.StartsWith("PROGRESS", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var phaseMatch = Regex.Match(line, @"phase=(\w+)");
+            if (phaseMatch.Success)
+            {
+                ProgressPhase = phaseMatch.Groups[1].Value;
+            }
+
+            var pctMatch = Regex.Match(line, @"pct=([0-9]+(?:\.[0-9]+)?)");
+            if (pctMatch.Success && double.TryParse(pctMatch.Groups[1].Value, NumberStyles.Float, ENGLISH_CULTURE, out var pct))
+            {
+                ProgressValue = pct;
+
+                if (pct is > 0 and < 100)
+                {
+                    _etaCalculator.Update((float)(pct / 100.0));
+                    ProgressText = _etaCalculator.ETAIsAvailable
+                        ? string.Create(ENGLISH_CULTURE, $"{pct:0.0}% - ETA {_etaCalculator.ETR:hh\\:mm\\:ss}")
+                        : string.Create(ENGLISH_CULTURE, $"{pct:0.0}%");
+                }
+                else
+                {
+                    ProgressText = string.Create(ENGLISH_CULTURE, $"{pct:0.0}%");
+                }
+            }
+
+            return true;
+        }
+
+        private void ResetProgress()
+        {
+            _etaCalculator.Reset();
+            ProgressValue = 0;
+            ProgressText = string.Empty;
+            ProgressPhase = string.Empty;
         }
 
         private void ConsoleQueueClear()
@@ -804,586 +942,131 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         public async Task CheckAndExtractBackend()
         {
+            // Components are installed by the Inno setup's component page. On launch, just verify the
+            // engine is present; if not (skipped/offline at install) and we're installed, run the
+            // updater's --auto to fetch the GPU-matched components, with progress on the setup overlay.
+            if (_pythonService.IsInferenceInstalled() || !_updateManagerService.IsInstalled)
+            {
+                return;
+            }
+
             await Task.Run(async () =>
             {
-                var failureMsg = "Backend setup failed. Try reinstalling Python environment or report the issue on GitHub if it persists.";
                 BackendSetupSubStatusQueueClear();
                 IsExtractingBackend = true;
-
-                if (!_pythonService.IsPythonInstalled())
+                BackendSetupMainStatus = "Installing components for your hardware...";
+                try
                 {
-                    try
+                    var rc = await _updateManagerService.RunUpdaterStreamingAsync("--auto", BackendSetupSubStatusQueueEnqueue);
+                    if (rc != 0)
                     {
-                        // 1. Install embedded Python + portable VS
-                        await InstallPortableVapourSynth();
-
-                        // 2. Python dependencies
-                        await RunInstallCommand(_pythonService.InstallUpdatePythonDependenciesCommand);
-
-                        // 3. VapourSynth plugins
-                        await RunInstallCommand(_pythonService.InstallVapourSynthPluginsCommand);
-                        await InstallVapourSynthMiscFilters();
-                        await InstallVapourSynthAkarin();
-
-                        // 4. vs-mlrt
-                        await InstallVsmlrt();
-
-                        // 5. RIFE models
-                        await InstallRife();
-
-                        CleanupInstall();
-                    }
-                    catch (Exception ex)
-                    {
-                        BackendSetupSubStatusQueueEnqueue(ex.Message);
-                        if (ex.StackTrace != null)
-                        {
-                            BackendSetupSubStatusQueueEnqueue(ex.StackTrace);
-                        }
                         ExtractingBackendFailed = true;
-                        BackendSetupMainStatus = failureMsg;
+                        BackendSetupMainStatus = "Component setup failed. You can retry from App Settings.";
                         return;
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    if (Program.WasFirstRun)
-                    {
-                        try
-                        {
-                            var installedVsmlrtVersion = new Version(await RunVsmlrtVersion());
-
-                            if (installedVsmlrtVersion.CompareTo(_pythonService.VsmlrtMinVersion) < 0)
-                            {
-                                Directory.Delete(_pythonService.PythonDirectory, true);
-                                await CheckAndExtractBackend();
-                                return;
-                            }
-                        }
-                        catch (Exception) { }
-                    }
+                    BackendSetupSubStatusQueueEnqueue(ex.Message);
+                    ExtractingBackendFailed = true;
+                    BackendSetupMainStatus = "Component setup failed. You can retry from App Settings.";
+                    return;
                 }
-
-                if (!_pythonService.AreModelsInstalled())
-                {
-                    try
-                    {
-                        await InstallModels();
-                    }
-                    catch (Exception ex)
-                    {
-                        BackendSetupSubStatusQueueEnqueue(ex.Message);
-                        if (ex.StackTrace != null)
-                        {
-                            BackendSetupSubStatusQueueEnqueue(ex.StackTrace);
-                        }
-                        ExtractingBackendFailed = true;
-                        BackendSetupMainStatus = failureMsg;
-                        return;
-                    }
-                }
-
-                if (!_pythonService.IsFfmpegInstalled())
-                {
-                    try
-                    {
-                        await InstallFfmpeg();
-                    }
-                    catch (Exception ex)
-                    {
-                        BackendSetupSubStatusQueueEnqueue(ex.Message);
-                        if (ex.StackTrace != null)
-                        {
-                            BackendSetupSubStatusQueueEnqueue(ex.StackTrace);
-                        }
-                        ExtractingBackendFailed = true;
-                        BackendSetupMainStatus = failureMsg;
-                        return;
-                    }
-                }
-
                 IsExtractingBackend = false;
             });
         }
 
-        public async Task PopulatePythonPipList()
-        {
-            RunningPython = true;
-            try
-            {
-                var pipList = await RunPythonPipList();
-                PythonPipList = $"Python Packages:\n{pipList}";
-                //var vsrepos = await RunVsrepoInstalled(); // too slow
-                var vsmlrtVer = await RunVsmlrtVersion();
-                PythonPipList = $"Python Packages:\n{pipList}\n\nvsmlrt.py Version:\n{vsmlrtVer}";
-            }
-            catch (Exception) { }
-            RunningPython = false;
-        }
-
         public async Task ReinstallBackend()
         {
-            if (Directory.Exists(_pythonService.FfmpegDirectory))
+            // Re-fetch the GPU-matched components via the updater (--auto).
+            ComponentsBusy = true;
+            ComponentStatusText = "Reinstalling components...";
+            try
             {
-                Directory.Delete(_pythonService.FfmpegDirectory, true);
+                await _updateManagerService.RunUpdaterStreamingAsync("--auto", line => ComponentStatusText = line);
             }
+            catch (Exception ex) { ComponentStatusText = ex.Message; }
+            ComponentsBusy = false;
+            await RefreshComponents();
+        }
 
-            if (Directory.Exists(_pythonService.PythonDirectory))
+        public async Task RefreshComponents()
+        {
+            try
             {
-                Directory.Delete(_pythonService.PythonDirectory, true);
-            }
-
-            await CheckAndExtractBackend();
-        }
-
-        public async Task<string> RunVsmlrtVersion()
-        {
-            return await RunPythonGetOutput(@$"""{Path.Combine(_pythonService.AnimeJaNaiDirectory, "core", "vsmlrt_version.py")}""");
-        }
-
-        public async Task<string> RunVsrepoInstalled()
-        {
-            return await RunPythonGetOutput(@".\vsrepo.py -p installed");
-        }
-
-        public async Task<string> RunPythonPipList()
-        {
-            return await RunPythonGetOutput("-m pip list");
-        }
-
-        public async Task<string> RunPythonGetOutput(string args)
-        {
-            List<string> result = [];
-
-            // Create a new process to run the CMD command
-            using (var process = new Process())
-            {
-                _runningProcess = process;
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = @$"/C .\python.exe {args}";
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.WorkingDirectory = _pythonService.PythonDirectory;
-                process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-                process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
-
-                // Create a StreamWriter to write the output to a log file
-                try
+                var json = await _updateManagerService.GetComponentsJsonAsync();
+                if (string.IsNullOrWhiteSpace(json))
                 {
-                    process.ErrorDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            Debug.WriteLine(e.Data);
-                        }
-                    };
-
-                    process.OutputDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            result.Add(e.Data);
-                            Debug.WriteLine(e.Data);
-                        }
-                    };
-
-                    process.Start();
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine();
-                    await process.WaitForExitAsync();
+                    return;
                 }
-                catch (IOException) { }
-            }
+                var root = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var gpu = root["gpu"];
+                bool nvidia = (bool?)gpu?["nvidia"] ?? false;
+                var gpuName = (string?)gpu?["name"] ?? "";
+                var sm = (string?)gpu?["sm"] ?? "";
+                GpuStatusText = nvidia
+                    ? $"{gpuName} ({sm})"
+                    : "No NVIDIA GPU detected — offline upscaling currently requires an NVIDIA GPU.";
 
-            return string.Join("\n", result);
+                var items = new AvaloniaList<ComponentItem>();
+                foreach (var p in (Newtonsoft.Json.Linq.JArray?)root["packs"] ?? new Newtonsoft.Json.Linq.JArray())
+                {
+                    items.Add(new ComponentItem(
+                        (string?)p["name"] ?? "",
+                        (long?)p["bytes"] ?? 0,
+                        (bool?)p["installed"] ?? false,
+                        (bool?)p["recommended"] ?? false));
+                }
+                Components = items;
+            }
+            catch (Exception ex)
+            {
+                ComponentStatusText = $"Could not read components: {ex.Message}";
+            }
         }
 
-        private async Task InstallPortableVapourSynth()
+        public async Task InstallComponent(ComponentItem item)
         {
-            // Download Python Installer
-            BackendSetupMainStatus = "Downloading Portable VapourSynth Installer...";
-            var downloadUrl = $"https://github.com/vapoursynth/vapoursynth/releases/download/R70/Install-Portable-VapourSynth-R70.ps1";
-            var targetPath = Path.Join(_pythonService.BackendDirectory, "installvs.ps1");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            if (item is null || ComponentsBusy)
             {
-                BackendSetupMainStatus = $"Downloading Portable VapourSynth Installer ({progress}%)...";
-            });
-
-            // Install Python 
-            BackendSetupMainStatus = "Installing Embedded Python with Portable VapourSynth...";
-
-            using (PowerShell powerShell = PowerShell.Create())
-            {
-                powerShell.AddScript("Set-ExecutionPolicy RemoteSigned -Scope Process -Force");
-                powerShell.AddScript("Import-Module Microsoft.PowerShell.Archive");
-
-                var scriptContents = File.ReadAllText(targetPath);
-
-                powerShell.AddScript(scriptContents);
-                powerShell.AddParameter("Unattended");
-                powerShell.AddParameter("TargetFolder", _pythonService.PythonDirectory);
-
-                if (Directory.Exists(_pythonService.PythonDirectory))
-                {
-                    Directory.Delete(_pythonService.PythonDirectory, true);
-                }
-
-                PSDataCollection<PSObject> outputCollection = [];
-                outputCollection.DataAdded += (sender, e) =>
-                {
-                    BackendSetupSubStatusQueueEnqueue(outputCollection[e.Index].ToString());
-                };
-
-                try
-                {
-                    IAsyncResult asyncResult = powerShell.BeginInvoke<PSObject, PSObject>(null, outputCollection);
-                    powerShell.EndInvoke(asyncResult);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"An error occurred: {ex.Message}");
-                }
-
-                if (powerShell.Streams.Error.Count > 0)
-                {
-                    foreach (var error in powerShell.Streams.Error)
-                    {
-                        Debug.WriteLine($"Error: {error}");
-                    }
-                }
-            }
-
-            File.Delete(targetPath);
-        }
-
-        private async Task InstallVapourSynthMiscFilters()
-        {
-            BackendSetupMainStatus = "Downloading VapourSynth Misc Filters...";
-            var downloadUrl = "https://github.com/vapoursynth/vs-miscfilters-obsolete/releases/download/R2/miscfilters-r2.7z";
-            var targetPath = Path.Join(_pythonService.BackendDirectory, "miscfilters.7z");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
-            {
-                BackendSetupMainStatus = $"Downloading VapourSynth Misc Filters ({progress}%)...";
-            });
-
-            BackendSetupMainStatus = "Extracting VapourSynth Misc Filters...";
-            var targetExtractPath = Path.Combine(_pythonService.VapourSynthPluginsPath, "temp");
-            Directory.CreateDirectory(targetExtractPath);
-
-            using (ArchiveFile archiveFile = new(targetPath))
-            {
-                archiveFile.Extract(targetExtractPath);
-
-                File.Copy(
-                    Path.Combine(targetExtractPath, "win64", "MiscFilters.dll"),
-                    Path.Combine(_pythonService.VapourSynthPluginsPath, "MiscFilters.dll")
-                );
-            }
-            Directory.Delete(targetExtractPath, true);
-            File.Delete(targetPath);
-        }
-
-        async Task InstallVapourSynthAkarin()
-        {
-            Console.WriteLine("Downloading VapourSynth Akarin...");
-            var downloadUrl = "https://github.com/AkarinVS/vapoursynth-plugin/releases/download/v0.96/akarin-release-lexpr-amd64-v0.96g3.7z";
-            var targetPath = Path.GetFullPath("akarin.7z");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
-            {
-                Console.WriteLine($"Downloading VapourSynth Akarin ({progress}%)...");
-            });
-
-            Console.WriteLine("Extracting VapourSynth Akarin...");
-            var targetExtractPath = _pythonService.VapourSynthPluginsPath;
-            Directory.CreateDirectory(targetExtractPath);
-
-            using (ArchiveFile archiveFile = new(targetPath))
-            {
-                archiveFile.Extract(targetExtractPath);
-            }
-            File.Delete(targetPath);
-        }
-
-        private async Task InstallVsmlrt()
-        {
-            Console.WriteLine("Downloading vs-mlrt...");
-            var baseDownloadUrl = "https://github.com/AmusementClub/vs-mlrt/releases/download/v15.9/";
-            var fileNames = new[] { "vsmlrt-windows-x64-cuda.v15.9.7z.001", "vsmlrt-windows-x64-cuda.v15.9.7z.002" };
-            var targetPaths = fileNames.Select(f => Path.GetFullPath(f)).ToArray();
-
-            double lastProgress = -1;
-            int updateThreshold = 5;
-
-            for (int i = 0; i < fileNames.Length; i++)
-            {
-                string downloadUrl = baseDownloadUrl + fileNames[i];
-                string targetPath = targetPaths[i];
-
-                await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
-                {
-                    if (progress >= lastProgress + updateThreshold)
-                    {
-                        Console.WriteLine($"Downloading {fileNames[i]} ({progress}%)...");
-                        lastProgress = progress;
-                    }
-                });
-            }
-
-
-            Console.WriteLine("Extracting vs-mlrt (this may take several minutes)...");
-            var targetDirectory = Path.Join(_pythonService.VapourSynthPluginsPath);
-            Directory.CreateDirectory(targetDirectory);
-
-            string sevenZipPath = Path.Combine(_pythonService.PythonDirectory, "7z.exe");
-            string archivePath = targetPaths[0];
-
-            var process = new Process()
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = sevenZipPath,
-                    Arguments = $"x \"{archivePath}\" -o\"{targetDirectory}\" -y",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                }
-            };
-
-            process.Start();
-            string output = await process.StandardOutput.ReadToEndAsync();
-            string error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode != 0)
-            {
-                Console.WriteLine($"7-Zip extraction failed: {error}");
                 return;
             }
-
-            Console.WriteLine("Extraction complete.");
-            File.Move(Path.Combine(targetDirectory, "vsmlrt.py"), Path.Combine(_pythonService.PythonDirectory, "vsmlrt.py"));
-
-            foreach (var targetPath in targetPaths)
+            ComponentsBusy = true;
+            ComponentStatusText = $"Installing {item.Name}...";
+            try
             {
-                File.Delete(targetPath);
+                await _updateManagerService.RunUpdaterStreamingAsync($"--install {item.Name}", line => ComponentStatusText = line);
             }
+            catch (Exception ex) { ComponentStatusText = ex.Message; }
+            ComponentsBusy = false;
+            await RefreshComponents();
         }
 
-        async Task InstallRife()
+        public async Task RemoveComponent(ComponentItem item)
         {
-            List<string> models = [
-                "rife_v4.7.7z",
-                "rife_v4.8.7z",
-                "rife_v4.9.7z",
-                "rife_v4.10.7z",
-                "rife_v4.11.7z",
-                "rife_v4.12.7z",
-                "rife_v4.12_lite.7z",
-                "rife_v4.13.7z",
-                "rife_v4.13_lite.7z",
-                "rife_v4.14.7z",
-                "rife_v4.14_lite.7z",
-                "rife_v4.15.7z",
-                "rife_v4.15_lite.7z",
-                "rife_v4.16_lite.7z",
-                "rife_v4.17.7z",
-                "rife_v4.17_lite.7z",
-                "rife_v4.18.7z",
-                "rife_v4.19.7z",
-                "rife_v4.20.7z",
-                "rife_v4.21.7z",
-                "rife_v4.22.7z",
-            ];
-
-            var downloadUrlBase = "https://github.com/AmusementClub/vs-mlrt/releases/download/external-models/";
-
-            foreach (var model in models)
+            if (item is null || ComponentsBusy)
             {
-                var downloadUrl = downloadUrlBase + model;
-                var targetPath = Path.GetFullPath(model);
-                await Downloader.DownloadFileAsync(downloadUrl, targetPath, _ => { });
-
-                using (ArchiveFile archiveFile = new(targetPath))
-                {
-                    Directory.CreateDirectory(_pythonService.VsmlrtModelsPath);
-                    archiveFile.Extract(_pythonService.VsmlrtModelsPath);
-                    var onnxFiles = Directory.GetFiles(Path.Combine(_pythonService.VsmlrtModelsPath, "rife"));
-                }
-
-                File.Delete(targetPath);
+                return;
             }
-        }
-
-        private async Task InstallFfmpeg()
-        {
-            BackendSetupMainStatus = "Downloading ffmpeg...";
-            var downloadUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z";
-            var targetPath = Path.Join(_pythonService.BackendDirectory, "ffmpeg.7z");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            ComponentsBusy = true;
+            ComponentStatusText = $"Removing {item.Name}...";
+            try
             {
-                BackendSetupMainStatus = $"Downloading ffmpeg ({progress}%)...";
-            });
-
-            BackendSetupMainStatus = "Extracting ffmpeg...";
-            using (ArchiveFile ffmpegArchive = new(targetPath))
-            {
-                ffmpegArchive.Extract(_pythonService.FfmpegDirectory);
+                await _updateManagerService.RunUpdaterStreamingAsync($"--remove {item.Name}", line => ComponentStatusText = line);
             }
-
-            var directories = Directory.GetDirectories(_pythonService.FfmpegDirectory);
-
-            if (directories.Length > 0)
-            {
-                var files = Directory.GetFiles(Path.Combine(directories.First(), "bin"));
-
-                foreach (string file in files)
-                {
-                    string fileName = Path.GetFileName(file);
-                    string destinationPath = Path.Combine(_pythonService.FfmpegDirectory, fileName);
-                    File.Move(file, destinationPath);
-                }
-                try
-                {
-                    Directory.Delete(directories.First(), true);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex);
-                }
-            }
-            File.Delete(targetPath);
-        }
-
-        private void CleanupInstall()
-        {
-            List<string> dirs = ["doc", "vs-temp-dl", "Scripts", "sdk", "wheel"];
-
-            foreach (var dir in dirs)
-            {
-                var targetDir = Path.Combine(_pythonService.BackendDirectory, dir);
-                if (Directory.Exists(targetDir))
-                {
-                    Directory.Delete(targetDir, true);
-                }
-            }
-
-            foreach (var dir in Directory.GetDirectories(_pythonService.VsmlrtModelsPath))
-            {
-                if (Path.GetFileName(dir) != "rife")
-                {
-                    Directory.Delete(dir, true);
-                }
-            }
-        }
-
-        public async Task<string[]> RunInstallCommand(string cmd)
-        {
-            Debug.WriteLine(cmd);
-
-            // Create a new process to run the CMD command
-            using (var process = new Process())
-            {
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = @$"/C {cmd}";
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-                process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
-                process.StartInfo.WorkingDirectory = _pythonService.PythonDirectory;
-
-                var result = string.Empty;
-
-                // Create a StreamWriter to write the output to a log file
-                try
-                {
-                    //using var outputFile = new StreamWriter("error.log", append: true);
-                    process.ErrorDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            //Debug.WriteLine($"STDERR = {e.Data}");
-                            BackendSetupSubStatusQueueEnqueue(e.Data);
-                        }
-                    };
-
-                    process.OutputDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            result = e.Data;
-                            //Debug.WriteLine($"STDOUT = {e.Data}");
-                            BackendSetupSubStatusQueueEnqueue(e.Data);
-                        }
-                    };
-
-                    process.Start();
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine(); // Start asynchronous reading of the output
-                    await process.WaitForExitAsync();
-                }
-                catch (IOException) { }
-            }
-
-            return [];
-        }
-
-        private async Task InstallModels()
-        {
-            // 6. Download ONNX models
-            var downloadUrl = "https://github.com/the-database/mpv-upscale-2x_animejanai/releases/download/3.0.0/2x_AnimeJaNai_HD_V3_ModelsOnly.zip";
-            Directory.CreateDirectory(_pythonService.ModelsDirectory);
-            var targetPath = Path.Join(_pythonService.ModelsDirectory, "models.zip");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
-            {
-                BackendSetupMainStatus = $"Downloading AnimeJaNai models ({progress}%)...";
-            });
-
-            BackendSetupMainStatus = "Extracting AnimeJaNai models...";
-            _pythonService.ExtractZip(targetPath, _pythonService.ModelsDirectory, (double progress) =>
-            {
-                BackendSetupMainStatus = $"Extracting AnimeJaNai models ({progress}%)...";
-            });
-
-            var directories = Directory.GetDirectories(_pythonService.ModelsDirectory);
-            if (directories.Length > 0)
-            {
-                var files = Directory.GetFiles(directories.First(), "*.onnx");
-
-                foreach (string file in files)
-                {
-                    string fileName = Path.GetFileName(file);
-                    string destinationPath = Path.Combine(_pythonService.ModelsDirectory, fileName);
-                    File.Move(file, destinationPath);
-                }
-
-                Directory.Delete(directories.First(), true);
-            }
-
-            File.Delete(targetPath);
+            catch (Exception ex) { ComponentStatusText = ex.Message; }
+            ComponentsBusy = false;
+            await RefreshComponents();
         }
 
         public async Task CheckForUpdates()
         {
             try
             {
-                if (IsInstalled)
+                if (_updateManagerService.IsInstalled)
                 {
-                    await Task.Run(async () =>
-                    {
-                        _update = await _um.CheckForUpdatesAsync().ConfigureAwait(true);
-                    });
-
+                    _availableUpdateVersion = await _updateManagerService.CheckForUpdateAsync().ConfigureAwait(true);
                     UpdateStatus();
-
-                    if (AutoUpdateEnabled)
-                    {
-                        await DownloadUpdate();
-                    }
                 }
             }
             catch (Exception ex)
@@ -1392,65 +1075,53 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
         }
 
-        public async Task DownloadUpdate()
-        {
-            try
-            {
-                if (_update != null)
-                {
-                    ShowDownloadButton = false;
-                    await _um.DownloadUpdatesAsync(_update, Progress).ConfigureAwait(true);
-                    UpdateStatus();
-                }
-            }
-            catch
-            {
-
-            }
-        }
-
+        // The bundled updater downloads + applies (overlay-vs-full) in one step, then relaunches,
+        // so there's no separate in-app download. Launch it and exit so it can replace files.
         public void ApplyUpdate()
         {
-            if (_update != null)
-            {
-                ShowApplyButton = false;
-                _um.ApplyUpdatesAndRestart(_update);
-            }
+            ShowApplyButton = false;
+            UpdateStatusText = "Updating and restarting...";
+            _updateManagerService.ApplyUpdateAndRestart();
+            Environment.Exit(0);
         }
 
         private void UpdateStatus()
         {
-            ShowDownloadButton = false;
-            ShowApplyButton = false;
-            ShowCheckUpdateButton = true;
-
-            if (_update != null)
+            if (!string.IsNullOrEmpty(_availableUpdateVersion))
             {
-                UpdateStatusText = $"Update is available: {_update.TargetFullRelease.Version}";
-                ShowDownloadButton = true;
+                UpdateStatusText = $"Update available: {_availableUpdateVersion}";
+                ShowApplyButton = true;
                 ShowCheckUpdateButton = false;
-
-                if (_um.IsUpdatePendingRestart)
-                {
-                    UpdateStatusText = $"Update ready, pending restart to install version: {_update.TargetFullRelease.Version}";
-                    ShowDownloadButton = false;
-                    ShowApplyButton = true;
-                    ShowCheckUpdateButton = false;
-                }
-                else
-                {
-                }
             }
             else
             {
                 UpdateStatusText = "No updates found";
+                ShowApplyButton = false;
+                ShowCheckUpdateButton = true;
             }
         }
+    }
 
-        private void Progress(int percent)
+    // A downloadable runtime component pack, surfaced in the App Settings component manager.
+    public class ComponentItem
+    {
+        public ComponentItem(string name, long bytes, bool installed, bool recommended)
         {
-            UpdateStatusText = $"Downloading update {_update?.TargetFullRelease.Version} ({percent}%)...";
+            Name = name;
+            Bytes = bytes;
+            Installed = installed;
+            Recommended = recommended;
         }
+
+        public string Name { get; }
+        public long Bytes { get; }
+        public bool Installed { get; }
+        public bool Recommended { get; }
+
+        public string SizeText => $"{Bytes / 1048576} MB";
+        public string StateText => Installed ? "installed" : Recommended ? "recommended" : "available";
+        public bool CanInstall => !Installed;
+        public bool CanRemove => Installed;
     }
 
     [DataContract]
@@ -1604,16 +1275,34 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
         }
 
+        // Output pixel format -> aji_encode --pix-fmt (chroma + bit depth), decoupled from source.
+        public bool OutputPixFmt420P8Selected => OutputPixFmt == "yuv420p";
+        public bool OutputPixFmt420P10Selected => OutputPixFmt == "yuv420p10";
+        public bool OutputPixFmt444P8Selected => OutputPixFmt == "yuv444p";
+        public bool OutputPixFmt444P10Selected => OutputPixFmt == "yuv444p10";
+        public bool OutputIs444 => OutputPixFmt.StartsWith("yuv444", StringComparison.Ordinal);
+
+        private string _outputPixFmt = "yuv420p10";
+        [DataMember]
+        public string OutputPixFmt
+        {
+            get => _outputPixFmt;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _outputPixFmt, value);
+                this.RaisePropertyChanged(nameof(OutputPixFmt420P8Selected));
+                this.RaisePropertyChanged(nameof(OutputPixFmt420P10Selected));
+                this.RaisePropertyChanged(nameof(OutputPixFmt444P8Selected));
+                this.RaisePropertyChanged(nameof(OutputPixFmt444P10Selected));
+            }
+        }
+
         private bool _tensorRtSelected = true;
         [DataMember]
         public bool TensorRtSelected
         {
             get => _tensorRtSelected;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
-                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
-            }
+            set => this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
         }
 
         private bool _directMlSelected = false;
@@ -1621,52 +1310,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public bool DirectMlSelected
         {
             get => _directMlSelected;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _directMlSelected, value);
-                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
-            }
-        }
-
-        private bool _ncnnSelected = false;
-        [DataMember]
-        public bool NcnnSelected
-        {
-            get => _ncnnSelected;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _ncnnSelected, value);
-                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
-            }
-        }
-
-        public bool TensorRtEngineDynamicSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtDynamicEngine;
-        public bool TensorRtEngineStaticSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticEngine;
-        public bool TensorRtEngineStaticOnnxSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticOnnx;
-        public bool TensorRtEngineStaticBf16Selected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticBf16Engine;
-
-        private bool _tensorRtEngineSettingsAuto = true;
-        [DataMember]
-        public bool TensorRtEngineSettingsAuto
-        {
-            get => _tensorRtEngineSettingsAuto;
-            set => this.RaiseAndSetIfChanged(ref _tensorRtEngineSettingsAuto, value);
-        }
-
-
-        private string _tensorRtEngineSettings = MainWindowViewModel._tensorRtDynamicEngine;
-        [DataMember]
-        public string TensorRtEngineSettings
-        {
-            get => _tensorRtEngineSettings;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _tensorRtEngineSettings, value);
-                this.RaisePropertyChanged(nameof(TensorRtEngineDynamicSelected));
-                this.RaisePropertyChanged(nameof(TensorRtEngineStaticSelected));
-                this.RaisePropertyChanged(nameof(TensorRtEngineStaticOnnxSelected));
-                this.RaisePropertyChanged(nameof(TensorRtEngineStaticBf16Selected));
-            }
+            set => this.RaiseAndSetIfChanged(ref _directMlSelected, value);
         }
 
         private int? _finalResizeHeight = 0;
@@ -1799,14 +1443,8 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public bool ShowAdvancedSettings
         {
             get => _showAdvancedSettings;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value);
-                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
-            }
+            set => this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value);
         }
-
-        public bool ShowTensorRtEngineSettings => ShowAdvancedSettings && TensorRtSelected;
 
         public void AddModel()
         {
@@ -1839,72 +1477,42 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public void SetFfmpegX265()
         {
             FfmpegVideoSettings = MainWindowViewModel._ffmpegX265;
+            Validate();
         }
 
         public void SetFfmpegX264()
         {
             FfmpegVideoSettings = MainWindowViewModel._ffmpegX264;
+            Validate();
         }
 
         public void SetFfmpegHevcNvenc()
         {
             FfmpegVideoSettings = MainWindowViewModel._ffmpegHevcNvenc;
+            Validate();
         }
 
         public void SetFfmpegLossless()
         {
             FfmpegVideoSettings = MainWindowViewModel._ffmpegLossless;
+            Validate();
         }
+
+        public void SetOutputPixFmt420P8() { OutputPixFmt = "yuv420p"; Validate(); }
+        public void SetOutputPixFmt420P10() { OutputPixFmt = "yuv420p10"; Validate(); }
+        public void SetOutputPixFmt444P8() { OutputPixFmt = "yuv444p"; Validate(); }
+        public void SetOutputPixFmt444P10() { OutputPixFmt = "yuv444p10"; Validate(); }
 
         public void SetTensorRtSelected()
         {
             TensorRtSelected = true;
             DirectMlSelected = false;
-            NcnnSelected = false;
         }
 
         public void SetDirectMlSelected()
         {
             DirectMlSelected = true;
             TensorRtSelected = false;
-            NcnnSelected = false;
-        }
-
-        public void SetNcnnSelected()
-        {
-            NcnnSelected = true;
-            TensorRtSelected = false;
-            DirectMlSelected = false;
-        }
-
-        public void SetDynamicEngine()
-        {
-            TensorRtEngineSettings = MainWindowViewModel._tensorRtDynamicEngine;
-        }
-
-        public void SetStaticEngine()
-        {
-            TensorRtEngineSettings = MainWindowViewModel._tensorRtStaticEngine;
-        }
-
-        public void SetStaticOnnx()
-        {
-            TensorRtEngineSettings = MainWindowViewModel._tensorRtStaticOnnx;
-        }
-
-        public void SetStaticBf16Engine()
-        {
-            TensorRtEngineSettings = MainWindowViewModel._tensorRtStaticBf16Engine;
-        }
-
-        public void SetTensorRtEngineSettingsAutoYes()
-        {
-            TensorRtEngineSettingsAuto = true;
-        }
-
-        public void SetTensorRtEngineSettingsAutoNo()
-        {
-            TensorRtEngineSettingsAuto = false;
         }
 
         public void Validate()
@@ -1947,6 +1555,12 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     valid = false;
                     validationText.Add("ONNX Model Path is required.");
                 }
+            }
+
+            if (OutputIs444 && FfmpegHevcNvencSelected)
+            {
+                valid = false;
+                validationText.Add("4:4:4 output requires a software encoder (x265 / x264 / Lossless); NVENC HEVC does not support 4:4:4.");
             }
 
             Valid = valid;

@@ -50,16 +50,12 @@
          Splat.Autofac 20.0.0 pulls Splat.Core 20.0.0, which is binary-incompatible with Splat 19.4.1 and crashes at startup. -->
     <PackageReference Include="Splat.Autofac" Version="19.4.1" />
     <PackageReference Include="System.Management.Automation" Version="7.6.2" />
-    <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>
 
 
   <ItemGroup>
     <None Update="appstate2.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="backend\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
