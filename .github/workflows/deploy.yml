@@ -1,28 +1,84 @@
-name: Deploy to GitHub Releases
+name: Deploy
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version number for the release'
+      release_version:
+        description: 'Release version (used as the git tag and the package version)'
         required: true
-        default: ''
 
+# Builds the Inno-installer distribution and publishes a draft GitHub release:
+#   - VideoJaNai-Setup-<ver>.exe         per-user, GPU-aware setup installer (wraps the slim core)
+#   - VideoJaNai-full-package-<ver>.7z.* the slim core, split volumes (the updater's full update)
+#   - manifest.json                      standalone, so the updater can compare deps before download
+#   - component-*.7z + packs.json        on-demand GPU/RIFE component packs (updater / in-app manager)
+# Heavy GPU-specific pieces (TensorRT runtime, per-GPU builder kernels, RIFE models) are NOT in the
+# core or the installer; they download post-install via VideoJaNaiUpdater, keeping the base small.
 jobs:
-  deploy-to-github-releases:
+  deploy:
     runs-on: windows-latest
+
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Install .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-      - name: Publish Application
-        run: dotnet publish VideoJaNai/VideoJaNai.csproj -c Release -o publish -r win-x64
-      - name: Create Velopack Release
-        run: |
-          dotnet tool install -g vpk --prerelease
-          vpk download github --repoUrl https://github.com/the-database/VideoJaNai
-          vpk pack -u VideoJaNai -v ${{ github.event.inputs.version }} -p publish  -i ./VideoJaNai/assets/logo.ico -e VideoJaNai.exe
-          vpk upload github --repoUrl https://github.com/the-database/VideoJaNai --releaseName "${{ github.event.inputs.version }}" --tag ${{ github.event.inputs.version }} --token ${{ secrets.GITHUB_TOKEN }}
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.x'  # Must match <TargetFramework> across the projects
+
+    # The package builder runs on the CI runner, so framework-dependent is fine.
+    - name: Publish package builder
+      run: dotnet publish BuildVideoJaNai/BuildVideoJaNai.csproj -c Release -o publish
+
+    # The VideoJaNai app, self-contained win-x64: it forms the install root and must run on user
+    # machines without a separately-installed .NET runtime.
+    - name: Publish VideoJaNai app
+      run: dotnet publish VideoJaNai/VideoJaNai.csproj -c Release -r win-x64 --self-contained -o app-publish
+
+    # Single-file self-contained updater (SelfContained / RuntimeIdentifier / PublishSingleFile are
+    # set in its csproj).
+    - name: Publish updater
+      run: dotnet publish VideoJaNaiUpdater/VideoJaNaiUpdater.csproj -c Release -o updater-publish
+
+    # Assemble the slim core (downloads aji / TensorRT runtime / ffmpeg shared / RIFE / ONNX models,
+    # folds in the published app + updater) and, with --packs, carves the heavy GPU-specific pieces
+    # into publish/packs-v<ver>/component-*.7z + packs.json, then slims them out of the core.
+    - name: Assemble package
+      run: ./publish/BuildVideoJaNai.exe ${{ github.event.inputs.release_version }} --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater.exe --packs
+
+    - name: Install 7zip
+      run: choco install 7zip -y
+
+    # Per-user, GPU-aware setup installer wrapping the slim core. Components install on demand
+    # post-install via the updater, so the installer itself stays small.
+    - name: Build setup installer
+      shell: pwsh
+      run: |
+        choco install innosetup -y
+        $ver = "${{ github.event.inputs.release_version }}"
+        & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+          "/DAppVersion=$ver" `
+          "/DSourceDir=$(Resolve-Path "publish/VideoJaNai-v$ver")" `
+          "/O$(Get-Location)" `
+          installer/videojanai.iss
+
+    # The "full package" is the slim core. Split volumes (.7z.001, ...) because the updater's
+    # --apply path discovers and downloads full-package-*.7z.NNN parts.
+    - name: Create 7zip archive of the artifact (full package)
+      run: 7z a -t7z -mx=9 -v1900m VideoJaNai-full-package-${{ github.event.inputs.release_version }}.7z ./publish/VideoJaNai-v${{ github.event.inputs.release_version }}
+
+    # manifest.json is uploaded standalone so the updater can compare heavy deps before downloading.
+    - name: Stage manifest
+      shell: pwsh
+      run: Copy-Item "publish/VideoJaNai-v${{ github.event.inputs.release_version }}/manifest.json" "manifest.json" -Force
+
+    - name: Create GitHub Release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ github.event.inputs.release_version }}
+        name: ${{ github.event.inputs.release_version }}
+        draft: true
+        prerelease: false
+        artifacts: "VideoJaNai-Setup-${{ github.event.inputs.release_version }}.exe,VideoJaNai-full-package-${{ github.event.inputs.release_version }}.7z.*,manifest.json,publish/packs-v${{ github.event.inputs.release_version }}/component-*.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs.json"
+        token: ${{ secrets.GITHUB_TOKEN }}
