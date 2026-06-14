@@ -727,6 +727,8 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     sb.Append(ENGLISH_CULTURE, $"--vquality \"{vquality}\" ");
                 }
 
+                sb.Append(ENGLISH_CULTURE, $"--pix-fmt {CurrentWorkflow.OutputPixFmt} ");
+
                 // final_resize has no conf field in the new engine; pass it to aji_encode directly.
                 if (CurrentWorkflow.FinalResizeHeight is int frh && frh > 0)
                 {
@@ -1273,6 +1275,28 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
         }
 
+        // Output pixel format -> aji_encode --pix-fmt (chroma + bit depth), decoupled from source.
+        public bool OutputPixFmt420P8Selected => OutputPixFmt == "yuv420p";
+        public bool OutputPixFmt420P10Selected => OutputPixFmt == "yuv420p10";
+        public bool OutputPixFmt444P8Selected => OutputPixFmt == "yuv444p";
+        public bool OutputPixFmt444P10Selected => OutputPixFmt == "yuv444p10";
+        public bool OutputIs444 => OutputPixFmt.StartsWith("yuv444", StringComparison.Ordinal);
+
+        private string _outputPixFmt = "yuv420p10";
+        [DataMember]
+        public string OutputPixFmt
+        {
+            get => _outputPixFmt;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _outputPixFmt, value);
+                this.RaisePropertyChanged(nameof(OutputPixFmt420P8Selected));
+                this.RaisePropertyChanged(nameof(OutputPixFmt420P10Selected));
+                this.RaisePropertyChanged(nameof(OutputPixFmt444P8Selected));
+                this.RaisePropertyChanged(nameof(OutputPixFmt444P10Selected));
+            }
+        }
+
         private bool _tensorRtSelected = true;
         [DataMember]
         public bool TensorRtSelected
@@ -1453,22 +1477,31 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public void SetFfmpegX265()
         {
             FfmpegVideoSettings = MainWindowViewModel._ffmpegX265;
+            Validate();
         }
 
         public void SetFfmpegX264()
         {
             FfmpegVideoSettings = MainWindowViewModel._ffmpegX264;
+            Validate();
         }
 
         public void SetFfmpegHevcNvenc()
         {
             FfmpegVideoSettings = MainWindowViewModel._ffmpegHevcNvenc;
+            Validate();
         }
 
         public void SetFfmpegLossless()
         {
             FfmpegVideoSettings = MainWindowViewModel._ffmpegLossless;
+            Validate();
         }
+
+        public void SetOutputPixFmt420P8() { OutputPixFmt = "yuv420p"; Validate(); }
+        public void SetOutputPixFmt420P10() { OutputPixFmt = "yuv420p10"; Validate(); }
+        public void SetOutputPixFmt444P8() { OutputPixFmt = "yuv444p"; Validate(); }
+        public void SetOutputPixFmt444P10() { OutputPixFmt = "yuv444p10"; Validate(); }
 
         public void SetTensorRtSelected()
         {
@@ -1522,6 +1555,12 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     valid = false;
                     validationText.Add("ONNX Model Path is required.");
                 }
+            }
+
+            if (OutputIs444 && FfmpegHevcNvencSelected)
+            {
+                valid = false;
+                validationText.Add("4:4:4 output requires a software encoder (x265 / x264 / Lossless); NVENC HEVC does not support 4:4:4.");
             }
 
             Valid = valid;

@@ -274,6 +274,15 @@
 <hypertext:Hyperlink FontWeight="Bold" Url="https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb" Text="x264 (CPU)" />: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionX264}" />
 <Run FontWeight="Bold">Lossless (CPU)</Run>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionLossless}" /></TextBlock>
                   </StackPanel>
+
+                  <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,10,0,10">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="Output format" />
+                    <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt420P8Selected}" Content="8-bit 4:2:0" Command="{Binding CurrentWorkflow.SetOutputPixFmt420P8}" />
+                    <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt420P10Selected}" Content="10-bit 4:2:0" Command="{Binding CurrentWorkflow.SetOutputPixFmt420P10}" />
+                    <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt444P8Selected}" Content="8-bit 4:4:4" Command="{Binding CurrentWorkflow.SetOutputPixFmt444P8}" />
+                    <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt444P10Selected}" Content="10-bit 4:4:4" Command="{Binding CurrentWorkflow.SetOutputPixFmt444P10}" />
+                    <TextBlock Width="320" TextWrapping="WrapWithOverflow" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" Text="10-bit reduces banding (default, matches the old pipeline). 4:4:4 preserves full chroma but needs a CPU encoder (x265/x264/Lossless) and produces larger files." />
+                  </StackPanel>
                 </StackPanel>
               </Border>
 
