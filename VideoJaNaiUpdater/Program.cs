@@ -191,6 +191,16 @@ async Task<int> ApplyAsync()
 // Overlay is enough when the latest release's heavy deps match the installed manifest's deps.
 async Task<bool> IsOverlaySufficientAsync(Release release, string work)
 {
+    // VideoJaNai ships a full package only: its slim core carries no heavy deps to skip and no
+    // bundled user data, so an overlay would be the same size and the assembler doesn't build one.
+    // Only take the overlay path if a release actually publishes an overlay asset (future-proofing);
+    // otherwise a deps-unchanged (app-only) update would pick overlay and then fail to download it.
+    bool hasOverlay = release.Assets.Any(a => Regex.IsMatch(a.Name, @"overlay-.*\.7z$"));
+    if (!hasOverlay)
+    {
+        return false;
+    }
+
     var asset = release.Assets.FirstOrDefault(a => a.Name == "manifest.json");
     if (asset is null)
     {
