@@ -447,24 +447,42 @@
             </StackPanel>
           </Border>
 
-          <!-- Python Environment -->
+          <!-- Components -->
           <DockPanel Margin="0,10,0,0">
-            <TextBlock DockPanel.Dock="Left" FontWeight="Bold" Text="Python Environment"></TextBlock>
+            <TextBlock DockPanel.Dock="Left" FontWeight="Bold" Text="Components"></TextBlock>
           </DockPanel>
           <Border Classes="border">
             <StackPanel>
-              <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-                <SelectableTextBlock FontFamily="Consolas" Margin="0,0,5,0" VerticalAlignment="Center" Text="{Binding PythonPath}" />
+              <StackPanel Orientation="Horizontal" Margin="10,10,0,0">
+                <TextBlock VerticalAlignment="Center" Text="GPU:" />
+                <TextBlock VerticalAlignment="Center" FontFamily="Consolas" Margin="8,0,0,0" Text="{Binding GpuStatusText}" />
+                <Button Margin="20,0,0,0" Content="Refresh" Command="{Binding RefreshComponents}" IsEnabled="{Binding AllowReinstall}" />
               </StackPanel>
 
-              <ScrollViewer Margin="0,10,0,0" Background="#111111" Height="450" HorizontalScrollBarVisibility="Auto" Foreground="Gray"  PropertyChanged="ConsoleScrollViewer_PropertyChanged">
-                <SelectableTextBlock Margin="20" Text="{Binding PythonPipList}" FontFamily="Consolas" PropertyChanged="ConsoleTextBlock_PropertyChanged" />
-              </ScrollViewer>
+              <ItemsControl x:Name="ComponentsList" Margin="10,10,0,0" ItemsSource="{Binding Components}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ComponentItem">
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                      <TextBlock VerticalAlignment="Center" Width="160" Text="{Binding Name}" />
+                      <TextBlock VerticalAlignment="Center" Width="90" Foreground="Gray" Text="{Binding SizeText}" />
+                      <TextBlock VerticalAlignment="Center" Width="120" Foreground="Gray" Text="{Binding StateText}" />
+                      <Button Content="Install" IsVisible="{Binding CanInstall}"
+                              Command="{Binding #ComponentsList.((vm:MainWindowViewModel)DataContext).InstallComponent}"
+                              CommandParameter="{Binding}" />
+                      <Button Content="Remove" IsVisible="{Binding CanRemove}"
+                              Command="{Binding #ComponentsList.((vm:MainWindowViewModel)DataContext).RemoveComponent}"
+                              CommandParameter="{Binding}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <TextBlock Margin="10,10,0,0" Foreground="Gray" FontFamily="Consolas" TextWrapping="WrapWithOverflow" Text="{Binding ComponentStatusText}" />
 
               <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-                <Button FontWeight="Bold" Background="Red" Content="Reinstall Python Environment" Click="ReinstallBackendClick" IsEnabled="{Binding AllowReinstall}" />
+                <Button FontWeight="Bold" Content="Reinstall recommended" Click="ReinstallBackendClick" IsEnabled="{Binding AllowReinstall}" />
                 <TextBlock Foreground="Gray" Width="400" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-                  Reinstall the Python environment. Try this if you are having any problems getting upscales to work. This process may take several minutes.
+                  Re-download the components recommended for your GPU. Try this if upscaling isn't working.
                 </TextBlock>
               </StackPanel>
 
@@ -491,7 +509,7 @@
         </ScrollViewer>
         <StackPanel IsVisible="{Binding ExtractingBackendFailed}">
           <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Width="1200">
-            <Button FontWeight="Bold" Background="Red" Content="Reinstall Python Environment" Click="ReinstallBackendClick" IsEnabled="{Binding AllowReinstall}" />
+            <Button FontWeight="Bold" Background="Red" Content="Reinstall components" Click="ReinstallBackendClick" IsEnabled="{Binding AllowReinstall}" />
             <TextBlock Foreground="Gray" Width="400" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
               Reinstall the Python environment. Try this if you are having any problems getting upscales to work. This process may take several minutes.
             </TextBlock>

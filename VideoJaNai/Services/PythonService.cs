@@ -1,38 +1,22 @@
-﻿using Avalonia.Collections;
+using Avalonia.Collections;
 using ICSharpCode.SharpZipLib.Core;
-using ICSharpCode.SharpZipLib.GZip;
-using ICSharpCode.SharpZipLib.Tar;
 using ICSharpCode.SharpZipLib.Zip;
 using Splat;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace AnimeJaNaiConverterGui.Services
 {
     public delegate void ProgressChanged(double percentage);
 
-    // https://github.com/chaiNNer-org/chaiNNer/blob/main/src/main/python/integratedPython.ts
+    // Resolves the libaji backend paths and the installed ONNX model list. (Formerly managed the
+    // embedded Python / VapourSynth / vs-mlrt backend — that is gone; the native engine + its
+    // component packs are installed by the Inno setup / VideoJaNaiUpdater.)
     public class PythonService : IPythonService
     {
         private readonly IUpdateManagerService _updateManagerService;
-
-        public static readonly Dictionary<string, PythonDownload> PYTHON_DOWNLOADS = new()
-        {
-            {
-                "win32",
-                new PythonDownload
-                {
-                    Url = "https://github.com/astral-sh/python-build-standalone/releases/download/20250205/cpython-3.12.9+20250205-x86_64-pc-windows-msvc-shared-install_only.tar.gz",
-                    Path = "python.exe",
-                    Version = "3.12.9",
-                    Filename = "Python.tar.gz"
-                }
-            },
-        };
 
         public PythonService(IUpdateManagerService? updateManagerService = null)
         {
@@ -47,130 +31,39 @@ namespace AnimeJaNaiConverterGui.Services
         public string FfmpegDirectory => Path.Join(BackendDirectory, "ffmpeg");
         public string FfmpegPath => Path.GetFullPath(Path.Join(FfmpegDirectory, "ffmpeg.exe"));
 
-        // libaji native engine paths (replaces the Python/VapourSynth/vs-mlrt backend).
+        // libaji native engine paths.
         public string InferenceDirectory => Path.Join(AnimeJaNaiDirectory, "inference");
         public string RifeModelsDirectory => Path.Join(AnimeJaNaiDirectory, "rife");
         public string AjiEncodePath => Path.GetFullPath(Path.Join(InferenceDirectory, "aji_encode.exe"));
         public string TrtexecPath => Path.GetFullPath(Path.Join(InferenceDirectory, "trtexec.exe"));
         public string ConfPath => Path.Join(AnimeJaNaiDirectory, "animejanai.conf");
 
-        // Legacy Python/VapourSynth paths — retained until the old installer is removed (see CheckAndExtractBackend rewrite).
-        public string PythonDirectory => Path.Join(BackendDirectory, "python");
-        public string PythonPath => Path.GetFullPath(Path.Join(PythonDirectory, PYTHON_DOWNLOADS["win32"].Path));
-        public string VapourSynthPluginsPath => Path.Combine(PythonDirectory, "vs-plugins");
-        public string VsmlrtModelsPath => Path.Combine(VapourSynthPluginsPath, "models");
-        public string VspipePath => Path.GetFullPath(Path.Join(PythonDirectory, "VSPipe.exe"));
-        public string VsrepoPath => Path.GetFullPath(Path.Join(PythonDirectory, "vsrepo.py"));
-        public Version VsmlrtMinVersion => new("3.22.13"); // vsmlrt v15.9
-
-        public bool IsPythonInstalled() => File.Exists(PythonPath);
         public bool IsInferenceInstalled() => File.Exists(AjiEncodePath);
         public bool AreModelsInstalled() => Directory.Exists(ModelsDirectory) && Directory.GetFiles(ModelsDirectory).Length > 0;
         public bool IsFfmpegInstalled() => File.Exists(FfmpegPath);
 
-        public class PythonDownload
-        {
-            public string Url { get; set; }
-            public string Version { get; set; }
-            public string Path { get; set; }
-            public string Filename { get; set; }
-        }
-
-        public void ExtractTgz(string gzArchiveName, string destFolder)
-        {
-            Stream inStream = File.OpenRead(gzArchiveName);
-            Stream gzipStream = new GZipInputStream(inStream);
-
-            TarArchive tarArchive = TarArchive.CreateInputTarArchive(gzipStream, Encoding.UTF8);
-            tarArchive.ExtractContents(destFolder);
-            tarArchive.Close();
-
-            gzipStream.Close();
-            inStream.Close();
-        }
-
         public void ExtractZip(string archivePath, string outFolder, ProgressChanged progressChanged)
         {
-
-            using (var fsInput = File.OpenRead(archivePath))
-            using (var zf = new ZipFile(fsInput))
+            using var fsInput = File.OpenRead(archivePath);
+            using var zf = new ZipFile(fsInput);
+            for (var i = 0; i < zf.Count; i++)
             {
-
-                for (var i = 0; i < zf.Count; i++)
+                ZipEntry zipEntry = zf[i];
+                if (!zipEntry.IsFile)
                 {
-                    ZipEntry zipEntry = zf[i];
-
-                    if (!zipEntry.IsFile)
-                    {
-                        // Ignore directories
-                        continue;
-                    }
-                    String entryFileName = zipEntry.Name;
-                    // to remove the folder from the entry:
-                    //entryFileName = Path.GetFileName(entryFileName);
-                    // Optionally match entrynames against a selection list here
-                    // to skip as desired.
-                    // The unpacked length is available in the zipEntry.Size property.
-
-                    // Manipulate the output filename here as desired.
-                    var fullZipToPath = Path.Combine(outFolder, entryFileName);
-                    var directoryName = Path.GetDirectoryName(fullZipToPath);
-                    if (directoryName.Length > 0)
-                    {
-                        Directory.CreateDirectory(directoryName);
-                    }
-
-                    // 4K is optimum
-                    var buffer = new byte[4096];
-
-                    // Unzip file in buffered chunks. This is just as fast as unpacking
-                    // to a buffer the full size of the file, but does not waste memory.
-                    // The "using" will close the stream even if an exception occurs.
-                    using (var zipStream = zf.GetInputStream(zipEntry))
-                    using (Stream fsOutput = File.Create(fullZipToPath))
-                    {
-                        StreamUtils.Copy(zipStream, fsOutput, buffer);
-                    }
-
-                    var percentage = Math.Round((double)i / zf.Count * 100, 0);
-                    progressChanged?.Invoke(percentage);
+                    continue;
                 }
-            }
-        }
-
-        public void AddPythonPth(string destFolder)
-        {
-            string[] lines = { "python312.zip", "DLLs", "Lib", ".", "Lib/site-packages" };
-            var filename = "python312._pth";
-
-            using var outputFile = new StreamWriter(Path.Combine(destFolder, filename));
-
-            foreach (string line in lines)
-                outputFile.WriteLine(line);
-        }
-
-        public string InstallUpdatePythonDependenciesCommand
-        {
-            get
-            {
-                string[] dependencies = {
-                    "packaging",
-                    "onnx",
-                };
-
-                return $@".\python.exe -m pip install {string.Join(" ", dependencies)}";
-            }
-        }
-
-        public string InstallVapourSynthPluginsCommand
-        {
-            get
-            {
-                string[] dependencies = {
-                    "ffms2"
-                };
-
-                return $@".\python.exe .\vsrepo.py -p update && .\python.exe .\vsrepo.py -p install {string.Join(" ", dependencies)}";
+                var fullZipToPath = Path.Combine(outFolder, zipEntry.Name);
+                var directoryName = Path.GetDirectoryName(fullZipToPath);
+                if (directoryName?.Length > 0)
+                {
+                    Directory.CreateDirectory(directoryName);
+                }
+                var buffer = new byte[4096];
+                using var zipStream = zf.GetInputStream(zipEntry);
+                using Stream fsOutput = File.Create(fullZipToPath);
+                StreamUtils.Copy(zipStream, fsOutput, buffer);
+                progressChanged?.Invoke(Math.Round((double)i / zf.Count * 100, 0));
             }
         }
 
@@ -182,18 +75,15 @@ namespace AnimeJaNaiConverterGui.Services
             {
                 if (_allModels == null)
                 {
-
                     try
                     {
                         // The libaji engine consumes ONNX models only.
                         var models = new AvaloniaList<string>(Directory.GetFiles(ModelsDirectory).Where(filename =>
-                            Path.GetExtension(filename).Equals(".onnx", StringComparison.CurrentCultureIgnoreCase)
-                        )
+                            Path.GetExtension(filename).Equals(".onnx", StringComparison.CurrentCultureIgnoreCase))
                         .Select(filename => Path.GetFileName(filename))
                         .Order().ToList());
 
                         Debug.WriteLine($"GetAllModels: {models.Count}");
-
                         _allModels = models;
                     }
                     catch (DirectoryNotFoundException)
