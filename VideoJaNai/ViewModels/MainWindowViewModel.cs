@@ -196,11 +196,6 @@ namespace VideoJaNai.ViewModels
         public static readonly string _ffmpegHevcNvenc = "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M -max_interleave_delta 0";
         public static readonly string _ffmpegLossless = "ffv1 -max_interleave_delta 0";
 
-        public static readonly string _tensorRtDynamicEngine = "--fp16 --minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x1080x1920 --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
-        public static readonly string _tensorRtStaticEngine = "--fp16 --optShapes=input:%video_resolution% --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
-        public static readonly string _tensorRtStaticOnnx = "--fp16 --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
-        public static readonly string _tensorRtStaticBf16Engine = "--bf16 --optShapes=input:%video_resolution% --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --tacticSources=+CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
-
         private bool _showConsole = false;
         public bool ShowConsole
         {
@@ -553,12 +548,9 @@ namespace VideoJaNai.ViewModels
             configText.AppendLine("logging=yes");
             configText.AppendLine($"backend={backend}");
 
-            // trt_engine_settings is global and write-minimal: only persisted when the user
-            // overrides the engine default (Auto off). Otherwise the engine uses its own default.
-            if (!CurrentWorkflow.TensorRtEngineSettingsAuto && !string.IsNullOrWhiteSpace(CurrentWorkflow.TensorRtEngineSettings))
-            {
-                configText.AppendLine($"trt_engine_settings={CurrentWorkflow.TensorRtEngineSettings}");
-            }
+            // trt_engine_settings is intentionally omitted: with TensorRT 11 the engine builds
+            // stronglyTyped by default (precision is taken from the ONNX model), so VideoJaNai no
+            // longer exposes a precision/engine-settings picker.
 
             configText.AppendLine("[slot_1]");
             configText.AppendLine("profile_name=encode");
@@ -1752,11 +1744,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public bool TensorRtSelected
         {
             get => _tensorRtSelected;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
-                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
-            }
+            set => this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
         }
 
         private bool _directMlSelected = false;
@@ -1764,40 +1752,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public bool DirectMlSelected
         {
             get => _directMlSelected;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _directMlSelected, value);
-                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
-            }
-        }
-
-        public bool TensorRtEngineDynamicSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtDynamicEngine;
-        public bool TensorRtEngineStaticSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticEngine;
-        public bool TensorRtEngineStaticOnnxSelected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticOnnx;
-        public bool TensorRtEngineStaticBf16Selected => TensorRtEngineSettings == MainWindowViewModel._tensorRtStaticBf16Engine;
-
-        private bool _tensorRtEngineSettingsAuto = true;
-        [DataMember]
-        public bool TensorRtEngineSettingsAuto
-        {
-            get => _tensorRtEngineSettingsAuto;
-            set => this.RaiseAndSetIfChanged(ref _tensorRtEngineSettingsAuto, value);
-        }
-
-
-        private string _tensorRtEngineSettings = MainWindowViewModel._tensorRtDynamicEngine;
-        [DataMember]
-        public string TensorRtEngineSettings
-        {
-            get => _tensorRtEngineSettings;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _tensorRtEngineSettings, value);
-                this.RaisePropertyChanged(nameof(TensorRtEngineDynamicSelected));
-                this.RaisePropertyChanged(nameof(TensorRtEngineStaticSelected));
-                this.RaisePropertyChanged(nameof(TensorRtEngineStaticOnnxSelected));
-                this.RaisePropertyChanged(nameof(TensorRtEngineStaticBf16Selected));
-            }
+            set => this.RaiseAndSetIfChanged(ref _directMlSelected, value);
         }
 
         private int? _finalResizeHeight = 0;
@@ -1930,14 +1885,8 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public bool ShowAdvancedSettings
         {
             get => _showAdvancedSettings;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value);
-                this.RaisePropertyChanged(nameof(ShowTensorRtEngineSettings));
-            }
+            set => this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value);
         }
-
-        public bool ShowTensorRtEngineSettings => ShowAdvancedSettings && TensorRtSelected;
 
         public void AddModel()
         {
@@ -1997,36 +1946,6 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         {
             DirectMlSelected = true;
             TensorRtSelected = false;
-        }
-
-        public void SetDynamicEngine()
-        {
-            TensorRtEngineSettings = MainWindowViewModel._tensorRtDynamicEngine;
-        }
-
-        public void SetStaticEngine()
-        {
-            TensorRtEngineSettings = MainWindowViewModel._tensorRtStaticEngine;
-        }
-
-        public void SetStaticOnnx()
-        {
-            TensorRtEngineSettings = MainWindowViewModel._tensorRtStaticOnnx;
-        }
-
-        public void SetStaticBf16Engine()
-        {
-            TensorRtEngineSettings = MainWindowViewModel._tensorRtStaticBf16Engine;
-        }
-
-        public void SetTensorRtEngineSettingsAutoYes()
-        {
-            TensorRtEngineSettingsAuto = true;
-        }
-
-        public void SetTensorRtEngineSettingsAutoNo()
-        {
-            TensorRtEngineSettingsAuto = false;
         }
 
         public void Validate()
