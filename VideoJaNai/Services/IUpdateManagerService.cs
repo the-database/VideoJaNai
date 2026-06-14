@@ -1,6 +1,4 @@
-﻿using System;
 using System.Threading.Tasks;
-using Velopack;
 
 namespace AnimeJaNaiConverterGui.Services
 {
@@ -8,9 +6,14 @@ namespace AnimeJaNaiConverterGui.Services
     {
         bool IsInstalled { get; }
         string AppVersion { get; }
-        bool IsUpdatePendingRestart { get; }
-        void ApplyUpdatesAndRestart(UpdateInfo update);
-        Task<UpdateInfo?> CheckForUpdatesAsync();
-        Task DownloadUpdatesAsync(UpdateInfo update, Action<int>? progress = null);
+        string InstallDir { get; }
+        string UpdaterPath { get; }
+
+        // Returns the available update version string, or null if up to date / not installed.
+        Task<string?> CheckForUpdateAsync();
+
+        // Launches the bundled updater (--apply) detached; the caller exits the app so it can
+        // replace files in place and relaunch.
+        void ApplyUpdateAndRestart();
     }
 }

@@ -39,7 +39,9 @@ namespace AnimeJaNaiConverterGui.Services
             _updateManagerService = updateManagerService ?? Locator.Current.GetService<IUpdateManagerService>()!;
         }
 
-        public string BackendDirectory => (_updateManagerService?.IsInstalled ?? false) ? Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"VideoJaNai") : Path.GetFullPath(@".\backend");
+        // Installed (Inno): everything lives under the per-user install dir next to VideoJaNai.exe
+        // (writable). Dev: a local .\backend folder.
+        public string BackendDirectory => (_updateManagerService?.IsInstalled ?? false) ? _updateManagerService.InstallDir : Path.GetFullPath(@".\backend");
         public string AnimeJaNaiDirectory => Path.Join(BackendDirectory, "animejanai");
         public string ModelsDirectory => Path.Join(AnimeJaNaiDirectory, "onnx");
         public string FfmpegDirectory => Path.Join(BackendDirectory, "ffmpeg");

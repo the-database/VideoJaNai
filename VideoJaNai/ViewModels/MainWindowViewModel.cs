@@ -17,8 +17,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Velopack;
-using Velopack.Sources;
 
 namespace VideoJaNai.ViewModels
 {
@@ -29,8 +27,7 @@ namespace VideoJaNai.ViewModels
 
         private static readonly CultureInfo ENGLISH_CULTURE = CultureInfo.GetCultureInfo("en-US");
 
-        private readonly UpdateManager _um;
-        private UpdateInfo? _update = null;
+        private string? _availableUpdateVersion;
 
         private readonly IPythonService _pythonService;
         private readonly IUpdateManagerService _updateManagerService;
@@ -58,7 +55,6 @@ namespace VideoJaNai.ViewModels
                 }
             });
 
-            _um = new UpdateManager(new GithubSource("https://github.com/the-database/VideoJaNai", null, false));
             CheckForUpdates();
         }
 
@@ -90,24 +86,13 @@ namespace VideoJaNai.ViewModels
             set => this.RaiseAndSetIfChanged(ref _progressPhase, value);
         }
 
-        public bool IsInstalled => _um?.IsInstalled ?? false;
+        public bool IsInstalled => _updateManagerService.IsInstalled;
 
         private bool _showCheckUpdateButton = true;
         public bool ShowCheckUpdateButton
         {
             get => _showCheckUpdateButton;
             set => this.RaiseAndSetIfChanged(ref _showCheckUpdateButton, value);
-        }
-
-        private bool _showDownloadButton = false;
-        public bool ShowDownloadButton
-        {
-            get => _showDownloadButton;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _showDownloadButton, value);
-                this.RaisePropertyChanged(nameof(ShowCheckUpdateButton));
-            }
         }
 
         private bool _showApplyButton = false;
@@ -121,7 +106,7 @@ namespace VideoJaNai.ViewModels
             }
         }
 
-        public string AppVersion => _um?.CurrentVersion?.ToString() ?? "";
+        public string AppVersion => _updateManagerService.AppVersion;
 
         private string _updateStatusText = string.Empty;
         public string UpdateStatusText
@@ -1506,19 +1491,10 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         {
             try
             {
-                if (IsInstalled)
+                if (_updateManagerService.IsInstalled)
                 {
-                    await Task.Run(async () =>
-                    {
-                        _update = await _um.CheckForUpdatesAsync().ConfigureAwait(true);
-                    });
-
+                    _availableUpdateVersion = await _updateManagerService.CheckForUpdateAsync().ConfigureAwait(true);
                     UpdateStatus();
-
-                    if (AutoUpdateEnabled)
-                    {
-                        await DownloadUpdate();
-                    }
                 }
             }
             catch (Exception ex)
@@ -1527,64 +1503,30 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
         }
 
-        public async Task DownloadUpdate()
-        {
-            try
-            {
-                if (_update != null)
-                {
-                    ShowDownloadButton = false;
-                    await _um.DownloadUpdatesAsync(_update, Progress).ConfigureAwait(true);
-                    UpdateStatus();
-                }
-            }
-            catch
-            {
-
-            }
-        }
-
+        // The bundled updater downloads + applies (overlay-vs-full) in one step, then relaunches,
+        // so there's no separate in-app download. Launch it and exit so it can replace files.
         public void ApplyUpdate()
         {
-            if (_update != null)
-            {
-                ShowApplyButton = false;
-                _um.ApplyUpdatesAndRestart(_update);
-            }
+            ShowApplyButton = false;
+            UpdateStatusText = "Updating and restarting...";
+            _updateManagerService.ApplyUpdateAndRestart();
+            Environment.Exit(0);
         }
 
         private void UpdateStatus()
         {
-            ShowDownloadButton = false;
-            ShowApplyButton = false;
-            ShowCheckUpdateButton = true;
-
-            if (_update != null)
+            if (!string.IsNullOrEmpty(_availableUpdateVersion))
             {
-                UpdateStatusText = $"Update is available: {_update.TargetFullRelease.Version}";
-                ShowDownloadButton = true;
+                UpdateStatusText = $"Update available: {_availableUpdateVersion}";
+                ShowApplyButton = true;
                 ShowCheckUpdateButton = false;
-
-                if (_um.IsUpdatePendingRestart)
-                {
-                    UpdateStatusText = $"Update ready, pending restart to install version: {_update.TargetFullRelease.Version}";
-                    ShowDownloadButton = false;
-                    ShowApplyButton = true;
-                    ShowCheckUpdateButton = false;
-                }
-                else
-                {
-                }
             }
             else
             {
                 UpdateStatusText = "No updates found";
+                ShowApplyButton = false;
+                ShowCheckUpdateButton = true;
             }
-        }
-
-        private void Progress(int percent)
-        {
-            UpdateStatusText = $"Downloading update {_update?.TargetFullRelease.Version} ({percent}%)...";
         }
     }
 
