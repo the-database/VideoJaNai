@@ -49,9 +49,9 @@ namespace VideoJaNai.ViewModels
 
             this.WhenAnyValue(x => x.ShowAppSettings).Subscribe(async x =>
             {
-                if (x && string.IsNullOrWhiteSpace(PythonPipList))
+                if (x)
                 {
-                    await PopulatePythonPipList();
+                    await RefreshComponents();
                 }
             });
 
@@ -219,19 +219,43 @@ namespace VideoJaNai.ViewModels
 
         public string LeftStatus => !CurrentWorkflow.Valid ? ValidationText.Replace("\n", " ") : $"{InputStatusText} selected for upscaling.";
 
-        private bool _runningPython = false;
+        private bool _componentsBusy = false;
         [IgnoreDataMember]
-        public bool RunningPython
+        public bool ComponentsBusy
         {
-            get => _runningPython;
+            get => _componentsBusy;
             set
             {
-                this.RaiseAndSetIfChanged(ref _runningPython, value);
+                this.RaiseAndSetIfChanged(ref _componentsBusy, value);
                 this.RaisePropertyChanged(nameof(AllowReinstall));
             }
         }
 
-        public bool AllowReinstall => !RunningPython && !Upscaling;
+        public bool AllowReinstall => !ComponentsBusy && !Upscaling;
+
+        private AvaloniaList<ComponentItem> _components = new();
+        [IgnoreDataMember]
+        public AvaloniaList<ComponentItem> Components
+        {
+            get => _components;
+            set => this.RaiseAndSetIfChanged(ref _components, value);
+        }
+
+        private string _gpuStatusText = string.Empty;
+        [IgnoreDataMember]
+        public string GpuStatusText
+        {
+            get => _gpuStatusText;
+            set => this.RaiseAndSetIfChanged(ref _gpuStatusText, value);
+        }
+
+        private string _componentStatusText = string.Empty;
+        [IgnoreDataMember]
+        public string ComponentStatusText
+        {
+            get => _componentStatusText;
+            set => this.RaiseAndSetIfChanged(ref _componentStatusText, value);
+        }
 
         private bool _upscaling = false;
         [IgnoreDataMember]
@@ -245,15 +269,6 @@ namespace VideoJaNai.ViewModels
                 this.RaisePropertyChanged(nameof(LeftStatus));
                 this.RaisePropertyChanged(nameof(AllowReinstall));
             }
-        }
-
-        public string PythonPath => _pythonService.PythonPath;
-
-        private string _pythonPipList = string.Empty;
-        public string PythonPipList
-        {
-            get => _pythonPipList;
-            set => this.RaiseAndSetIfChanged(ref _pythonPipList, value);
         }
 
         private bool _isExtractingBackend = false;
@@ -416,7 +431,8 @@ namespace VideoJaNai.ViewModels
                 if (_rifeModels == null)
                 {
                     var models = new List<string>();
-                    var modelsPath = Path.Combine(_pythonService.VsmlrtModelsPath, "rife");
+                    // TODO: re-check this regex/discovery against the new models-rife-fp16-1 filenames.
+                    var modelsPath = _pythonService.RifeModelsDirectory;
 
                     if (!Directory.Exists(modelsPath))
                     {
@@ -924,567 +940,121 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         public async Task CheckAndExtractBackend()
         {
+            // Components are installed by the Inno setup's component page. On launch, just verify the
+            // engine is present; if not (skipped/offline at install) and we're installed, run the
+            // updater's --auto to fetch the GPU-matched components, with progress on the setup overlay.
+            if (_pythonService.IsInferenceInstalled() || !_updateManagerService.IsInstalled)
+            {
+                return;
+            }
+
             await Task.Run(async () =>
             {
-                var failureMsg = "Backend setup failed. Try reinstalling Python environment or report the issue on GitHub if it persists.";
                 BackendSetupSubStatusQueueClear();
                 IsExtractingBackend = true;
-
-                if (!_pythonService.IsPythonInstalled())
+                BackendSetupMainStatus = "Installing components for your hardware...";
+                try
                 {
-                    try
+                    var rc = await _updateManagerService.RunUpdaterStreamingAsync("--auto", BackendSetupSubStatusQueueEnqueue);
+                    if (rc != 0)
                     {
-                        // 1. Install embedded Python + portable VS
-                        await InstallPortableVapourSynth();
-
-                        // 2. Python dependencies
-                        await RunInstallCommand(_pythonService.InstallUpdatePythonDependenciesCommand);
-
-                        // 3. VapourSynth plugins
-                        await RunInstallCommand(_pythonService.InstallVapourSynthPluginsCommand);
-                        await InstallVapourSynthMiscFilters();
-                        await InstallVapourSynthAkarin();
-
-                        // 4. vs-mlrt
-                        await InstallVsmlrt();
-
-                        // 5. RIFE models
-                        await InstallRife();
-
-                        CleanupInstall();
-                    }
-                    catch (Exception ex)
-                    {
-                        BackendSetupSubStatusQueueEnqueue(ex.Message);
-                        if (ex.StackTrace != null)
-                        {
-                            BackendSetupSubStatusQueueEnqueue(ex.StackTrace);
-                        }
                         ExtractingBackendFailed = true;
-                        BackendSetupMainStatus = failureMsg;
+                        BackendSetupMainStatus = "Component setup failed. You can retry from App Settings.";
                         return;
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    if (Program.WasFirstRun)
-                    {
-                        try
-                        {
-                            var installedVsmlrtVersion = new Version(await RunVsmlrtVersion());
-
-                            if (installedVsmlrtVersion.CompareTo(_pythonService.VsmlrtMinVersion) < 0)
-                            {
-                                Directory.Delete(_pythonService.PythonDirectory, true);
-                                await CheckAndExtractBackend();
-                                return;
-                            }
-                        }
-                        catch (Exception) { }
-                    }
+                    BackendSetupSubStatusQueueEnqueue(ex.Message);
+                    ExtractingBackendFailed = true;
+                    BackendSetupMainStatus = "Component setup failed. You can retry from App Settings.";
+                    return;
                 }
-
-                if (!_pythonService.AreModelsInstalled())
-                {
-                    try
-                    {
-                        await InstallModels();
-                    }
-                    catch (Exception ex)
-                    {
-                        BackendSetupSubStatusQueueEnqueue(ex.Message);
-                        if (ex.StackTrace != null)
-                        {
-                            BackendSetupSubStatusQueueEnqueue(ex.StackTrace);
-                        }
-                        ExtractingBackendFailed = true;
-                        BackendSetupMainStatus = failureMsg;
-                        return;
-                    }
-                }
-
-                if (!_pythonService.IsFfmpegInstalled())
-                {
-                    try
-                    {
-                        await InstallFfmpeg();
-                    }
-                    catch (Exception ex)
-                    {
-                        BackendSetupSubStatusQueueEnqueue(ex.Message);
-                        if (ex.StackTrace != null)
-                        {
-                            BackendSetupSubStatusQueueEnqueue(ex.StackTrace);
-                        }
-                        ExtractingBackendFailed = true;
-                        BackendSetupMainStatus = failureMsg;
-                        return;
-                    }
-                }
-
                 IsExtractingBackend = false;
             });
         }
 
-        public async Task PopulatePythonPipList()
-        {
-            RunningPython = true;
-            try
-            {
-                var pipList = await RunPythonPipList();
-                PythonPipList = $"Python Packages:\n{pipList}";
-                //var vsrepos = await RunVsrepoInstalled(); // too slow
-                var vsmlrtVer = await RunVsmlrtVersion();
-                PythonPipList = $"Python Packages:\n{pipList}\n\nvsmlrt.py Version:\n{vsmlrtVer}";
-            }
-            catch (Exception) { }
-            RunningPython = false;
-        }
-
         public async Task ReinstallBackend()
         {
-            if (Directory.Exists(_pythonService.FfmpegDirectory))
+            // Re-fetch the GPU-matched components via the updater (--auto).
+            ComponentsBusy = true;
+            ComponentStatusText = "Reinstalling components...";
+            try
             {
-                Directory.Delete(_pythonService.FfmpegDirectory, true);
+                await _updateManagerService.RunUpdaterStreamingAsync("--auto", line => ComponentStatusText = line);
             }
+            catch (Exception ex) { ComponentStatusText = ex.Message; }
+            ComponentsBusy = false;
+            await RefreshComponents();
+        }
 
-            if (Directory.Exists(_pythonService.PythonDirectory))
+        public async Task RefreshComponents()
+        {
+            try
             {
-                Directory.Delete(_pythonService.PythonDirectory, true);
-            }
-
-            await CheckAndExtractBackend();
-        }
-
-        public async Task<string> RunVsmlrtVersion()
-        {
-            return await RunPythonGetOutput(@$"""{Path.Combine(_pythonService.AnimeJaNaiDirectory, "core", "vsmlrt_version.py")}""");
-        }
-
-        public async Task<string> RunVsrepoInstalled()
-        {
-            return await RunPythonGetOutput(@".\vsrepo.py -p installed");
-        }
-
-        public async Task<string> RunPythonPipList()
-        {
-            return await RunPythonGetOutput("-m pip list");
-        }
-
-        public async Task<string> RunPythonGetOutput(string args)
-        {
-            List<string> result = [];
-
-            // Create a new process to run the CMD command
-            using (var process = new Process())
-            {
-                _runningProcess = process;
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = @$"/C .\python.exe {args}";
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.WorkingDirectory = _pythonService.PythonDirectory;
-                process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-                process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
-
-                // Create a StreamWriter to write the output to a log file
-                try
+                var json = await _updateManagerService.GetComponentsJsonAsync();
+                if (string.IsNullOrWhiteSpace(json))
                 {
-                    process.ErrorDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            Debug.WriteLine(e.Data);
-                        }
-                    };
-
-                    process.OutputDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            result.Add(e.Data);
-                            Debug.WriteLine(e.Data);
-                        }
-                    };
-
-                    process.Start();
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine();
-                    await process.WaitForExitAsync();
+                    return;
                 }
-                catch (IOException) { }
-            }
+                var root = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var gpu = root["gpu"];
+                bool nvidia = (bool?)gpu?["nvidia"] ?? false;
+                var gpuName = (string?)gpu?["name"] ?? "";
+                var sm = (string?)gpu?["sm"] ?? "";
+                GpuStatusText = nvidia
+                    ? $"{gpuName} ({sm})"
+                    : "No NVIDIA GPU detected — offline upscaling currently requires an NVIDIA GPU.";
 
-            return string.Join("\n", result);
+                var items = new AvaloniaList<ComponentItem>();
+                foreach (var p in (Newtonsoft.Json.Linq.JArray?)root["packs"] ?? new Newtonsoft.Json.Linq.JArray())
+                {
+                    items.Add(new ComponentItem(
+                        (string?)p["name"] ?? "",
+                        (long?)p["bytes"] ?? 0,
+                        (bool?)p["installed"] ?? false,
+                        (bool?)p["recommended"] ?? false));
+                }
+                Components = items;
+            }
+            catch (Exception ex)
+            {
+                ComponentStatusText = $"Could not read components: {ex.Message}";
+            }
         }
 
-        private async Task InstallPortableVapourSynth()
+        public async Task InstallComponent(ComponentItem item)
         {
-            // Download Python Installer
-            BackendSetupMainStatus = "Downloading Portable VapourSynth Installer...";
-            var downloadUrl = $"https://github.com/vapoursynth/vapoursynth/releases/download/R70/Install-Portable-VapourSynth-R70.ps1";
-            var targetPath = Path.Join(_pythonService.BackendDirectory, "installvs.ps1");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            if (item is null || ComponentsBusy)
             {
-                BackendSetupMainStatus = $"Downloading Portable VapourSynth Installer ({progress}%)...";
-            });
-
-            // Install Python 
-            BackendSetupMainStatus = "Installing Embedded Python with Portable VapourSynth...";
-
-            using (PowerShell powerShell = PowerShell.Create())
-            {
-                powerShell.AddScript("Set-ExecutionPolicy RemoteSigned -Scope Process -Force");
-                powerShell.AddScript("Import-Module Microsoft.PowerShell.Archive");
-
-                var scriptContents = File.ReadAllText(targetPath);
-
-                powerShell.AddScript(scriptContents);
-                powerShell.AddParameter("Unattended");
-                powerShell.AddParameter("TargetFolder", _pythonService.PythonDirectory);
-
-                if (Directory.Exists(_pythonService.PythonDirectory))
-                {
-                    Directory.Delete(_pythonService.PythonDirectory, true);
-                }
-
-                PSDataCollection<PSObject> outputCollection = [];
-                outputCollection.DataAdded += (sender, e) =>
-                {
-                    BackendSetupSubStatusQueueEnqueue(outputCollection[e.Index].ToString());
-                };
-
-                try
-                {
-                    IAsyncResult asyncResult = powerShell.BeginInvoke<PSObject, PSObject>(null, outputCollection);
-                    powerShell.EndInvoke(asyncResult);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"An error occurred: {ex.Message}");
-                }
-
-                if (powerShell.Streams.Error.Count > 0)
-                {
-                    foreach (var error in powerShell.Streams.Error)
-                    {
-                        Debug.WriteLine($"Error: {error}");
-                    }
-                }
-            }
-
-            File.Delete(targetPath);
-        }
-
-        private async Task InstallVapourSynthMiscFilters()
-        {
-            BackendSetupMainStatus = "Downloading VapourSynth Misc Filters...";
-            var downloadUrl = "https://github.com/vapoursynth/vs-miscfilters-obsolete/releases/download/R2/miscfilters-r2.7z";
-            var targetPath = Path.Join(_pythonService.BackendDirectory, "miscfilters.7z");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
-            {
-                BackendSetupMainStatus = $"Downloading VapourSynth Misc Filters ({progress}%)...";
-            });
-
-            BackendSetupMainStatus = "Extracting VapourSynth Misc Filters...";
-            var targetExtractPath = Path.Combine(_pythonService.VapourSynthPluginsPath, "temp");
-            Directory.CreateDirectory(targetExtractPath);
-
-            using (ArchiveFile archiveFile = new(targetPath))
-            {
-                archiveFile.Extract(targetExtractPath);
-
-                File.Copy(
-                    Path.Combine(targetExtractPath, "win64", "MiscFilters.dll"),
-                    Path.Combine(_pythonService.VapourSynthPluginsPath, "MiscFilters.dll")
-                );
-            }
-            Directory.Delete(targetExtractPath, true);
-            File.Delete(targetPath);
-        }
-
-        async Task InstallVapourSynthAkarin()
-        {
-            Console.WriteLine("Downloading VapourSynth Akarin...");
-            var downloadUrl = "https://github.com/AkarinVS/vapoursynth-plugin/releases/download/v0.96/akarin-release-lexpr-amd64-v0.96g3.7z";
-            var targetPath = Path.GetFullPath("akarin.7z");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
-            {
-                Console.WriteLine($"Downloading VapourSynth Akarin ({progress}%)...");
-            });
-
-            Console.WriteLine("Extracting VapourSynth Akarin...");
-            var targetExtractPath = _pythonService.VapourSynthPluginsPath;
-            Directory.CreateDirectory(targetExtractPath);
-
-            using (ArchiveFile archiveFile = new(targetPath))
-            {
-                archiveFile.Extract(targetExtractPath);
-            }
-            File.Delete(targetPath);
-        }
-
-        private async Task InstallVsmlrt()
-        {
-            Console.WriteLine("Downloading vs-mlrt...");
-            var baseDownloadUrl = "https://github.com/AmusementClub/vs-mlrt/releases/download/v15.9/";
-            var fileNames = new[] { "vsmlrt-windows-x64-cuda.v15.9.7z.001", "vsmlrt-windows-x64-cuda.v15.9.7z.002" };
-            var targetPaths = fileNames.Select(f => Path.GetFullPath(f)).ToArray();
-
-            double lastProgress = -1;
-            int updateThreshold = 5;
-
-            for (int i = 0; i < fileNames.Length; i++)
-            {
-                string downloadUrl = baseDownloadUrl + fileNames[i];
-                string targetPath = targetPaths[i];
-
-                await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
-                {
-                    if (progress >= lastProgress + updateThreshold)
-                    {
-                        Console.WriteLine($"Downloading {fileNames[i]} ({progress}%)...");
-                        lastProgress = progress;
-                    }
-                });
-            }
-
-
-            Console.WriteLine("Extracting vs-mlrt (this may take several minutes)...");
-            var targetDirectory = Path.Join(_pythonService.VapourSynthPluginsPath);
-            Directory.CreateDirectory(targetDirectory);
-
-            string sevenZipPath = Path.Combine(_pythonService.PythonDirectory, "7z.exe");
-            string archivePath = targetPaths[0];
-
-            var process = new Process()
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = sevenZipPath,
-                    Arguments = $"x \"{archivePath}\" -o\"{targetDirectory}\" -y",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                }
-            };
-
-            process.Start();
-            string output = await process.StandardOutput.ReadToEndAsync();
-            string error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode != 0)
-            {
-                Console.WriteLine($"7-Zip extraction failed: {error}");
                 return;
             }
-
-            Console.WriteLine("Extraction complete.");
-            File.Move(Path.Combine(targetDirectory, "vsmlrt.py"), Path.Combine(_pythonService.PythonDirectory, "vsmlrt.py"));
-
-            foreach (var targetPath in targetPaths)
+            ComponentsBusy = true;
+            ComponentStatusText = $"Installing {item.Name}...";
+            try
             {
-                File.Delete(targetPath);
+                await _updateManagerService.RunUpdaterStreamingAsync($"--install {item.Name}", line => ComponentStatusText = line);
             }
+            catch (Exception ex) { ComponentStatusText = ex.Message; }
+            ComponentsBusy = false;
+            await RefreshComponents();
         }
 
-        async Task InstallRife()
+        public async Task RemoveComponent(ComponentItem item)
         {
-            List<string> models = [
-                "rife_v4.7.7z",
-                "rife_v4.8.7z",
-                "rife_v4.9.7z",
-                "rife_v4.10.7z",
-                "rife_v4.11.7z",
-                "rife_v4.12.7z",
-                "rife_v4.12_lite.7z",
-                "rife_v4.13.7z",
-                "rife_v4.13_lite.7z",
-                "rife_v4.14.7z",
-                "rife_v4.14_lite.7z",
-                "rife_v4.15.7z",
-                "rife_v4.15_lite.7z",
-                "rife_v4.16_lite.7z",
-                "rife_v4.17.7z",
-                "rife_v4.17_lite.7z",
-                "rife_v4.18.7z",
-                "rife_v4.19.7z",
-                "rife_v4.20.7z",
-                "rife_v4.21.7z",
-                "rife_v4.22.7z",
-            ];
-
-            var downloadUrlBase = "https://github.com/AmusementClub/vs-mlrt/releases/download/external-models/";
-
-            foreach (var model in models)
+            if (item is null || ComponentsBusy)
             {
-                var downloadUrl = downloadUrlBase + model;
-                var targetPath = Path.GetFullPath(model);
-                await Downloader.DownloadFileAsync(downloadUrl, targetPath, _ => { });
-
-                using (ArchiveFile archiveFile = new(targetPath))
-                {
-                    Directory.CreateDirectory(_pythonService.VsmlrtModelsPath);
-                    archiveFile.Extract(_pythonService.VsmlrtModelsPath);
-                    var onnxFiles = Directory.GetFiles(Path.Combine(_pythonService.VsmlrtModelsPath, "rife"));
-                }
-
-                File.Delete(targetPath);
+                return;
             }
-        }
-
-        private async Task InstallFfmpeg()
-        {
-            BackendSetupMainStatus = "Downloading ffmpeg...";
-            var downloadUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z";
-            var targetPath = Path.Join(_pythonService.BackendDirectory, "ffmpeg.7z");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
+            ComponentsBusy = true;
+            ComponentStatusText = $"Removing {item.Name}...";
+            try
             {
-                BackendSetupMainStatus = $"Downloading ffmpeg ({progress}%)...";
-            });
-
-            BackendSetupMainStatus = "Extracting ffmpeg...";
-            using (ArchiveFile ffmpegArchive = new(targetPath))
-            {
-                ffmpegArchive.Extract(_pythonService.FfmpegDirectory);
+                await _updateManagerService.RunUpdaterStreamingAsync($"--remove {item.Name}", line => ComponentStatusText = line);
             }
-
-            var directories = Directory.GetDirectories(_pythonService.FfmpegDirectory);
-
-            if (directories.Length > 0)
-            {
-                var files = Directory.GetFiles(Path.Combine(directories.First(), "bin"));
-
-                foreach (string file in files)
-                {
-                    string fileName = Path.GetFileName(file);
-                    string destinationPath = Path.Combine(_pythonService.FfmpegDirectory, fileName);
-                    File.Move(file, destinationPath);
-                }
-                try
-                {
-                    Directory.Delete(directories.First(), true);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex);
-                }
-            }
-            File.Delete(targetPath);
-        }
-
-        private void CleanupInstall()
-        {
-            List<string> dirs = ["doc", "vs-temp-dl", "Scripts", "sdk", "wheel"];
-
-            foreach (var dir in dirs)
-            {
-                var targetDir = Path.Combine(_pythonService.BackendDirectory, dir);
-                if (Directory.Exists(targetDir))
-                {
-                    Directory.Delete(targetDir, true);
-                }
-            }
-
-            foreach (var dir in Directory.GetDirectories(_pythonService.VsmlrtModelsPath))
-            {
-                if (Path.GetFileName(dir) != "rife")
-                {
-                    Directory.Delete(dir, true);
-                }
-            }
-        }
-
-        public async Task<string[]> RunInstallCommand(string cmd)
-        {
-            Debug.WriteLine(cmd);
-
-            // Create a new process to run the CMD command
-            using (var process = new Process())
-            {
-                process.StartInfo.FileName = "cmd.exe";
-                process.StartInfo.Arguments = @$"/C {cmd}";
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-                process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
-                process.StartInfo.WorkingDirectory = _pythonService.PythonDirectory;
-
-                var result = string.Empty;
-
-                // Create a StreamWriter to write the output to a log file
-                try
-                {
-                    //using var outputFile = new StreamWriter("error.log", append: true);
-                    process.ErrorDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            //Debug.WriteLine($"STDERR = {e.Data}");
-                            BackendSetupSubStatusQueueEnqueue(e.Data);
-                        }
-                    };
-
-                    process.OutputDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            result = e.Data;
-                            //Debug.WriteLine($"STDOUT = {e.Data}");
-                            BackendSetupSubStatusQueueEnqueue(e.Data);
-                        }
-                    };
-
-                    process.Start();
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine(); // Start asynchronous reading of the output
-                    await process.WaitForExitAsync();
-                }
-                catch (IOException) { }
-            }
-
-            return [];
-        }
-
-        private async Task InstallModels()
-        {
-            // 6. Download ONNX models
-            var downloadUrl = "https://github.com/the-database/mpv-upscale-2x_animejanai/releases/download/3.0.0/2x_AnimeJaNai_HD_V3_ModelsOnly.zip";
-            Directory.CreateDirectory(_pythonService.ModelsDirectory);
-            var targetPath = Path.Join(_pythonService.ModelsDirectory, "models.zip");
-            await Downloader.DownloadFileAsync(downloadUrl, targetPath, (progress) =>
-            {
-                BackendSetupMainStatus = $"Downloading AnimeJaNai models ({progress}%)...";
-            });
-
-            BackendSetupMainStatus = "Extracting AnimeJaNai models...";
-            _pythonService.ExtractZip(targetPath, _pythonService.ModelsDirectory, (double progress) =>
-            {
-                BackendSetupMainStatus = $"Extracting AnimeJaNai models ({progress}%)...";
-            });
-
-            var directories = Directory.GetDirectories(_pythonService.ModelsDirectory);
-            if (directories.Length > 0)
-            {
-                var files = Directory.GetFiles(directories.First(), "*.onnx");
-
-                foreach (string file in files)
-                {
-                    string fileName = Path.GetFileName(file);
-                    string destinationPath = Path.Combine(_pythonService.ModelsDirectory, fileName);
-                    File.Move(file, destinationPath);
-                }
-
-                Directory.Delete(directories.First(), true);
-            }
-
-            File.Delete(targetPath);
+            catch (Exception ex) { ComponentStatusText = ex.Message; }
+            ComponentsBusy = false;
+            await RefreshComponents();
         }
 
         public async Task CheckForUpdates()
@@ -1528,6 +1098,28 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 ShowCheckUpdateButton = true;
             }
         }
+    }
+
+    // A downloadable runtime component pack, surfaced in the App Settings component manager.
+    public class ComponentItem
+    {
+        public ComponentItem(string name, long bytes, bool installed, bool recommended)
+        {
+            Name = name;
+            Bytes = bytes;
+            Installed = installed;
+            Recommended = recommended;
+        }
+
+        public string Name { get; }
+        public long Bytes { get; }
+        public bool Installed { get; }
+        public bool Recommended { get; }
+
+        public string SizeText => $"{Bytes / 1048576} MB";
+        public string StateText => Installed ? "installed" : Recommended ? "recommended" : "available";
+        public bool CanInstall => !Installed;
+        public bool CanRemove => Installed;
     }
 
     [DataContract]

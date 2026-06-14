@@ -64,6 +64,39 @@ namespace AnimeJaNaiConverterGui.Services
             });
         }
 
+        public async Task<string> GetComponentsJsonAsync()
+        {
+            return IsInstalled ? await RunUpdaterAsync("--components --json") : "";
+        }
+
+        public async Task<int> RunUpdaterStreamingAsync(string arguments, Action<string>? onLine)
+        {
+            if (!IsInstalled)
+            {
+                return -1;
+            }
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = UpdaterPath,
+                    Arguments = arguments,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = InstallDir,
+                }
+            };
+            process.OutputDataReceived += (_, e) => { if (e.Data != null) onLine?.Invoke(e.Data); };
+            process.ErrorDataReceived += (_, e) => { if (e.Data != null) onLine?.Invoke(e.Data); };
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            await process.WaitForExitAsync();
+            return process.ExitCode;
+        }
+
         private async Task<string> RunUpdaterAsync(string arguments)
         {
             using var process = new Process

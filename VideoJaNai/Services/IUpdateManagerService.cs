@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 
 namespace AnimeJaNaiConverterGui.Services
@@ -15,5 +16,11 @@ namespace AnimeJaNaiConverterGui.Services
         // Launches the bundled updater (--apply) detached; the caller exits the app so it can
         // replace files in place and relaunch.
         void ApplyUpdateAndRestart();
+
+        // Component manager: shells the bundled updater. GetComponentsJsonAsync runs
+        // `--components --json`; RunUpdaterStreamingAsync runs --auto/--install/--remove with each
+        // stdout/stderr line delivered to onLine, returning the exit code.
+        Task<string> GetComponentsJsonAsync();
+        Task<int> RunUpdaterStreamingAsync(string arguments, Action<string>? onLine);
     }
 }
