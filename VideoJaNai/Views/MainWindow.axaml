@@ -380,7 +380,7 @@
                     <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtStaticSelected}" Content="Static" Command="{Binding CurrentWorkflow.SetTrtStatic}" />
                     <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtDynamicSelected}" Content="Dynamic" Command="{Binding CurrentWorkflow.SetTrtDynamic}" />
                   </StackPanel>
-                  <TextBlock Grid.Column="1" Foreground="Gray" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="20,0,0,0" xml:space="preserve">Which input resolutions the engine is built for. <Bold>Static</Bold> (default) tunes the engine to the exact input resolution for the fastest inference; it rebuilds when the resolution changes (a one-time wait per new resolution). <Bold>Dynamic</Bold> builds a single engine spanning the resolution range below, so it never rebuilds — but it runs noticeably slower than a resolution-tuned engine. <Bold>Static ONNX</Bold> uses the model's own declared shape.</TextBlock>
+                  <TextBlock Grid.Column="1" Foreground="Gray" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="20,0,0,0" xml:space="preserve"><Bold>Static</Bold> (default): fastest; rebuilds per resolution. <Bold>Dynamic</Bold>: one engine for all sizes, slower. <Bold>Static ONNX</Bold>: model's shape.</TextBlock>
                 </Grid>
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,5" IsVisible="{Binding CurrentWorkflow.TrtDynamicSelected}">
