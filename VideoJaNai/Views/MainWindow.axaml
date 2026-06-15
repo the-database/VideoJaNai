@@ -491,13 +491,6 @@
 
               <TextBlock Margin="10,10,0,0" Foreground="Gray" FontFamily="Consolas" TextWrapping="WrapWithOverflow" Text="{Binding ComponentStatusText}" />
 
-              <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-                <Button FontWeight="Bold" Content="Reinstall recommended" Click="ReinstallBackendClick" IsEnabled="{Binding AllowReinstall}" />
-                <TextBlock Foreground="Gray" Width="400" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-                  Re-download the components recommended for your GPU. Try this if upscaling isn't working.
-                </TextBlock>
-              </StackPanel>
-
             </StackPanel>
           </Border>
 
@@ -523,7 +516,7 @@
           <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Width="1200">
             <Button FontWeight="Bold" Background="Red" Content="Reinstall components" Click="ReinstallBackendClick" IsEnabled="{Binding AllowReinstall}" />
             <TextBlock Foreground="Gray" Width="400" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="20,0,0,0">
-              Reinstall the Python environment. Try this if you are having any problems getting upscales to work. This process may take several minutes.
+              Reinstall the recommended components. Try this if you are having any problems getting upscales to work. This process may take several minutes.
             </TextBlock>
           </StackPanel>
         </StackPanel>
