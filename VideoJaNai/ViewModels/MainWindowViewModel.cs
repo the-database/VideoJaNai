@@ -62,6 +62,12 @@ namespace VideoJaNai.ViewModels
         private Process? _runningProcess = null;
         private readonly IETACalculator _etaCalculator = new ETACalculator(10, 5.0);
 
+        // Processing throughput, computed app-side from the PROGRESS frame= counter (aji_encode
+        // emits fps=0). EMA-smoothed since PROGRESS lines arrive in 32-frame bursts.
+        private long _lastFpsFrame = -1;
+        private DateTime _lastFpsTime;
+        private double _smoothedFps;
+
         private double _progressValue;
         [IgnoreDataMember]
         public double ProgressValue
@@ -85,6 +91,11 @@ namespace VideoJaNai.ViewModels
             get => _progressPhase;
             set => this.RaiseAndSetIfChanged(ref _progressPhase, value);
         }
+
+        // Editable-combo suggestions for the TensorRT engine-settings UI (mirrors AnimeJaNaiConfEditor).
+        public string[] CommonResolutions { get; } =
+            ["0x0", "640x360", "640x480", "720x480", "768x576", "960x540", "1024x576", "1280x720", "1440x1080", "1920x1080"];
+        public string[] BuilderOptimizationLevels { get; } = ["0", "1", "2", "3", "4", "5"];
 
         public bool IsInstalled => _updateManagerService.IsInstalled;
 
@@ -549,9 +560,16 @@ namespace VideoJaNai.ViewModels
             configText.AppendLine("logging=yes");
             configText.AppendLine($"backend={backend}");
 
-            // trt_engine_settings is intentionally omitted: with TensorRT 11 the engine builds
-            // stronglyTyped by default (precision is taken from the ONNX model), so VideoJaNai no
-            // longer exposes a precision/engine-settings picker.
+            // trt_engine_settings (TensorRT only): precision is model-driven (stronglyTyped); these
+            // trtexec args control build shapes + builder options. Written only when changed from the
+            // engine default (Static), matching AnimeJaNaiConfEditor's write-minimal behavior — an
+            // unchanged value lets libaji use its identical built-in default.
+            if (!CurrentWorkflow.DirectMlSelected &&
+                !string.IsNullOrWhiteSpace(CurrentWorkflow.TrtEngineSettings) &&
+                CurrentWorkflow.TrtEngineSettings != UpscaleWorkflow.TrtEngineSettingsDefault)
+            {
+                configText.AppendLine($"trt_engine_settings={CurrentWorkflow.TrtEngineSettings}");
+            }
 
             configText.AppendLine("[slot_1]");
             configText.AppendLine("profile_name=encode");
@@ -832,17 +850,38 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 ProgressPhase = phaseMatch.Groups[1].Value;
             }
 
+            // FPS: aji_encode always emits fps=0, so derive throughput from how fast the output
+            // frame counter advances. frame=0 lines (build_engine) are skipped, so fps only shows
+            // once real encoding starts.
+            var frameMatch = Regex.Match(line, @"frame=([0-9]+)");
+            if (frameMatch.Success && long.TryParse(frameMatch.Groups[1].Value, NumberStyles.Integer, ENGLISH_CULTURE, out var frame) && frame > 0)
+            {
+                var now = DateTime.UtcNow;
+                if (_lastFpsFrame >= 0 && frame > _lastFpsFrame)
+                {
+                    var seconds = (now - _lastFpsTime).TotalSeconds;
+                    if (seconds > 0)
+                    {
+                        var inst = (frame - _lastFpsFrame) / seconds;
+                        _smoothedFps = _smoothedFps <= 0 ? inst : (0.5 * _smoothedFps) + (0.5 * inst);
+                    }
+                }
+                _lastFpsFrame = frame;
+                _lastFpsTime = now;
+            }
+
             var pctMatch = Regex.Match(line, @"pct=([0-9]+(?:\.[0-9]+)?)");
             if (pctMatch.Success && double.TryParse(pctMatch.Groups[1].Value, NumberStyles.Float, ENGLISH_CULTURE, out var pct))
             {
                 ProgressValue = pct;
 
+                var fpsText = _smoothedFps > 0 ? string.Create(ENGLISH_CULTURE, $" - {_smoothedFps:0.0} fps") : "";
                 if (pct is > 0 and < 100)
                 {
                     _etaCalculator.Update((float)(pct / 100.0));
                     ProgressText = _etaCalculator.ETAIsAvailable
-                        ? string.Create(ENGLISH_CULTURE, $"{pct:0.0}% - ETA {_etaCalculator.ETR:hh\\:mm\\:ss}")
-                        : string.Create(ENGLISH_CULTURE, $"{pct:0.0}%");
+                        ? string.Create(ENGLISH_CULTURE, $"{pct:0.0}%{fpsText} - ETA {_etaCalculator.ETR:hh\\:mm\\:ss}")
+                        : string.Create(ENGLISH_CULTURE, $"{pct:0.0}%{fpsText}");
                 }
                 else
                 {
@@ -856,6 +895,9 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         private void ResetProgress()
         {
             _etaCalculator.Reset();
+            _lastFpsFrame = -1;
+            _lastFpsTime = default;
+            _smoothedFps = 0;
             ProgressValue = 0;
             ProgressText = string.Empty;
             ProgressPhase = string.Empty;
@@ -1011,11 +1053,19 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 var items = new AvaloniaList<ComponentItem>();
                 foreach (var p in (Newtonsoft.Json.Linq.JArray?)root["packs"] ?? new Newtonsoft.Json.Linq.JArray())
                 {
-                    items.Add(new ComponentItem(
-                        (string?)p["name"] ?? "",
-                        (long?)p["bytes"] ?? 0,
-                        (bool?)p["installed"] ?? false,
-                        (bool?)p["recommended"] ?? false));
+                    var name = (string?)p["name"] ?? "";
+                    var installed = (bool?)p["installed"] ?? false;
+                    var recommended = (bool?)p["recommended"] ?? false;
+                    var preselect = (bool?)p["preselect"] ?? false;
+                    // Only surface packs relevant to THIS machine: what it uses (recommended), already
+                    // has (installed, so it can be removed), is offered by default (preselect), or RIFE
+                    // (always a user choice). Per-SM kernel packs for other GPU generations and the
+                    // TensorRT stack on non-NVIDIA boxes are hidden — the updater CLI still lists them all.
+                    if (!installed && !recommended && !preselect && name != "rife")
+                    {
+                        continue;
+                    }
+                    items.Add(new ComponentItem(name, (long?)p["bytes"] ?? 0, installed, recommended, preselect));
                 }
                 Components = items;
             }
@@ -1105,18 +1155,51 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
     // A downloadable runtime component pack, surfaced in the App Settings component manager.
     public class ComponentItem
     {
-        public ComponentItem(string name, long bytes, bool installed, bool recommended)
+        public ComponentItem(string name, long bytes, bool installed, bool recommended, bool preselect)
         {
             Name = name;
             Bytes = bytes;
             Installed = installed;
             Recommended = recommended;
+            Preselect = preselect;
         }
 
         public string Name { get; }
         public long Bytes { get; }
         public bool Installed { get; }
         public bool Recommended { get; }
+        public bool Preselect { get; }
+
+        // User-facing label for the raw pack id (mirrors the AnimeJaNai Manager). Only the pack(s)
+        // relevant to this machine reach the UI, so the SM family shown is the user's own GPU.
+        public string Title => Name switch
+        {
+            "trt-runtime" => "TensorRT runtime",
+            "rife" => "RIFE interpolation models",
+            "trt-ptx" => "TensorRT kernels: other NVIDIA GPUs",
+            _ when Name.StartsWith("trt-sm") => $"TensorRT kernels: {SmFamily(Name[6..])}",
+            _ => Name,
+        };
+
+        public string Description => Name switch
+        {
+            "trt-runtime" => "The fastest upscaling engine, for NVIDIA GPUs. Without it, upscaling falls back to the slower DirectML engine.",
+            "rife" => "Frame interpolation (e.g. 24 → 48 fps). Not needed if you only upscale.",
+            "trt-ptx" => "Fallback kernels for NVIDIA GPUs without a dedicated kernel pack. The first engine build is slower.",
+            _ when Name.StartsWith("trt-sm") => "Engine-builder kernels matched to your GPU generation.",
+            _ => "",
+        };
+
+        // CUDA compute capability (sm) -> consumer GPU family.
+        private static string SmFamily(string sm) => sm switch
+        {
+            "75" => "GeForce RTX 20 series (Turing)",
+            "80" or "86" => "GeForce RTX 30 series (Ampere)",
+            "89" => "GeForce RTX 40 series (Ada)",
+            "90" => "Hopper",
+            "100" or "120" => "GeForce RTX 50 series (Blackwell)",
+            _ => $"sm{sm}",
+        };
 
         public string SizeText => $"{Bytes / 1048576} MB";
         public string StateText => Installed ? "installed" : Recommended ? "recommended" : "available";
@@ -1297,12 +1380,180 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
         }
 
+        // TensorRT engine-build settings (trtexec args). The raw string is the single source of
+        // truth; Engine Type / dynamic resolutions / builder optimization level are computed from it
+        // and rewrite it. Precision is model-driven (TRT 11 strongly-typed by default), so there are
+        // no fp16/bf16 options. Trimmed to only the flags that actually matter on TRT 11:
+        // --stronglyTyped is a deprecated no-op, and libaji's sanitizer strips --inputIOFormats/
+        // --outputIOFormats/--tacticSources anyway. Must stay byte-for-byte equal to libaji's
+        // DEFAULT_TRT_ENGINE_SETTINGS so write-minimal can omit it from the conf.
+        public const string TrtEngineSettingsDefault =
+            "--builderOptimizationLevel=5 --optShapes=input:%video_resolution% --skipInference";
+
+        private string _trtEngineSettings = TrtEngineSettingsDefault;
+        [DataMember]
+        public string TrtEngineSettings
+        {
+            get => _trtEngineSettings;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _trtEngineSettings, value);
+                this.RaisePropertyChanged(nameof(TrtStaticOnnxSelected));
+                this.RaisePropertyChanged(nameof(TrtStaticSelected));
+                this.RaisePropertyChanged(nameof(TrtDynamicSelected));
+                this.RaisePropertyChanged(nameof(TrtDynamicMinResolution));
+                this.RaisePropertyChanged(nameof(TrtDynamicOptResolution));
+                this.RaisePropertyChanged(nameof(TrtDynamicMaxResolution));
+                this.RaisePropertyChanged(nameof(TrtBuilderOptimizationLevel));
+            }
+        }
+
+        public bool TrtDynamicSelected => TrtEngineSettings.Contains("--minShapes=");
+        public bool TrtStaticSelected => TrtEngineSettings.Contains("--optShapes=") && !TrtDynamicSelected;
+        public bool TrtStaticOnnxSelected => !TrtEngineSettings.Contains("--optShapes=") && !TrtDynamicSelected;
+
+        private static string ShapeToResolution(string shapeArg)
+        {
+            var match = Regex.Match(shapeArg, @"input:1x3x(\d+)x(\d+)");
+            if (match.Success)
+                return $"{match.Groups[2].Value}x{match.Groups[1].Value}";
+            return "0x0";
+        }
+
+        private static string ResolutionToShape(string resolution)
+        {
+            var match = Regex.Match(resolution, @"(\d+)x(\d+)");
+            if (match.Success)
+                return $"1x3x{match.Groups[2].Value}x{match.Groups[1].Value}";
+            return "1x3x0x0";
+        }
+
+        private static string? ExtractShapeValue(string settings, string prefix)
+        {
+            var match = Regex.Match(settings, prefix + @"=(\S+)");
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
+        public string TrtDynamicMinResolution
+        {
+            get
+            {
+                var val = ExtractShapeValue(TrtEngineSettings, "--minShapes");
+                return val != null ? ShapeToResolution(val) : "8x8";
+            }
+            set
+            {
+                var shape = ResolutionToShape(value);
+                TrtEngineSettings = Regex.Replace(TrtEngineSettings, @"--minShapes=\S+", $"--minShapes=input:{shape}");
+            }
+        }
+
+        public string TrtDynamicOptResolution
+        {
+            get
+            {
+                if (!TrtDynamicSelected) return "1920x1080";
+                var val = ExtractShapeValue(TrtEngineSettings, "--optShapes");
+                return val != null ? ShapeToResolution(val) : "1920x1080";
+            }
+            set
+            {
+                var shape = ResolutionToShape(value);
+                if (TrtDynamicSelected)
+                    TrtEngineSettings = Regex.Replace(TrtEngineSettings, @"--optShapes=\S+", $"--optShapes=input:{shape}");
+            }
+        }
+
+        public string TrtDynamicMaxResolution
+        {
+            get
+            {
+                var val = ExtractShapeValue(TrtEngineSettings, "--maxShapes");
+                return val != null ? ShapeToResolution(val) : "1920x1080";
+            }
+            set
+            {
+                var shape = ResolutionToShape(value);
+                TrtEngineSettings = Regex.Replace(TrtEngineSettings, @"--maxShapes=\S+", $"--maxShapes=input:{shape}");
+            }
+        }
+
+        public string TrtBuilderOptimizationLevel
+        {
+            get
+            {
+                var match = Regex.Match(TrtEngineSettings, @"--builderOptimizationLevel=(\d+)");
+                return match.Success ? match.Groups[1].Value : "5";
+            }
+            set
+            {
+                var match = Regex.Match(value ?? "", @"\d+");
+                var level = match.Success ? match.Value : "5";
+                if (Regex.IsMatch(TrtEngineSettings, @"--builderOptimizationLevel=\d+"))
+                    TrtEngineSettings = Regex.Replace(TrtEngineSettings, @"--builderOptimizationLevel=\d+", $"--builderOptimizationLevel={level}");
+                else
+                    TrtEngineSettings = InsertBeforeTactics(TrtEngineSettings, $"--builderOptimizationLevel={level}");
+            }
+        }
+
+        private static string RemoveShapeArgs(string settings)
+        {
+            var result = Regex.Replace(settings, @"\s*--(?:min|opt|max)Shapes=\S+", "");
+            return Regex.Replace(result, @"\s+", " ").Trim();
+        }
+
+        private static string InsertBeforeTactics(string settings, string toInsert)
+        {
+            var idx = settings.IndexOf("--tacticSources", StringComparison.Ordinal);
+            if (idx >= 0)
+                return settings.Insert(idx, toInsert + " ");
+            return settings + " " + toInsert;
+        }
+
+        // Migration for engine settings saved by older versions: strip flags that are dead on
+        // TensorRT 11, preserving everything else (builder level, shapes, --skipInference, custom
+        // flags). Mirrors libaji's sanitize_settings_trt11 (which removes these before building) plus
+        // --stronglyTyped: strongly-typed is the default now (a trtexec no-op), typed IO formats and
+        // the cuDNN/cuBLAS tactic sources are gone, and the weak-typing precision flags were removed.
+        // Purely cosmetic — libaji builds the same engine either way — but keeps the editor clean.
+        public static string NormalizeTrtEngineSettings(string settings)
+        {
+            if (string.IsNullOrWhiteSpace(settings))
+            {
+                return settings;
+            }
+            settings = Regex.Replace(settings, @"\s*--(?:fp16|bf16|int8|best|buildOnly|stronglyTyped)\b", "");
+            settings = Regex.Replace(settings, @"\s*--(?:inputIOFormats|outputIOFormats|tacticSources)=\S+", "");
+            return Regex.Replace(settings, @"\s+", " ").Trim();
+        }
+
+        public void SetTrtStaticOnnx()
+        {
+            TrtEngineSettings = RemoveShapeArgs(TrtEngineSettings);
+        }
+
+        public void SetTrtStatic()
+        {
+            var settings = RemoveShapeArgs(TrtEngineSettings);
+            TrtEngineSettings = InsertBeforeTactics(settings, "--optShapes=input:%video_resolution%");
+        }
+
+        public void SetTrtDynamic()
+        {
+            var settings = RemoveShapeArgs(TrtEngineSettings);
+            TrtEngineSettings = InsertBeforeTactics(settings, "--minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x1080x1920");
+        }
+
         private bool _tensorRtSelected = true;
         [DataMember]
         public bool TensorRtSelected
         {
             get => _tensorRtSelected;
-            set => this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
+                this.RaisePropertyChanged(nameof(ShowTrtEngineSettings));
+            }
         }
 
         private bool _directMlSelected = false;
@@ -1443,8 +1694,15 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public bool ShowAdvancedSettings
         {
             get => _showAdvancedSettings;
-            set => this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value);
+                this.RaisePropertyChanged(nameof(ShowTrtEngineSettings));
+            }
         }
+
+        // Engine-settings UI is TensorRT-only and lives under Advanced settings.
+        public bool ShowTrtEngineSettings => ShowAdvancedSettings && TensorRtSelected;
 
         public void AddModel()
         {

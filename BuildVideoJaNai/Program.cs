@@ -26,7 +26,7 @@ using static Downloader;
 // (v16.x == TensorRT 11.0).
 const string VsMlrtCudaVersion = "v16.test1";              // AmusementClub/vs-mlrt cuda release (TensorRT 11)
 const string AjiVersion        = "v0.4.0";                 // the-database/animejanai-inference (multi-GPU kernels + --pix-fmt + zero-copy 10-bit). Deliberately NOT v0.4.1: that only defaults CUDA graphs off to fix realtime *playback* stutter, irrelevant to offline batch encode (graphs-on may even be marginally faster across a batch).
-const string SevenZipVersion   = "2501";                  // 7-zip "extra" standalone console
+const string SevenZipVersion   = "2601";                  // 7-zip "extra" standalone console (26.01)
 const string RifeModelsVersion = "models-rife-fp16-1";    // animejanai-inference rife fp16 release
 const string FfmpegVersion     = "8.1.1";                 // gyan.dev ffmpeg shared build (dev DLLs for aji_encode)
 
