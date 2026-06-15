@@ -1510,6 +1510,23 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             return settings + " " + toInsert;
         }
 
+        // Migration for engine settings saved by older versions: strip flags that are dead on
+        // TensorRT 11, preserving everything else (builder level, shapes, --skipInference, custom
+        // flags). Mirrors libaji's sanitize_settings_trt11 (which removes these before building) plus
+        // --stronglyTyped: strongly-typed is the default now (a trtexec no-op), typed IO formats and
+        // the cuDNN/cuBLAS tactic sources are gone, and the weak-typing precision flags were removed.
+        // Purely cosmetic — libaji builds the same engine either way — but keeps the editor clean.
+        public static string NormalizeTrtEngineSettings(string settings)
+        {
+            if (string.IsNullOrWhiteSpace(settings))
+            {
+                return settings;
+            }
+            settings = Regex.Replace(settings, @"\s*--(?:fp16|bf16|int8|best|buildOnly|stronglyTyped)\b", "");
+            settings = Regex.Replace(settings, @"\s*--(?:inputIOFormats|outputIOFormats|tacticSources)=\S+", "");
+            return Regex.Replace(settings, @"\s+", " ").Trim();
+        }
+
         public void SetTrtStaticOnnx()
         {
             TrtEngineSettings = RemoveShapeArgs(TrtEngineSettings);

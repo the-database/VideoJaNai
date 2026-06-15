@@ -75,6 +75,9 @@ namespace VideoJaNai
             foreach (var wf in state.Workflows)
             {
                 wf.Vm = state;
+                // Migrate engine settings saved by older versions: drop the TensorRT 11 dead flags
+                // (no-ops the native engine strips anyway) so the editor doesn't show stale cruft.
+                wf.TrtEngineSettings = UpscaleWorkflow.NormalizeTrtEngineSettings(wf.TrtEngineSettings);
             }
 
             state.CurrentWorkflow?.Validate();
