@@ -429,7 +429,7 @@
                   <TextBlock Grid.Column="1" Foreground="Gray" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="20,0,0,0">Higher levels (0-5) take longer to build the engine but can produce a faster engine. Default is 5.</TextBlock>
                 </Grid>
 
-                <TextBox Text="{Binding CurrentWorkflow.TrtEngineSettings}" Width="800" HorizontalAlignment="Left" TextWrapping="Wrap" AcceptsReturn="False" MinHeight="70" VerticalContentAlignment="Top" />
+                <TextBox Text="{Binding CurrentWorkflow.TrtEngineSettings}" HorizontalAlignment="Stretch" TextWrapping="Wrap" AcceptsReturn="False" MinHeight="70" VerticalContentAlignment="Top" />
               </StackPanel>
             </Border>
           </StackPanel>
