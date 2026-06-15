@@ -92,6 +92,11 @@ namespace VideoJaNai.ViewModels
             set => this.RaiseAndSetIfChanged(ref _progressPhase, value);
         }
 
+        // Editable-combo suggestions for the TensorRT engine-settings UI (mirrors AnimeJaNaiConfEditor).
+        public string[] CommonResolutions { get; } =
+            ["0x0", "640x360", "640x480", "720x480", "768x576", "960x540", "1024x576", "1280x720", "1440x1080", "1920x1080"];
+        public string[] BuilderOptimizationLevels { get; } = ["0", "1", "2", "3", "4", "5"];
+
         public bool IsInstalled => _updateManagerService.IsInstalled;
 
         private bool _showCheckUpdateButton = true;
@@ -561,7 +566,7 @@ namespace VideoJaNai.ViewModels
             // unchanged value lets libaji use its identical built-in default.
             if (!CurrentWorkflow.DirectMlSelected &&
                 !string.IsNullOrWhiteSpace(CurrentWorkflow.TrtEngineSettings) &&
-                CurrentWorkflow.TrtEngineSettings != UpscaleWorkflow.TrtEngineSettingsStatic)
+                CurrentWorkflow.TrtEngineSettings != UpscaleWorkflow.TrtEngineSettingsDefault)
             {
                 configText.AppendLine($"trt_engine_settings={CurrentWorkflow.TrtEngineSettings}");
             }
@@ -1375,21 +1380,15 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
         }
 
-        // TensorRT engine-build settings (trtexec args). Precision is model-driven (TRT 11
-        // stronglyTyped), so there are no fp16/bf16 options; these control build shapes + builder
-        // options. "Static" = a per-resolution engine (the engine default; fastest inference).
-        // "Dynamic" = one engine spanning a shape range (fewer rebuilds, slightly slower). The
-        // Static string is byte-for-byte libaji's built-in default, so write-minimal can skip it;
-        // libaji also auto-strips any stale weak-typing flags from a custom string.
-        public const string TrtEngineSettingsStatic =
+        // TensorRT engine-build settings (trtexec args) — ported verbatim from AnimeJaNaiConfEditor
+        // so both apps behave identically. The raw string is the single source of truth; Engine Type
+        // / dynamic resolutions / builder optimization level are computed from it and rewrite it.
+        // Precision is model-driven (TRT 11 stronglyTyped), so there are no fp16/bf16 options. This
+        // default is byte-for-byte libaji's built-in default, so write-minimal omits it from the conf.
+        public const string TrtEngineSettingsDefault =
             "--stronglyTyped --optShapes=input:%video_resolution% --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --builderOptimizationLevel=5 --tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
-        public const string TrtEngineSettingsDynamic =
-            "--stronglyTyped --minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x2160x3840 --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --builderOptimizationLevel=5 --tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
 
-        public bool TrtEngineStaticSelected => TrtEngineSettings == TrtEngineSettingsStatic;
-        public bool TrtEngineDynamicSelected => TrtEngineSettings == TrtEngineSettingsDynamic;
-
-        private string _trtEngineSettings = TrtEngineSettingsStatic;
+        private string _trtEngineSettings = TrtEngineSettingsDefault;
         [DataMember]
         public string TrtEngineSettings
         {
@@ -1397,9 +1396,133 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             set
             {
                 this.RaiseAndSetIfChanged(ref _trtEngineSettings, value);
-                this.RaisePropertyChanged(nameof(TrtEngineStaticSelected));
-                this.RaisePropertyChanged(nameof(TrtEngineDynamicSelected));
+                this.RaisePropertyChanged(nameof(TrtStaticOnnxSelected));
+                this.RaisePropertyChanged(nameof(TrtStaticSelected));
+                this.RaisePropertyChanged(nameof(TrtDynamicSelected));
+                this.RaisePropertyChanged(nameof(TrtDynamicMinResolution));
+                this.RaisePropertyChanged(nameof(TrtDynamicOptResolution));
+                this.RaisePropertyChanged(nameof(TrtDynamicMaxResolution));
+                this.RaisePropertyChanged(nameof(TrtBuilderOptimizationLevel));
             }
+        }
+
+        public bool TrtDynamicSelected => TrtEngineSettings.Contains("--minShapes=");
+        public bool TrtStaticSelected => TrtEngineSettings.Contains("--optShapes=") && !TrtDynamicSelected;
+        public bool TrtStaticOnnxSelected => !TrtEngineSettings.Contains("--optShapes=") && !TrtDynamicSelected;
+
+        private static string ShapeToResolution(string shapeArg)
+        {
+            var match = Regex.Match(shapeArg, @"input:1x3x(\d+)x(\d+)");
+            if (match.Success)
+                return $"{match.Groups[2].Value}x{match.Groups[1].Value}";
+            return "0x0";
+        }
+
+        private static string ResolutionToShape(string resolution)
+        {
+            var match = Regex.Match(resolution, @"(\d+)x(\d+)");
+            if (match.Success)
+                return $"1x3x{match.Groups[2].Value}x{match.Groups[1].Value}";
+            return "1x3x0x0";
+        }
+
+        private static string? ExtractShapeValue(string settings, string prefix)
+        {
+            var match = Regex.Match(settings, prefix + @"=(\S+)");
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
+        public string TrtDynamicMinResolution
+        {
+            get
+            {
+                var val = ExtractShapeValue(TrtEngineSettings, "--minShapes");
+                return val != null ? ShapeToResolution(val) : "8x8";
+            }
+            set
+            {
+                var shape = ResolutionToShape(value);
+                TrtEngineSettings = Regex.Replace(TrtEngineSettings, @"--minShapes=\S+", $"--minShapes=input:{shape}");
+            }
+        }
+
+        public string TrtDynamicOptResolution
+        {
+            get
+            {
+                if (!TrtDynamicSelected) return "1920x1080";
+                var val = ExtractShapeValue(TrtEngineSettings, "--optShapes");
+                return val != null ? ShapeToResolution(val) : "1920x1080";
+            }
+            set
+            {
+                var shape = ResolutionToShape(value);
+                if (TrtDynamicSelected)
+                    TrtEngineSettings = Regex.Replace(TrtEngineSettings, @"--optShapes=\S+", $"--optShapes=input:{shape}");
+            }
+        }
+
+        public string TrtDynamicMaxResolution
+        {
+            get
+            {
+                var val = ExtractShapeValue(TrtEngineSettings, "--maxShapes");
+                return val != null ? ShapeToResolution(val) : "1920x1080";
+            }
+            set
+            {
+                var shape = ResolutionToShape(value);
+                TrtEngineSettings = Regex.Replace(TrtEngineSettings, @"--maxShapes=\S+", $"--maxShapes=input:{shape}");
+            }
+        }
+
+        public string TrtBuilderOptimizationLevel
+        {
+            get
+            {
+                var match = Regex.Match(TrtEngineSettings, @"--builderOptimizationLevel=(\d+)");
+                return match.Success ? match.Groups[1].Value : "5";
+            }
+            set
+            {
+                var match = Regex.Match(value ?? "", @"\d+");
+                var level = match.Success ? match.Value : "5";
+                if (Regex.IsMatch(TrtEngineSettings, @"--builderOptimizationLevel=\d+"))
+                    TrtEngineSettings = Regex.Replace(TrtEngineSettings, @"--builderOptimizationLevel=\d+", $"--builderOptimizationLevel={level}");
+                else
+                    TrtEngineSettings = InsertBeforeTactics(TrtEngineSettings, $"--builderOptimizationLevel={level}");
+            }
+        }
+
+        private static string RemoveShapeArgs(string settings)
+        {
+            var result = Regex.Replace(settings, @"\s*--(?:min|opt|max)Shapes=\S+", "");
+            return Regex.Replace(result, @"\s+", " ").Trim();
+        }
+
+        private static string InsertBeforeTactics(string settings, string toInsert)
+        {
+            var idx = settings.IndexOf("--tacticSources", StringComparison.Ordinal);
+            if (idx >= 0)
+                return settings.Insert(idx, toInsert + " ");
+            return settings + " " + toInsert;
+        }
+
+        public void SetTrtStaticOnnx()
+        {
+            TrtEngineSettings = RemoveShapeArgs(TrtEngineSettings);
+        }
+
+        public void SetTrtStatic()
+        {
+            var settings = RemoveShapeArgs(TrtEngineSettings);
+            TrtEngineSettings = InsertBeforeTactics(settings, "--optShapes=input:%video_resolution%");
+        }
+
+        public void SetTrtDynamic()
+        {
+            var settings = RemoveShapeArgs(TrtEngineSettings);
+            TrtEngineSettings = InsertBeforeTactics(settings, "--minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x1080x1920");
         }
 
         private bool _tensorRtSelected = true;
@@ -1618,9 +1741,6 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public void SetOutputPixFmt420P10() { OutputPixFmt = "yuv420p10"; Validate(); }
         public void SetOutputPixFmt444P8() { OutputPixFmt = "yuv444p"; Validate(); }
         public void SetOutputPixFmt444P10() { OutputPixFmt = "yuv444p10"; Validate(); }
-
-        public void SetTrtEngineStatic() => TrtEngineSettings = TrtEngineSettingsStatic;
-        public void SetTrtEngineDynamic() => TrtEngineSettings = TrtEngineSettingsDynamic;
 
         public void SetTensorRtSelected()
         {

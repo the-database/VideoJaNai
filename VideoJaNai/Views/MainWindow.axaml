@@ -368,14 +368,41 @@
 <Bold>DirectML</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" /></TextBlock>
           </StackPanel>
 
-          <StackPanel Orientation="Vertical" Margin="10,10,0,10" IsVisible="{Binding CurrentWorkflow.ShowTrtEngineSettings}">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="TensorRT engine" />
-              <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtEngineStaticSelected}" Content="Static (per-resolution)" Command="{Binding CurrentWorkflow.SetTrtEngineStatic}" />
-              <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtEngineDynamicSelected}" Content="Dynamic (all resolutions)" Command="{Binding CurrentWorkflow.SetTrtEngineDynamic}" />
-              <TextBlock Foreground="Gray" Width="680" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>Static</Bold>: a separate engine per input resolution (fastest). <Bold>Dynamic</Bold>: one engine for all resolutions (fewer rebuilds, slightly slower). Precision comes from the model. Advanced users can edit the trtexec args below.</TextBlock>
-            </StackPanel>
-            <TextBox Margin="0,8,10,0" Width="900" HorizontalAlignment="Left" TextWrapping="Wrap" AcceptsReturn="False" Text="{Binding CurrentWorkflow.TrtEngineSettings}" />
+          <StackPanel Margin="10,10,0,10" IsVisible="{Binding CurrentWorkflow.ShowTrtEngineSettings}">
+            <TextBlock Margin="0,10,0,5" Text="TensorRT Engine Settings" />
+            <Border Classes="border">
+              <StackPanel Margin="10">
+
+                <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,5">
+                  <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Engine Type</TextBlock>
+                    <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtStaticOnnxSelected}" Content="Static ONNX" Command="{Binding CurrentWorkflow.SetTrtStaticOnnx}" />
+                    <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtStaticSelected}" Content="Static" Command="{Binding CurrentWorkflow.SetTrtStatic}" />
+                    <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtDynamicSelected}" Content="Dynamic" Command="{Binding CurrentWorkflow.SetTrtDynamic}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Foreground="Gray" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="20,0,0,0" xml:space="preserve">Which input resolutions the engine is built for. <Bold>Static ONNX</Bold> uses the ONNX model's shape. <Bold>Static</Bold> builds for a single resolution and rebuilds when it changes. <Bold>Dynamic</Bold> builds one engine for the resolution range specified below.</TextBlock>
+                </Grid>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,5" IsVisible="{Binding CurrentWorkflow.TrtDynamicSelected}">
+                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Min Resolution</TextBlock>
+                  <ui:FAComboBox IsEditable="True" Width="120" MaxDropDownHeight="600" Text="{Binding CurrentWorkflow.TrtDynamicMinResolution, Mode=TwoWay}" ItemsSource="{Binding CommonResolutions}" />
+                  <TextBlock Margin="10,0,5,0" VerticalAlignment="Center">Opt Resolution</TextBlock>
+                  <ui:FAComboBox IsEditable="True" Width="120" MaxDropDownHeight="600" Text="{Binding CurrentWorkflow.TrtDynamicOptResolution, Mode=TwoWay}" ItemsSource="{Binding CommonResolutions}" />
+                  <TextBlock Margin="10,0,5,0" VerticalAlignment="Center">Max Resolution</TextBlock>
+                  <ui:FAComboBox IsEditable="True" Width="120" MaxDropDownHeight="600" Text="{Binding CurrentWorkflow.TrtDynamicMaxResolution, Mode=TwoWay}" ItemsSource="{Binding CommonResolutions}" />
+                </StackPanel>
+
+                <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,5">
+                  <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Builder Optimization Level</TextBlock>
+                    <ui:FAComboBox IsEditable="True" Width="120" MaxDropDownHeight="600" Text="{Binding CurrentWorkflow.TrtBuilderOptimizationLevel, Mode=TwoWay}" ItemsSource="{Binding BuilderOptimizationLevels}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Foreground="Gray" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="20,0,0,0">Higher levels (0-5) take longer to build the engine but can produce a faster engine. Default is 5.</TextBlock>
+                </Grid>
+
+                <TextBox Text="{Binding CurrentWorkflow.TrtEngineSettings}" MaxWidth="800" HorizontalAlignment="Stretch" />
+              </StackPanel>
+            </Border>
           </StackPanel>
             </StackPanel>
           </Border>
