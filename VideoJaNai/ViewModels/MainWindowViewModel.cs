@@ -1380,13 +1380,15 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
         }
 
-        // TensorRT engine-build settings (trtexec args) — ported verbatim from AnimeJaNaiConfEditor
-        // so both apps behave identically. The raw string is the single source of truth; Engine Type
-        // / dynamic resolutions / builder optimization level are computed from it and rewrite it.
-        // Precision is model-driven (TRT 11 stronglyTyped), so there are no fp16/bf16 options. This
-        // default is byte-for-byte libaji's built-in default, so write-minimal omits it from the conf.
+        // TensorRT engine-build settings (trtexec args). The raw string is the single source of
+        // truth; Engine Type / dynamic resolutions / builder optimization level are computed from it
+        // and rewrite it. Precision is model-driven (TRT 11 strongly-typed by default), so there are
+        // no fp16/bf16 options. Trimmed to only the flags that actually matter on TRT 11:
+        // --stronglyTyped is a deprecated no-op, and libaji's sanitizer strips --inputIOFormats/
+        // --outputIOFormats/--tacticSources anyway. Must stay byte-for-byte equal to libaji's
+        // DEFAULT_TRT_ENGINE_SETTINGS so write-minimal can omit it from the conf.
         public const string TrtEngineSettingsDefault =
-            "--stronglyTyped --optShapes=input:%video_resolution% --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --builderOptimizationLevel=5 --tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
+            "--builderOptimizationLevel=5 --optShapes=input:%video_resolution% --skipInference";
 
         private string _trtEngineSettings = TrtEngineSettingsDefault;
         [DataMember]
