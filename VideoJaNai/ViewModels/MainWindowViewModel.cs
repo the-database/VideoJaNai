@@ -62,6 +62,12 @@ namespace VideoJaNai.ViewModels
         private Process? _runningProcess = null;
         private readonly IETACalculator _etaCalculator = new ETACalculator(10, 5.0);
 
+        // Processing throughput, computed app-side from the PROGRESS frame= counter (aji_encode
+        // emits fps=0). EMA-smoothed since PROGRESS lines arrive in 32-frame bursts.
+        private long _lastFpsFrame = -1;
+        private DateTime _lastFpsTime;
+        private double _smoothedFps;
+
         private double _progressValue;
         [IgnoreDataMember]
         public double ProgressValue
@@ -832,17 +838,38 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 ProgressPhase = phaseMatch.Groups[1].Value;
             }
 
+            // FPS: aji_encode always emits fps=0, so derive throughput from how fast the output
+            // frame counter advances. frame=0 lines (build_engine) are skipped, so fps only shows
+            // once real encoding starts.
+            var frameMatch = Regex.Match(line, @"frame=([0-9]+)");
+            if (frameMatch.Success && long.TryParse(frameMatch.Groups[1].Value, NumberStyles.Integer, ENGLISH_CULTURE, out var frame) && frame > 0)
+            {
+                var now = DateTime.UtcNow;
+                if (_lastFpsFrame >= 0 && frame > _lastFpsFrame)
+                {
+                    var seconds = (now - _lastFpsTime).TotalSeconds;
+                    if (seconds > 0)
+                    {
+                        var inst = (frame - _lastFpsFrame) / seconds;
+                        _smoothedFps = _smoothedFps <= 0 ? inst : (0.5 * _smoothedFps) + (0.5 * inst);
+                    }
+                }
+                _lastFpsFrame = frame;
+                _lastFpsTime = now;
+            }
+
             var pctMatch = Regex.Match(line, @"pct=([0-9]+(?:\.[0-9]+)?)");
             if (pctMatch.Success && double.TryParse(pctMatch.Groups[1].Value, NumberStyles.Float, ENGLISH_CULTURE, out var pct))
             {
                 ProgressValue = pct;
 
+                var fpsText = _smoothedFps > 0 ? string.Create(ENGLISH_CULTURE, $" - {_smoothedFps:0.0} fps") : "";
                 if (pct is > 0 and < 100)
                 {
                     _etaCalculator.Update((float)(pct / 100.0));
                     ProgressText = _etaCalculator.ETAIsAvailable
-                        ? string.Create(ENGLISH_CULTURE, $"{pct:0.0}% - ETA {_etaCalculator.ETR:hh\\:mm\\:ss}")
-                        : string.Create(ENGLISH_CULTURE, $"{pct:0.0}%");
+                        ? string.Create(ENGLISH_CULTURE, $"{pct:0.0}%{fpsText} - ETA {_etaCalculator.ETR:hh\\:mm\\:ss}")
+                        : string.Create(ENGLISH_CULTURE, $"{pct:0.0}%{fpsText}");
                 }
                 else
                 {
@@ -856,6 +883,9 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         private void ResetProgress()
         {
             _etaCalculator.Reset();
+            _lastFpsFrame = -1;
+            _lastFpsTime = default;
+            _smoothedFps = 0;
             ProgressValue = 0;
             ProgressText = string.Empty;
             ProgressPhase = string.Empty;
