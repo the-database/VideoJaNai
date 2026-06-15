@@ -1011,11 +1011,19 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 var items = new AvaloniaList<ComponentItem>();
                 foreach (var p in (Newtonsoft.Json.Linq.JArray?)root["packs"] ?? new Newtonsoft.Json.Linq.JArray())
                 {
-                    items.Add(new ComponentItem(
-                        (string?)p["name"] ?? "",
-                        (long?)p["bytes"] ?? 0,
-                        (bool?)p["installed"] ?? false,
-                        (bool?)p["recommended"] ?? false));
+                    var name = (string?)p["name"] ?? "";
+                    var installed = (bool?)p["installed"] ?? false;
+                    var recommended = (bool?)p["recommended"] ?? false;
+                    var preselect = (bool?)p["preselect"] ?? false;
+                    // Only surface packs relevant to THIS machine: what it uses (recommended), already
+                    // has (installed, so it can be removed), is offered by default (preselect), or RIFE
+                    // (always a user choice). Per-SM kernel packs for other GPU generations and the
+                    // TensorRT stack on non-NVIDIA boxes are hidden — the updater CLI still lists them all.
+                    if (!installed && !recommended && !preselect && name != "rife")
+                    {
+                        continue;
+                    }
+                    items.Add(new ComponentItem(name, (long?)p["bytes"] ?? 0, installed, recommended, preselect));
                 }
                 Components = items;
             }
@@ -1105,18 +1113,51 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
     // A downloadable runtime component pack, surfaced in the App Settings component manager.
     public class ComponentItem
     {
-        public ComponentItem(string name, long bytes, bool installed, bool recommended)
+        public ComponentItem(string name, long bytes, bool installed, bool recommended, bool preselect)
         {
             Name = name;
             Bytes = bytes;
             Installed = installed;
             Recommended = recommended;
+            Preselect = preselect;
         }
 
         public string Name { get; }
         public long Bytes { get; }
         public bool Installed { get; }
         public bool Recommended { get; }
+        public bool Preselect { get; }
+
+        // User-facing label for the raw pack id (mirrors the AnimeJaNai Manager). Only the pack(s)
+        // relevant to this machine reach the UI, so the SM family shown is the user's own GPU.
+        public string Title => Name switch
+        {
+            "trt-runtime" => "TensorRT runtime",
+            "rife" => "RIFE interpolation models",
+            "trt-ptx" => "TensorRT kernels: other NVIDIA GPUs",
+            _ when Name.StartsWith("trt-sm") => $"TensorRT kernels: {SmFamily(Name[6..])}",
+            _ => Name,
+        };
+
+        public string Description => Name switch
+        {
+            "trt-runtime" => "The fastest upscaling engine, for NVIDIA GPUs. Without it, upscaling falls back to the slower DirectML engine.",
+            "rife" => "Frame interpolation (e.g. 24 → 48 fps). Not needed if you only upscale.",
+            "trt-ptx" => "Fallback kernels for NVIDIA GPUs without a dedicated kernel pack. The first engine build is slower.",
+            _ when Name.StartsWith("trt-sm") => "Engine-builder kernels matched to your GPU generation.",
+            _ => "",
+        };
+
+        // CUDA compute capability (sm) -> consumer GPU family.
+        private static string SmFamily(string sm) => sm switch
+        {
+            "75" => "GeForce RTX 20 series (Turing)",
+            "80" or "86" => "GeForce RTX 30 series (Ampere)",
+            "89" => "GeForce RTX 40 series (Ada)",
+            "90" => "Hopper",
+            "100" or "120" => "GeForce RTX 50 series (Blackwell)",
+            _ => $"sm{sm}",
+        };
 
         public string SizeText => $"{Bytes / 1048576} MB";
         public string StateText => Installed ? "installed" : Recommended ? "recommended" : "available";
