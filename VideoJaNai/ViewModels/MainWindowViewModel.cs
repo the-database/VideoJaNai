@@ -555,9 +555,16 @@ namespace VideoJaNai.ViewModels
             configText.AppendLine("logging=yes");
             configText.AppendLine($"backend={backend}");
 
-            // trt_engine_settings is intentionally omitted: with TensorRT 11 the engine builds
-            // stronglyTyped by default (precision is taken from the ONNX model), so VideoJaNai no
-            // longer exposes a precision/engine-settings picker.
+            // trt_engine_settings (TensorRT only): precision is model-driven (stronglyTyped); these
+            // trtexec args control build shapes + builder options. Written only when changed from the
+            // engine default (Static), matching AnimeJaNaiConfEditor's write-minimal behavior — an
+            // unchanged value lets libaji use its identical built-in default.
+            if (!CurrentWorkflow.DirectMlSelected &&
+                !string.IsNullOrWhiteSpace(CurrentWorkflow.TrtEngineSettings) &&
+                CurrentWorkflow.TrtEngineSettings != UpscaleWorkflow.TrtEngineSettingsStatic)
+            {
+                configText.AppendLine($"trt_engine_settings={CurrentWorkflow.TrtEngineSettings}");
+            }
 
             configText.AppendLine("[slot_1]");
             configText.AppendLine("profile_name=encode");
@@ -1368,12 +1375,43 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
         }
 
+        // TensorRT engine-build settings (trtexec args). Precision is model-driven (TRT 11
+        // stronglyTyped), so there are no fp16/bf16 options; these control build shapes + builder
+        // options. "Static" = a per-resolution engine (the engine default; fastest inference).
+        // "Dynamic" = one engine spanning a shape range (fewer rebuilds, slightly slower). The
+        // Static string is byte-for-byte libaji's built-in default, so write-minimal can skip it;
+        // libaji also auto-strips any stale weak-typing flags from a custom string.
+        public const string TrtEngineSettingsStatic =
+            "--stronglyTyped --optShapes=input:%video_resolution% --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --builderOptimizationLevel=5 --tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
+        public const string TrtEngineSettingsDynamic =
+            "--stronglyTyped --minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x2160x3840 --inputIOFormats=fp16:chw --outputIOFormats=fp16:chw --builderOptimizationLevel=5 --tacticSources=-CUDNN,-CUBLAS,-CUBLAS_LT --skipInference";
+
+        public bool TrtEngineStaticSelected => TrtEngineSettings == TrtEngineSettingsStatic;
+        public bool TrtEngineDynamicSelected => TrtEngineSettings == TrtEngineSettingsDynamic;
+
+        private string _trtEngineSettings = TrtEngineSettingsStatic;
+        [DataMember]
+        public string TrtEngineSettings
+        {
+            get => _trtEngineSettings;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _trtEngineSettings, value);
+                this.RaisePropertyChanged(nameof(TrtEngineStaticSelected));
+                this.RaisePropertyChanged(nameof(TrtEngineDynamicSelected));
+            }
+        }
+
         private bool _tensorRtSelected = true;
         [DataMember]
         public bool TensorRtSelected
         {
             get => _tensorRtSelected;
-            set => this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
+                this.RaisePropertyChanged(nameof(ShowTrtEngineSettings));
+            }
         }
 
         private bool _directMlSelected = false;
@@ -1514,8 +1552,15 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public bool ShowAdvancedSettings
         {
             get => _showAdvancedSettings;
-            set => this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _showAdvancedSettings, value);
+                this.RaisePropertyChanged(nameof(ShowTrtEngineSettings));
+            }
         }
+
+        // Engine-settings UI is TensorRT-only and lives under Advanced settings.
+        public bool ShowTrtEngineSettings => ShowAdvancedSettings && TensorRtSelected;
 
         public void AddModel()
         {
@@ -1573,6 +1618,9 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public void SetOutputPixFmt420P10() { OutputPixFmt = "yuv420p10"; Validate(); }
         public void SetOutputPixFmt444P8() { OutputPixFmt = "yuv444p"; Validate(); }
         public void SetOutputPixFmt444P10() { OutputPixFmt = "yuv444p10"; Validate(); }
+
+        public void SetTrtEngineStatic() => TrtEngineSettings = TrtEngineSettingsStatic;
+        public void SetTrtEngineDynamic() => TrtEngineSettings = TrtEngineSettingsDynamic;
 
         public void SetTensorRtSelected()
         {

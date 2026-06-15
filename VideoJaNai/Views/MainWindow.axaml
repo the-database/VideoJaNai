@@ -367,6 +367,16 @@
             <TextBlock Foreground="Gray" Width="900" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>TensorRT</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" />
 <Bold>DirectML</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" /></TextBlock>
           </StackPanel>
+
+          <StackPanel Orientation="Vertical" Margin="10,10,0,10" IsVisible="{Binding CurrentWorkflow.ShowTrtEngineSettings}">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="TensorRT engine" />
+              <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtEngineStaticSelected}" Content="Static (per-resolution)" Command="{Binding CurrentWorkflow.SetTrtEngineStatic}" />
+              <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtEngineDynamicSelected}" Content="Dynamic (all resolutions)" Command="{Binding CurrentWorkflow.SetTrtEngineDynamic}" />
+              <TextBlock Foreground="Gray" Width="680" TextWrapping="WrapWithOverflow" FontSize="12" VerticalAlignment="Center" Margin="40,0,0,0" xml:space="preserve"><Bold>Static</Bold>: a separate engine per input resolution (fastest). <Bold>Dynamic</Bold>: one engine for all resolutions (fewer rebuilds, slightly slower). Precision comes from the model. Advanced users can edit the trtexec args below.</TextBlock>
+            </StackPanel>
+            <TextBox Margin="0,8,10,0" Width="900" HorizontalAlignment="Left" TextWrapping="Wrap" AcceptsReturn="False" Text="{Binding CurrentWorkflow.TrtEngineSettings}" />
+          </StackPanel>
             </StackPanel>
           </Border>
 
