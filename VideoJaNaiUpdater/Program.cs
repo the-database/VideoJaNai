@@ -566,7 +566,8 @@ string? PackVersionMismatch(PackIndex index)
 }
 
 // NVIDIA detection via NVML (ships with the driver); its absence means a non-NVIDIA GPU.
-// VideoJaNai's offline encoder is TensorRT-only for now (DirectML offline is not yet supported).
+// Only the TensorRT engine needs downloadable component packs, and they apply to NVIDIA GPUs
+// only; non-NVIDIA GPUs use the built-in DirectML engine, which ships in the base install.
 static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
 {
     try
@@ -648,7 +649,7 @@ async Task ComponentsAsync(PackIndex? prefetched, bool json = false)
     }
     Console.WriteLine(hasNvidia
         ? $"GPU: {gpu} ({sm}) - TensorRT recommended"
-        : "GPU: no NVIDIA device detected - offline upscaling currently requires an NVIDIA GPU (DirectML offline coming later)");
+        : "GPU: no NVIDIA device detected - using the built-in DirectML engine (no extra components needed)");
     Console.WriteLine($"Recommended packs: {string.Join(", ", rec)}");
     Console.WriteLine();
     foreach (var pack in index.Packs)
