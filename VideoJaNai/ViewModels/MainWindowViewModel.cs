@@ -1048,7 +1048,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 var sm = (string?)gpu?["sm"] ?? "";
                 GpuStatusText = nvidia
                     ? $"{gpuName} ({sm})"
-                    : "No NVIDIA GPU detected — offline upscaling currently requires an NVIDIA GPU.";
+                    : "No NVIDIA GPU detected — using the built-in DirectML engine.";
 
                 var items = new AvaloniaList<ComponentItem>();
                 foreach (var p in (Newtonsoft.Json.Linq.JArray?)root["packs"] ?? new Newtonsoft.Json.Linq.JArray())

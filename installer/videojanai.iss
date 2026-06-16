@@ -129,12 +129,12 @@ begin
   if HasNvidia then
     trtLabel := 'Upscaling (TensorRT) - for ' + GpuName
   else
-    trtLabel := 'Upscaling (TensorRT) - requires an NVIDIA GPU (offline DirectML not yet supported)';
+    trtLabel := 'Upscaling (TensorRT) - requires an NVIDIA GPU (your GPU uses the built-in DirectML engine)';
   CompPage.Add(trtLabel);
   CompPage.Add('RIFE frame interpolation models');
 
-  // Offline upscaling is TensorRT-only for now, so the TensorRT components require an NVIDIA GPU;
-  // disable and uncheck them on non-NVIDIA machines.
+  // TensorRT components apply to NVIDIA GPUs only; non-NVIDIA GPUs use the built-in DirectML
+  // engine (no downloadable component), so disable and uncheck the TensorRT option for them.
   CompPage.Values[0] := HasNvidia;
   CompPage.CheckListBox.ItemEnabled[0] := HasNvidia;
   CompPage.Values[1] := True;
