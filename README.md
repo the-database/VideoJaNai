@@ -2,7 +2,7 @@
 # <img src="logo.png" width="24"></img> VideoJaNai
 [![Discord](https://img.shields.io/discord/1121653618173546546?label=Discord&logo=Discord&logoColor=white)](https://discord.gg/EeFfZUBvxj)
 ## Overview
-VideoJaNai (previously called AnimeJaNaiConverterGui) provides a Windows and Linux GUI for upscaling videos with ONNX models, including temporal (multi-frame) models, and frame interpolation with RIFE. Upscaling runs entirely on the GPU with NVIDIA TensorRT through the [AnimeJaNai inference engine](https://github.com/the-database/animejanai-inference), the same engine that powers [mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai).
+VideoJaNai (previously called AnimeJaNaiConverterGui) provides a Windows and Linux GUI for upscaling videos with ONNX models, including temporal (multi-frame) models, and frame interpolation with RIFE. Upscaling runs entirely on the GPU, with NVIDIA TensorRT or, on Windows, DirectML for AMD and Intel GPUs, through the [AnimeJaNai inference engine](https://github.com/the-database/animejanai-inference), the same engine that powers [mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai).
 
 ### Linux
 Download either the AppImage or the `linux-x64.tar.zst` from the [latest release](https://github.com/the-database/VideoJaNai/releases/latest). An NVIDIA GPU and driver are required.

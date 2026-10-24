@@ -355,7 +355,7 @@
     <value>Upscale Settings</value>
   </data>
   <data name="UpscalingBackendDescriptionDirectMl" xml:space="preserve">
-    <value>Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only.</value>
+    <value>Works on any DirectX 12 GPU (NVIDIA, AMD, Intel) but slower than TensorRT. Output is 4:2:0. ONNX models must be opset 21 or lower (higher opsets fall back to the CPU, which is extremely slow).</value>
   </data>
   <data name="UpscalingBackendDescriptionNcnn" xml:space="preserve">
     <value>Compatible with NVIDIA, AMD, and Intel GPUs but typically slower than DirectML. Supports fp32 ONNX models only.</value>
@@ -382,7 +382,7 @@
     <value>Scene Change Threshold</value>
   </data>
   <data name="TemporalModelDescription" xml:space="preserve">
-    <value>This is a temporal model: it upscales each frame from a {0}-frame window around it. Neighbors across a scene change (an average frame difference above this threshold) are replaced by the nearest frame from the same scene. Set to 0 to disable scene detection. Temporal models require the TensorRT backend.</value>
+    <value>This is a temporal model: it upscales each frame from a {0}-frame window around it. Neighbors across a scene change (an average frame difference above this threshold) are replaced by the nearest frame from the same scene. Set to 0 to disable scene detection.</value>
   </data>
   <data name="RifeBeforeUpscaleLabel" xml:space="preserve">
     <value>Interpolate before upscaling</value>

@@ -5,6 +5,7 @@ namespace AnimeJaNaiConverterGui.Services
     public interface IPythonService
     {
         bool IsInferenceInstalled();
+        bool IsTensorRtInstalled();
         bool AreModelsInstalled();
         bool IsFfmpegInstalled();
         string ModelsDirectory { get; }

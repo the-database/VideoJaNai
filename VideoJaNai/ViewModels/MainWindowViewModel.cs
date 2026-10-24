@@ -186,6 +186,8 @@ namespace VideoJaNai.ViewModels
 
         public string ModelsDirectory => _pythonService.ModelsDirectory;
 
+        public bool TensorRtInstalled => _pythonService.IsTensorRtInstalled();
+
         public static readonly string _ffmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\" -max_interleave_delta 0";
         public static readonly string _ffmpegX264 = "libx264 -crf 13 -preset slow -max_interleave_delta 0";
         public static readonly string _ffmpegHevcNvenc = "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M -max_interleave_delta 0";
@@ -1861,10 +1863,18 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 validationText.Add("4:4:4 output requires a software encoder (x265 / x264 / Lossless); NVENC HEVC does not support 4:4:4.");
             }
 
-            if (DirectMlSelected && UpscaleSettings.Any(m => m.IsTemporal))
+            if (TensorRtSelected && Vm != null && !Vm.TensorRtInstalled)
             {
                 valid = false;
-                validationText.Add("Temporal (multi-frame) models require the TensorRT backend.");
+                validationText.Add(DirectMlAvailable
+                    ? "The TensorRT components are not installed (they are for NVIDIA GPUs). Select DirectML, or install TensorRT from App Settings."
+                    : "The TensorRT components are not installed. Install them from App Settings.");
+            }
+
+            if (DirectMlSelected && OutputIs444)
+            {
+                valid = false;
+                validationText.Add("DirectML outputs 4:2:0 only; choose a 4:2:0 output pixel format.");
             }
 
             Valid = valid;
