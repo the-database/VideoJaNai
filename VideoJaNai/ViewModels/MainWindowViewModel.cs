@@ -2,7 +2,7 @@
 using Avalonia.Collections;
 using Newtonsoft.Json;
 using ReactiveUI;
-using SevenZipExtractor;
+using ReactiveUI.Primitives;
 using Splat;
 using System;
 using System.Collections.Concurrent;
@@ -11,7 +11,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Management.Automation;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -1242,10 +1241,17 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 Validate();
             });
 
-            this.WhenAnyValue(x => x.Vm).Subscribe(x =>
+            this.WhenAnyValue(x => x.Vm).Subscribe(vm =>
             {
                 sub?.Dispose();
-                sub = Vm.WhenAnyValue(
+                sub = null;
+                // Vm is null until App wires it up after loading (and while deserializing);
+                // ReactiveUI 26's generated WhenAnyValue throws on a null source.
+                if (vm is null)
+                {
+                    return;
+                }
+                sub = vm.WhenAnyValue(
                     x => x.SelectedWorkflowIndex,
                     x => x.RequestShowAppSettings
                     ).Subscribe(x =>
