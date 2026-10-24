@@ -11,10 +11,12 @@ namespace VideoJaNai
     internal class Program
     {
         public static bool WasFirstRun { get; private set; }
-        public static readonly string AppStateFolder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "VideoJaNai"
-        );
+        // VIDEOJANAI_STATE_DIR redirects the saved app state (workflows, settings), so test and dev
+        // launches never touch a real install's state.
+        public static readonly string AppStateFolder =
+            Environment.GetEnvironmentVariable("VIDEOJANAI_STATE_DIR") is { Length: > 0 } stateDir
+                ? stateDir
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VideoJaNai");
         public static readonly string AppStateFilename = "appstate2.json";
         public static readonly string AppStatePath = Path.Combine(AppStateFolder, AppStateFilename);
 

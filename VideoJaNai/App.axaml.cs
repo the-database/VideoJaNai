@@ -47,14 +47,15 @@ namespace VideoJaNai
 
             // Initialize ReactiveUI into the Autofac-backed resolver. This replaces the old
             // autofacResolver.InitializeReactiveUI() extension, which no longer exists in
-            // ReactiveUI 23 / Splat.Autofac 20. (The suspension host type is configured earlier, in
+            // ReactiveUI 23 / Splat.Autofac 20 (since ReactiveUI 26 the builder is an extension on the
+            // resolver). (The suspension host type is configured earlier, in
             // Program.BuildAvaloniaApp's UseReactiveUI callback; that RxSuspension singleton is
             // already initialized by the time this runs.)
             //
             // Statement form (not a fluent chain) avoids the builder's mixed interface/base return
             // types: WithCoreServices() returns the base IAppBuilder, which doesn't expose the full
             // builder method set.
-            var rxuiBuilder = RxAppBuilder.CreateReactiveUIBuilder(autofacResolver);
+            var rxuiBuilder = autofacResolver.CreateReactiveUIBuilder();
             rxuiBuilder.WithPlatformServices();
             rxuiBuilder.WithAvalonia();
             rxuiBuilder.WithCoreServices();
@@ -65,7 +66,10 @@ namespace VideoJaNai
             autofacResolver.SetLifetimeScope(container);
 
             var suspension = new AutoSuspendHelper(ApplicationLifetime!);
-            RxSuspension.SuspensionHost.CreateNewAppState = () => new MainWindowViewModel();
+            // Used when the saved state can't be loaded: start from the bundled defaults (an empty view
+            // model has no workflows, which the code below can't run with).
+            RxSuspension.SuspensionHost.CreateNewAppState = () =>
+                NewtonsoftJsonSuspensionDriver.LoadDefaultState() ?? new MainWindowViewModel();
             RxSuspension.SuspensionHost.SetupDefaultSuspendResume(Program.SuspensionDriver);
             suspension.OnFrameworkInitializationCompleted();
 
