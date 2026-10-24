@@ -842,5 +842,41 @@ namespace VideoJaNai.Lang {
                 return ResourceManager.GetString("WorkflowsTooltip", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Scene Change Threshold.
+        /// </summary>
+        public static string TemporalSceneThresholdLabel {
+            get {
+                return ResourceManager.GetString("TemporalSceneThresholdLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to This is a temporal model: it upscales each frame from a {0}-frame window around it..
+        /// </summary>
+        public static string TemporalModelDescription {
+            get {
+                return ResourceManager.GetString("TemporalModelDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Interpolate before upscaling.
+        /// </summary>
+        public static string RifeBeforeUpscaleLabel {
+            get {
+                return ResourceManager.GetString("RifeBeforeUpscaleLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Run RIFE at the source resolution before upscaling (faster, recommended)..
+        /// </summary>
+        public static string RifeBeforeUpscaleDescription {
+            get {
+                return ResourceManager.GetString("RifeBeforeUpscaleDescription", resourceCulture);
+            }
+        }
     }
 }
