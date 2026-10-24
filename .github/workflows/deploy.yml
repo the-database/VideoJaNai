@@ -6,6 +6,12 @@ on:
       release_version:
         description: 'Release version (used as the git tag and the package version)'
         required: true
+      linux_only:
+        description: 'Build only the Linux artifacts (skip the Windows leg)'
+        default: 'false'
+      windows_only:
+        description: 'Build only the Windows artifacts (skip the Linux leg)'
+        default: 'false'
 
 # Builds the Inno-installer distribution and publishes a draft GitHub release:
 #   - VideoJaNai-Setup-<ver>.exe         per-user, GPU-aware setup installer (wraps the slim core)
@@ -14,8 +20,13 @@ on:
 #   - component-*.7z + packs.json        on-demand GPU/RIFE component packs (updater / in-app manager)
 # Heavy GPU-specific pieces (TensorRT runtime, per-GPU builder kernels, RIFE models) are NOT in the
 # core or the installer; they download post-install via VideoJaNaiUpdater, keeping the base small.
+# The deploy-linux leg adds the RID-suffixed Linux assets to the same release (tarball, AppImage,
+# manifest-linux-x64.json, component-*-linux-x64.7z + packs-linux-x64.json). Both legs push GBs of
+# assets with one token and can trip GitHub's upload rate limit; dispatch windows_only=true, wait,
+# then linux_only=true to release them one after the other.
 jobs:
   deploy:
+    if: ${{ github.event.inputs.linux_only != 'true' }}
     runs-on: windows-latest
 
     steps:
@@ -85,6 +96,88 @@ jobs:
         # that has already been published.
         allowUpdates: true
         updateOnlyUnreleased: true
-        removeArtifacts: true
+        # No removeArtifacts: the Linux leg's assets share this tag. Same-named assets are replaced.
         artifacts: "VideoJaNai-Setup-${{ github.event.inputs.release_version }}.exe,VideoJaNai-full-package-${{ github.event.inputs.release_version }}.7z.*,manifest.json,publish/packs-v${{ github.event.inputs.release_version }}/component-*.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs.json"
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Linux leg. Runs in mpv-AnimeJaNai's old-baseline build image (Ubuntu 22.04: glibc 2.35, .NET 10
+  # SDK, 7zz, zstd, dpkg-deb) so the artifacts run on every mainstream distro from ~2022 on. The
+  # assembler downloads aji-linux-x64.tar.zst + aji-encode-linux-x64.tar.zst and the TensorRT .debs
+  # itself. The image is an the-database package: this repo needs read access to it (package
+  # settings > Manage Actions access).
+  deploy-linux:
+    if: ${{ github.event.inputs.windows_only != 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash   # the container's default is dash; steps use bash-isms
+    permissions:
+      contents: write
+      packages: read
+    container:
+      image: ghcr.io/the-database/animejanai-linux-build:ubuntu2204
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      VER: ${{ github.event.inputs.release_version }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Publish package builder (host RID = linux-x64)
+      run: dotnet publish BuildVideoJaNai/BuildVideoJaNai.csproj -c Release -o publish
+
+    - name: Publish VideoJaNai app (linux-x64, self-contained)
+      run: dotnet publish VideoJaNai/VideoJaNai.csproj -c Release -r linux-x64 --self-contained -o app-publish
+
+    # Avalonia's X11 backend P/Invokes libICE/libSM (session management) unconditionally, and minimal
+    # or Wayland-first distros don't install them; bundle jammy's copies next to the app, where
+    # .NET looks first.
+    - name: Bundle libICE + libSM with the app
+      run: |
+        apt-get update -qq
+        mkdir -p /tmp/x11libs && cd /tmp/x11libs && apt-get download libice6 libsm6
+        for d in /tmp/x11libs/*.deb; do dpkg-deb -x "$d" /tmp/x11libs/root; done
+        cd "$GITHUB_WORKSPACE"
+        cp -L /tmp/x11libs/root/usr/lib/x86_64-linux-gnu/libICE.so.6 \
+              /tmp/x11libs/root/usr/lib/x86_64-linux-gnu/libSM.so.6 app-publish/
+        patchelf --set-rpath '$ORIGIN' app-publish/libSM.so.6
+
+    - name: Publish updater (linux-x64, single file)
+      run: dotnet publish VideoJaNaiUpdater/VideoJaNaiUpdater.csproj -c Release -r linux-x64 -o updater-publish
+
+    - name: Assemble package (linux-x64, with packs)
+      run: ./publish/BuildVideoJaNai "$VER" --target linux-x64 --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater --packs
+
+    - name: Package portable tarball (+ install scripts)
+      run: |
+        chmod +x installer/linux/*.sh
+        installer/linux/package-tarball.sh "publish/VideoJaNai-v$VER" "$VER" .
+
+    - name: Build AppImage (TensorRT runtime baked in; per-SM kernels + RIFE fetched on demand)
+      continue-on-error: true  # don't block the tarball release if AppImage tooling trips
+      run: |
+        full="appimage-tree/VideoJaNai-v$VER"
+        mkdir -p "$full"
+        cp -a "publish/VideoJaNai-v$VER/." "$full/"
+        7zz x -snl -y -o"$full" "publish/packs-v$VER/component-trt-runtime-linux-x64.7z"
+        installer/linux/build-appimage.sh "$full" "$VER" .
+
+    - name: Stage RID-suffixed manifest
+      run: cp "publish/VideoJaNai-v$VER/manifest.json" manifest-linux-x64.json
+
+    - name: Create / update GitHub Release (Linux assets)
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ github.event.inputs.release_version }}
+        name: ${{ github.event.inputs.release_version }}
+        draft: true
+        allowUpdates: true
+        # The Linux leg only adds its RID-suffixed assets to the release the Windows leg owns: never
+        # change an existing release's draft state, name or notes.
+        omitDraftDuringUpdate: true
+        omitNameDuringUpdate: true
+        omitBodyDuringUpdate: true
+        artifacts: "VideoJaNai-v${{ github.event.inputs.release_version }}-linux-x64.tar.zst,*.AppImage,manifest-linux-x64.json,publish/packs-v${{ github.event.inputs.release_version }}/component-*-linux-x64.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs-linux-x64.json"
         token: ${{ secrets.GITHUB_TOKEN }}
