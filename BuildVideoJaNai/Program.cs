@@ -58,7 +58,8 @@ var trtDebSha256 = new Dictionary<string, string>
 };
 
 // the-database/animejanai-inference. v0.12.0: built against TensorRT 11.4; aji_encode drives temporal
-// (multi-frame) models, honors the RIFE-before-upscale order, and uploads CPU-decoded / 4:4:4 sources.
+// (multi-frame) models, honors the RIFE-before-upscale order, uploads CPU-decoded / 4:4:4 sources,
+// and runs on DirectML (shared D3D11 frames; CUDA delay-loaded, so it starts without the NVIDIA driver).
 // On Linux aji_encode ships as its own asset carrying the FFmpeg 9.0 libs it links.
 const string AjiVersion        = "v0.12.0";
 const string SevenZipVersion   = "2602";                  // 7-zip "extra" (Windows) / linux-x64 standalone console
@@ -67,6 +68,10 @@ const string RifeModelsVersion = "models-rife-fp16-1";    // animejanai-inferenc
 // aji release's aji_encode.exe was built against (aji v0.12.0: 9.0.2 -> avcodec-63.dll).
 const string FfmpegVersion     = "9.0.2";
 const string FfmpegSha256Win   = "4d2060a8b34a940aa47d785142055bb92a63053781e55f2ace4546edd519a8f5";
+// DirectML backend runtime (Windows; aji_dml.dll loads both from its own directory). The same pins
+// as mpv-AnimeJaNai: the last DirectML-flavored ORT releases (DML is in sustained engineering).
+const string OrtDmlVersion     = "1.24.4";                // Microsoft.ML.OnnxRuntime.DirectML (NuGet)
+const string DirectMLVersion   = "1.15.4";                // Microsoft.AI.DirectML (NuGet)
 
 TargetOs SelectTarget(string[] a)
 {
@@ -418,6 +423,42 @@ async Task InstallFfmpeg()
     if (tempDirectory != null) Directory.Delete(tempDirectory, true);
 }
 
+// ONNX Runtime + DirectML for the DirectML backend (Windows only). They ship in the core rather than a
+// component pack: DirectML is what non-NVIDIA GPUs run on, and those get no TensorRT packs. The
+// .nupkg files are plain zips; only the x64 runtime DLLs (and the DirectML license, which the
+// redistribution terms require keeping intact) go into the package.
+async Task InstallOrtDml()
+{
+    Directory.CreateDirectory(inferencePath);
+    var packages = new (string Name, string Version, string[] CopyFromTo)[]
+    {
+        ("Microsoft.ML.OnnxRuntime.DirectML", OrtDmlVersion, new[]
+        {
+            "runtimes/win-x64/native/onnxruntime.dll", "onnxruntime.dll",
+        }),
+        ("Microsoft.AI.DirectML", DirectMLVersion, new[]
+        {
+            "bin/x64-win/DirectML.dll", "DirectML.dll",
+            "LICENSE.txt", "DirectML_LICENSE.txt",
+        }),
+    };
+    foreach (var (name, pkgVersion, copies) in packages)
+    {
+        Console.WriteLine($"Downloading {name} {pkgVersion}...");
+        var targetPath = Path.GetFullPath($"{name}.{pkgVersion}.nupkg");
+        await DownloadFileAsync($"https://www.nuget.org/api/v2/package/{name}/{pkgVersion}", targetPath, _ => { });
+        var tempDirectory = Path.GetFullPath($"{name}-temp");
+        ExtractZip(targetPath, tempDirectory, _ => { });
+        for (var i = 0; i < copies.Length; i += 2)
+        {
+            File.Copy(Path.Combine(tempDirectory, copies[i].Replace('/', Path.DirectorySeparatorChar)),
+                      Path.Combine(inferencePath, copies[i + 1]), true);
+        }
+        Directory.Delete(tempDirectory, true);
+        File.Delete(targetPath);
+    }
+}
+
 async Task InstallRife()
 {
     Console.WriteLine("Downloading RIFE fp16 models...");
@@ -478,6 +519,13 @@ void WriteThirdPartyNotices()
         : "FFmpeg shared libraries (libavcodec/libavformat/libavutil/libavfilter/\n" +
           "libswscale/libswresample) from BtbN's GPL build, licensed under the GNU\n" +
           "GPL v3 (https://github.com/BtbN/FFmpeg-Builds); see ffmpeg_LICENSE.txt.";
+    var dml = plat.IsWindows
+        ? "ONNX Runtime (onnxruntime.dll), (c) Microsoft Corporation, redistributed\n" +
+          "under the MIT license (https://github.com/microsoft/onnxruntime/blob/main/LICENSE).\n\n" +
+          "DirectML (DirectML.dll), (c) Microsoft Corporation, redistributed as the\n" +
+          "DirectML Redistributable Package under the Microsoft Software License Terms\n" +
+          "shipped alongside it as DirectML_LICENSE.txt (use on Windows and Xbox only).\n\n"
+        : "";
     var ajiNames = plat.IsWindows
         ? "aji.dll / aji_trt.dll / aji_dml.dll / aji_encode.exe / aji_harness*.exe /\naji_kernel_test.exe"
         : "libaji.so / libaji_trt.so / aji_encode / aji_harness / aji_kernel_test";
@@ -491,6 +539,7 @@ void WriteThirdPartyNotices()
         $"{trtSource} NVIDIA's own acknowledgements accompany them as\n" +
         "TensorRT_Acknowledgements.txt.\n\n" +
         $"{ffmpeg}\n\n" +
+        dml +
         $"{ajiNames}:\n" +
         "https://github.com/the-database/animejanai-inference\n";
     File.WriteAllText(Path.Combine(inferencePath, "THIRD_PARTY_NOTICES.txt"), notice);
@@ -519,6 +568,7 @@ void WriteVersionAndManifest()
             rife = RifeModelsVersion,
             // Linux: the libav libs ride the aji asset, so the aji dep already versions them.
             ffmpeg = plat.IsWindows ? FfmpegVersion : (string?)null,
+            ort_dml = plat.IsWindows ? $"{OrtDmlVersion}+{DirectMLVersion}" : (string?)null,
             sevenzip = SevenZipVersion,
         },
         // Runtime-created user data is never in the shipped package, so a full update's tree-copy
@@ -648,7 +698,10 @@ async Task Main()
     await InstallInferenceRuntime();
     await InstallAji();
     if (plat.IsWindows)
+    {
         await InstallFfmpeg();
+        await InstallOrtDml();
+    }
     await InstallRife();
     InstallModels();
 
@@ -722,9 +775,10 @@ async Task<List<string>> EmitComponentPacks()
                                n.StartsWith("nvonnxparser") || n.StartsWith("libnvonnxparser") ||
                                n.StartsWith("cudart64_") || n.StartsWith("libcudart") ||
                                n == "trtexec.exe" || n == "trtexec";
-                // ffmpeg_LICENSE.txt stays in the core with the libav libs it covers
+                // ffmpeg_ and DirectML_LICENSE.txt stay in the core with the libs they cover
                 bool license = n.Contains("LICENSE", StringComparison.OrdinalIgnoreCase) &&
-                               !n.StartsWith("ffmpeg", StringComparison.OrdinalIgnoreCase);
+                               !n.StartsWith("ffmpeg", StringComparison.OrdinalIgnoreCase) &&
+                               !n.StartsWith("DirectML", StringComparison.OrdinalIgnoreCase);
                 return (runtime && !builderResource) || license;
             })
             .Select(f => Path.GetRelativePath(installDirectory, f)).ToArray()),

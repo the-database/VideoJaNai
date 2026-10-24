@@ -51,7 +51,14 @@ namespace AnimeJaNaiConverterGui.Services
         // runtime (trtexec, which ships in the downloadable trt-runtime component pack, not the
         // core). Checking only aji_encode would always be true post-install and the first-run
         // --auto component fallback would never fire when the packs are missing.
-        public bool IsInferenceInstalled() => File.Exists(AjiEncodePath) && File.Exists(TrtexecPath);
+        //
+        // Non-NVIDIA GPUs never get the TensorRT packs (they run on DirectML, which ships in the
+        // core), so once the updater has done its hardware setup (components.json) the install is
+        // complete without trtexec; otherwise --auto would re-run on every launch.
+        public bool IsInferenceInstalled() => File.Exists(AjiEncodePath) &&
+            (IsTensorRtInstalled() || File.Exists(Path.Join(BackendDirectory, "components.json")));
+
+        public bool IsTensorRtInstalled() => File.Exists(TrtexecPath);
         public bool AreModelsInstalled() => Directory.Exists(ModelsDirectory) && Directory.GetFiles(ModelsDirectory).Length > 0;
         public bool IsFfmpegInstalled() => File.Exists(FfmpegPath);
 

@@ -772,7 +772,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only..
+        ///   Looks up a localized string similar to Works on any DirectX 12 GPU (NVIDIA, AMD, Intel) but slower than TensorRT. Output is 4:2:0. ONNX models must be opset 21 or lower (higher opsets fall back to the CPU, which is extremely slow)..
         /// </summary>
         public static string UpscalingBackendDescriptionDirectMl {
             get {
