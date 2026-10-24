@@ -701,6 +701,10 @@ string? PackVersionMismatch(PackIndex index)
 // NVIDIA detection via NVML (ships with the driver); its absence means a non-NVIDIA GPU.
 // Only the TensorRT engine needs downloadable component packs, and they apply to NVIDIA GPUs
 // only; non-NVIDIA GPUs use the built-in DirectML engine, which ships in the base install.
+//
+// Every NVIDIA GPU is reported (Sm "sm89, sm120", names joined with " + "): NVML enumerates in PCI
+// order while CUDA picks the fastest GPU first, so recommending only NVML's device 0 left the GPU
+// TensorRT actually builds on without its builder kernels on multi-GPU systems.
 static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
 {
     try
@@ -711,15 +715,31 @@ static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
         }
         try
         {
-            if (Nvml.nvmlDeviceGetHandleByIndex_v2(0, out var dev) != 0)
+            if (Nvml.nvmlDeviceGetCount_v2(out uint count) != 0 || count == 0)
             {
                 return (false, "", "");
             }
-            Nvml.nvmlDeviceGetCudaComputeCapability(dev, out int major, out int minor);
-            var name = new byte[96];
-            Nvml.nvmlDeviceGetName(dev, name, (uint)name.Length);
-            string gpu = System.Text.Encoding.ASCII.GetString(name).TrimEnd('\0');
-            return (true, $"sm{major}{minor}", gpu);
+            var sms = new List<string>();
+            var names = new List<string>();
+            for (uint i = 0; i < count; i++)
+            {
+                if (Nvml.nvmlDeviceGetHandleByIndex_v2(i, out var dev) != 0)
+                {
+                    continue;
+                }
+                Nvml.nvmlDeviceGetCudaComputeCapability(dev, out int major, out int minor);
+                var name = new byte[96];
+                Nvml.nvmlDeviceGetName(dev, name, (uint)name.Length);
+                names.Add(System.Text.Encoding.ASCII.GetString(name).TrimEnd('\0'));
+                var sm = $"sm{major}{minor}";
+                if (!sms.Contains(sm))
+                {
+                    sms.Add(sm);
+                }
+            }
+            return sms.Count == 0
+                ? (false, "", "")
+                : (true, string.Join(", ", sms), string.Join(" + ", names));
         }
         finally { Nvml.nvmlShutdown(); }
     }
@@ -738,8 +758,15 @@ List<string> RecommendedPacks(PackIndex index, bool hasNvidia, string sm)
     if (hasNvidia)
     {
         rec.Add("trt-runtime");
-        // exact generation pack if published, else the PTX fallback pack
-        rec.Add(index.Packs.Any(p => p.Name == $"trt-{sm}") ? $"trt-{sm}" : "trt-ptx");
+        // per GPU generation: the exact pack if published, else the PTX fallback pack
+        foreach (var s in sm.Split(", ", StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pack = index.Packs.Any(p => p.Name == $"trt-{s}") ? $"trt-{s}" : "trt-ptx";
+            if (!rec.Contains(pack))
+            {
+                rec.Add(pack);
+            }
+        }
     }
     return rec;
 }
@@ -974,6 +1001,8 @@ static class Nvml
     public static extern int nvmlInit_v2();
     [System.Runtime.InteropServices.DllImport("nvml.dll")]
     public static extern int nvmlShutdown();
+    [System.Runtime.InteropServices.DllImport("nvml.dll")]
+    public static extern int nvmlDeviceGetCount_v2(out uint deviceCount);
     [System.Runtime.InteropServices.DllImport("nvml.dll")]
     public static extern int nvmlDeviceGetHandleByIndex_v2(uint index, out IntPtr device);
     [System.Runtime.InteropServices.DllImport("nvml.dll")]
