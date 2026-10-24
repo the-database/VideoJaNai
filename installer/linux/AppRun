@@ -1,0 +1,96 @@
+#!/bin/sh
+# AppImage entrypoint for VideoJaNai.
+#
+# The AppImage mounts read-only (squashfs), but VideoJaNai writes: TensorRT engines build next to the
+# ONNX models, and the app writes animejanai.conf for aji_encode. So the writable animejanai/ parts
+# (onnx models, RIFE models) are mirrored into $XDG_DATA_HOME/VideoJaNai, and the app is pointed at
+# it (VIDEOJANAI_DATA_DIR) while the engine binaries stay in the image (VIDEOJANAI_ROOT). The
+# updater is not shipped in the AppImage: a new version is a new AppImage.
+set -eu
+
+HERE="$(dirname "$(readlink -f "$0")")"
+
+# Desktop integration:
+#   <AppImage> --install     register a menu entry
+#   <AppImage> --uninstall   remove it
+case "${1:-}" in
+  --install|--uninstall)
+    APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+    ICONS="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/256x256/apps"
+    desktop="$APPS/videojanai.desktop"
+    if [ "$1" = "--uninstall" ]; then
+        rm -f "$desktop" "$ICONS/videojanai.png"
+        update-desktop-database "$APPS" 2>/dev/null || true
+        echo "Removed the VideoJaNai menu entry."
+        echo "(models and cached engines in ${XDG_DATA_HOME:-$HOME/.local/share}/VideoJaNai are kept; delete that folder to clear them)"
+        exit 0
+    fi
+    target="${APPIMAGE:-$HERE/AppRun}"
+    [ -z "${APPIMAGE:-}" ] && echo "warning: \$APPIMAGE unset (run the .AppImage directly, not extracted); using $target" >&2
+    mkdir -p "$APPS" "$ICONS"
+    [ -f "$HERE/videojanai.png" ] && cp -f "$HERE/videojanai.png" "$ICONS/videojanai.png"
+    cat > "$desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=VideoJaNai
+Comment=Upscale videos with ONNX models on NVIDIA TensorRT
+Exec="$target"
+TryExec=$target
+Icon=videojanai
+Terminal=false
+Categories=AudioVideo;Video;
+StartupNotify=true
+EOF
+    update-desktop-database "$APPS" 2>/dev/null || true
+    echo "Installed: 'VideoJaNai' now appears in your app menu."
+    echo "  entry:    $desktop"
+    echo "  launches: $target"
+    exit 0
+    ;;
+esac
+
+DATA="${XDG_DATA_HOME:-$HOME/.local/share}/VideoJaNai"
+AJ="$DATA/animejanai"
+mkdir -p "$AJ/onnx" "$AJ/rife" "$AJ/inference"
+
+# Bundled ONNX models: engines build next to them, so they must be writable. Only missing files are
+# copied, so models the user added (and their engines) are kept across versions.
+cp -rn "$HERE/animejanai/onnx/." "$AJ/onnx/" 2>/dev/null || true
+
+# Component packs fetched on demand into $DATA (writable). The AppImage bakes in only the base
+# TensorRT runtime; the GPU-matched builder kernels and the RIFE models are pulled when needed. A
+# fetch failure is non-fatal (offline, or a draft release whose assets need auth).
+ver="$(cat "$HERE/version.txt" 2>/dev/null || echo "")"
+relbase="https://github.com/the-database/VideoJaNai/releases/download/${ver}"
+
+fetch_pack() { # $1 = pack base (e.g. trt-sm120, rife); $2 = human note
+    pack="component-$1-linux-x64.7z"
+    { [ -n "$ver" ] && command -v curl >/dev/null 2>&1; } || return 0
+    echo "VideoJaNai: fetching $2 (one-time)..." >&2
+    if curl -fSL "$relbase/$pack" -o "$DATA/$pack"; then
+        "$HERE/7zz" x -snl -y -o"$DATA" "$DATA/$pack" >/dev/null 2>&1 || true
+        rm -f "$DATA/$pack"
+    else
+        echo "VideoJaNai: could not fetch $pack (offline / draft release?)." >&2
+    fi
+}
+
+# Per-SM TensorRT builder (needed to BUILD engines; cached engines run without it): just the one
+# matching this GPU.
+sm="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' .')"
+if [ -n "$sm" ] && ! ls "$AJ/inference"/libnvinfer_builder_resource_sm${sm}.so* >/dev/null 2>&1; then
+    fetch_pack "trt-sm${sm}" "TensorRT kernels for sm${sm} (~250 MB)"
+fi
+
+# RIFE models are small next to a video library but large to download; fetch them once.
+if ! ls "$AJ/rife"/*.onnx >/dev/null 2>&1; then
+    fetch_pack "rife" "RIFE interpolation models (~450 MB)"
+fi
+
+export VIDEOJANAI_ROOT="$HERE"
+export VIDEOJANAI_DATA_DIR="$AJ"
+# aji_encode and trtexec load the TensorRT runtime from the image and the fetched builder kernels
+# from $DATA; the app prepends the image's inference dir itself.
+export LD_LIBRARY_PATH="$AJ/inference:${LD_LIBRARY_PATH:-}"
+cd "$DATA"
+exec "$HERE/VideoJaNai" "$@"

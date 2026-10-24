@@ -25,17 +25,26 @@ namespace AnimeJaNaiConverterGui.Services
 
         // Installed (Inno): everything lives under the per-user install dir next to VideoJaNai.exe
         // (writable). Dev: a local .\backend folder.
-        public string BackendDirectory => (_updateManagerService?.IsInstalled ?? false) ? _updateManagerService.InstallDir : Path.GetFullPath(@".\backend");
-        public string AnimeJaNaiDirectory => Path.Join(BackendDirectory, "animejanai");
+        // Linux AppImage: the tree is a read-only mount, so AppRun points VIDEOJANAI_ROOT at it and
+        // VIDEOJANAI_DATA_DIR at a writable copy of animejanai/ (models + engines, RIFE, conf).
+        private static string? EnvDir(string name) =>
+            Environment.GetEnvironmentVariable(name) is { Length: > 0 } dir ? dir : null;
+
+        public string BackendDirectory => EnvDir("VIDEOJANAI_ROOT") ??
+            ((_updateManagerService?.IsInstalled ?? false) ? _updateManagerService.InstallDir : Path.GetFullPath("backend"));
+        public string AnimeJaNaiDirectory => EnvDir("VIDEOJANAI_DATA_DIR") ?? Path.Join(BackendDirectory, "animejanai");
         public string ModelsDirectory => Path.Join(AnimeJaNaiDirectory, "onnx");
         public string FfmpegDirectory => Path.Join(BackendDirectory, "ffmpeg");
-        public string FfmpegPath => Path.GetFullPath(Path.Join(FfmpegDirectory, "ffmpeg.exe"));
+        public string FfmpegPath => Path.GetFullPath(Path.Join(FfmpegDirectory, Exe("ffmpeg")));
 
-        // libaji native engine paths.
-        public string InferenceDirectory => Path.Join(AnimeJaNaiDirectory, "inference");
+        // libaji native engine paths. The engine binaries always live in the install tree.
+        public string InferenceDirectory => Path.Join(BackendDirectory, "animejanai", "inference");
         public string RifeModelsDirectory => Path.Join(AnimeJaNaiDirectory, "rife");
-        public string AjiEncodePath => Path.GetFullPath(Path.Join(InferenceDirectory, "aji_encode.exe"));
-        public string TrtexecPath => Path.GetFullPath(Path.Join(InferenceDirectory, "trtexec.exe"));
+        public string AjiEncodePath => Path.GetFullPath(Path.Join(InferenceDirectory, Exe("aji_encode")));
+        public string TrtexecPath => Path.GetFullPath(Path.Join(InferenceDirectory, Exe("trtexec")));
+
+        // "aji_encode" -> "aji_encode.exe" on Windows; Linux binaries carry no suffix.
+        public static string Exe(string stem) => OperatingSystem.IsWindows() ? stem + ".exe" : stem;
         public string ConfPath => Path.Join(AnimeJaNaiDirectory, "animejanai.conf");
 
         // "Installed" means the engine can actually run: aji_encode (slim core) AND the TensorRT
