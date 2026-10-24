@@ -2,7 +2,7 @@
 using Avalonia.Collections;
 using Newtonsoft.Json;
 using ReactiveUI;
-using SevenZipExtractor;
+using ReactiveUI.Primitives;
 using Splat;
 using System;
 using System.Collections.Concurrent;
@@ -11,7 +11,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Management.Automation;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -186,6 +185,8 @@ namespace VideoJaNai.ViewModels
         }
 
         public string ModelsDirectory => _pythonService.ModelsDirectory;
+
+        public bool TensorRtInstalled => _pythonService.IsTensorRtInstalled();
 
         public static readonly string _ffmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\" -max_interleave_delta 0";
         public static readonly string _ffmpegX264 = "libx264 -crf 13 -preset slow -max_interleave_delta 0";
@@ -592,6 +593,14 @@ namespace VideoJaNai.ViewModels
                 configText.AppendLine(string.Create(ENGLISH_CULTURE, @$"chain_1_model_{i + 1}_resize_height_before_upscale={CurrentWorkflow.UpscaleSettings[i].ResizeHeightBeforeUpscale}
 chain_1_model_{i + 1}_resize_factor_before_upscale={CurrentWorkflow.UpscaleSettings[i].ResizeFactorBeforeUpscale}
 chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath)}"));
+
+                // Temporal models: the window size comes from the onnx itself; only the scene-change
+                // threshold is a setting (written only when it carries something, like the Manager).
+                var model = CurrentWorkflow.UpscaleSettings[i];
+                if (model.IsTemporal || model.TemporalSceneThreshold != UpscaleModel.DefaultTemporalSceneThreshold)
+                {
+                    configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_model_{i + 1}_temporal_scene_threshold={model.TemporalSceneThreshold}"));
+                }
             }
 
             var rife = CurrentWorkflow.EnableRife ? "yes" : "no";
@@ -602,6 +611,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_factor_denominator={CurrentWorkflow.RifeFactorDenominator}"));
             configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_scene_detect_threshold={CurrentWorkflow.RifeSceneDetectThreshold}"));
             configText.AppendLine($"chain_1_rife_ensemble={ensemble}");
+            configText.AppendLine($"chain_1_rife_before_upscale={(CurrentWorkflow.RifeBeforeUpscale ? "yes" : "no")}");
 
             Directory.CreateDirectory(_pythonService.AnimeJaNaiDirectory);
             File.WriteAllText(_pythonService.ConfPath, configText.ToString());
@@ -798,6 +808,15 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 process.StartInfo.UseShellExecute = false;
                 process.StartInfo.CreateNoWindow = true;
                 process.StartInfo.WorkingDirectory = _pythonService.InferenceDirectory;
+                if (!OperatingSystem.IsWindows())
+                {
+                    // libaji_trt.so's RUNPATH points at system TensorRT/CUDA paths; the bundled runtime
+                    // next to it is found through the loader path (inherited by trtexec too).
+                    var ldPath = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH");
+                    process.StartInfo.Environment["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(ldPath)
+                        ? _pythonService.InferenceDirectory
+                        : $"{_pythonService.InferenceDirectory}:{ldPath}";
+                }
                 process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
                 process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
 
@@ -1224,10 +1243,17 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 Validate();
             });
 
-            this.WhenAnyValue(x => x.Vm).Subscribe(x =>
+            this.WhenAnyValue(x => x.Vm).Subscribe(vm =>
             {
                 sub?.Dispose();
-                sub = Vm.WhenAnyValue(
+                sub = null;
+                // Vm is null until App wires it up after loading (and while deserializing);
+                // ReactiveUI 26's generated WhenAnyValue throws on a null source.
+                if (vm is null)
+                {
+                    return;
+                }
+                sub = vm.WhenAnyValue(
                     x => x.SelectedWorkflowIndex,
                     x => x.RequestShowAppSettings
                     ).Subscribe(x =>
@@ -1544,11 +1570,14 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             TrtEngineSettings = InsertBeforeTactics(settings, "--minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x1080x1920");
         }
 
+        // DirectML is Windows-only; elsewhere a workflow saved with DirectML runs on TensorRT.
+        public static bool DirectMlAvailable => OperatingSystem.IsWindows();
+
         private bool _tensorRtSelected = true;
         [DataMember]
         public bool TensorRtSelected
         {
-            get => _tensorRtSelected;
+            get => _tensorRtSelected || !DirectMlAvailable;
             set
             {
                 this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
@@ -1560,7 +1589,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         [DataMember]
         public bool DirectMlSelected
         {
-            get => _directMlSelected;
+            get => _directMlSelected && DirectMlAvailable;
             set => this.RaiseAndSetIfChanged(ref _directMlSelected, value);
         }
 
@@ -1689,6 +1718,17 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             set => this.RaiseAndSetIfChanged(ref _rifeSceneDetectThreshold, value ?? 0.150M);
         }
 
+        // Interpolate at the source resolution, then upscale (faster); the engine's default. False =
+        // interpolate the upscaled frames (the old order). Chains with a temporal model always
+        // interpolate after upscaling.
+        private bool _rifeBeforeUpscale = true;
+        [DataMember]
+        public bool RifeBeforeUpscale
+        {
+            get => _rifeBeforeUpscale;
+            set => this.RaiseAndSetIfChanged(ref _rifeBeforeUpscale, value);
+        }
+
         private bool _showAdvancedSettings = false;
         [DataMember]
         public bool ShowAdvancedSettings
@@ -1765,12 +1805,14 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         {
             TensorRtSelected = true;
             DirectMlSelected = false;
+            Validate();
         }
 
         public void SetDirectMlSelected()
         {
             DirectMlSelected = true;
             TensorRtSelected = false;
+            Validate();
         }
 
         public void Validate()
@@ -1819,6 +1861,20 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             {
                 valid = false;
                 validationText.Add("4:4:4 output requires a software encoder (x265 / x264 / Lossless); NVENC HEVC does not support 4:4:4.");
+            }
+
+            if (TensorRtSelected && Vm != null && !Vm.TensorRtInstalled)
+            {
+                valid = false;
+                validationText.Add(DirectMlAvailable
+                    ? "The TensorRT components are not installed (they are for NVIDIA GPUs). Select DirectML, or install TensorRT from App Settings."
+                    : "The TensorRT components are not installed. Install them from App Settings.");
+            }
+
+            if (DirectMlSelected && OutputIs444)
+            {
+                valid = false;
+                validationText.Add("DirectML outputs 4:2:0 only; choose a 4:2:0 output pixel format.");
             }
 
             Valid = valid;
@@ -1872,9 +1928,36 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public string OnnxModelPath
         {
             get => _onnxModelPath;
-            set => this.RaiseAndSetIfChanged(ref _onnxModelPath, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _onnxModelPath, value);
+                this.RaisePropertyChanged(nameof(TemporalFrames));
+                this.RaisePropertyChanged(nameof(IsTemporal));
+                this.RaisePropertyChanged(nameof(TemporalDescription));
+            }
         }
 
         public bool EnableResizeFactor => ResizeHeightBeforeUpscale == 0;
+
+        public const decimal DefaultTemporalSceneThreshold = 0.150M;
+
+        // Temporal (multi-frame) models upscale each frame from a window of its neighbors. The window
+        // size comes from the onnx input shape, as the engine reads it; 1 for a regular model.
+        public int TemporalFrames => OnnxInputShape.TemporalFrames(OnnxModelPath);
+
+        public bool IsTemporal => TemporalFrames > 1;
+
+        public string TemporalDescription =>
+            string.Format(CultureInfo.CurrentCulture, VideoJaNai.Lang.Resources.TemporalModelDescription, TemporalFrames);
+
+        // Temporal models: neighbors across a scene change (mean frame difference above this) are
+        // replaced by the nearest same-scene frame; 0 disables scene detection.
+        private decimal? _temporalSceneThreshold = DefaultTemporalSceneThreshold;
+        [DataMember]
+        public decimal? TemporalSceneThreshold
+        {
+            get => _temporalSceneThreshold ?? DefaultTemporalSceneThreshold;
+            set => this.RaiseAndSetIfChanged(ref _temporalSceneThreshold, value ?? DefaultTemporalSceneThreshold);
+        }
     }
 }

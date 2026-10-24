@@ -12,7 +12,7 @@ namespace AnimeJaNaiConverterGui.Services
     {
         public string InstallDir => AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, '/');
 
-        public string UpdaterPath => Path.Combine(InstallDir, "VideoJaNaiUpdater.exe");
+        public string UpdaterPath => Path.Combine(InstallDir, PythonService.Exe("VideoJaNaiUpdater"));
 
         // "Installed" = running from an Inno install (the updater ships next to the app).
         public bool IsInstalled => File.Exists(UpdaterPath);
@@ -59,7 +59,9 @@ namespace AnimeJaNaiConverterGui.Services
             {
                 FileName = UpdaterPath,
                 Arguments = "--apply",
-                UseShellExecute = true,
+                // Windows: shell-exec gives the updater its own console window. On Linux shell-exec
+                // would hand the binary to xdg-open.
+                UseShellExecute = OperatingSystem.IsWindows(),
                 WorkingDirectory = InstallDir,
             });
         }

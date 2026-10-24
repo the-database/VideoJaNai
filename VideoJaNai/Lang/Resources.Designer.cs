@@ -772,7 +772,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Compatible with NVIDIA, AMD, and Intel GPUs but slower than TensorRT. Supports fp32 ONNX models only..
+        ///   Looks up a localized string similar to Works on any DirectX 12 GPU (NVIDIA, AMD, Intel) but slower than TensorRT. Output is 4:2:0. ONNX models must be opset 21 or lower (higher opsets fall back to the CPU, which is extremely slow)..
         /// </summary>
         public static string UpscalingBackendDescriptionDirectMl {
             get {
@@ -840,6 +840,42 @@ namespace VideoJaNai.Lang {
         public static string WorkflowsTooltip {
             get {
                 return ResourceManager.GetString("WorkflowsTooltip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Scene Change Threshold.
+        /// </summary>
+        public static string TemporalSceneThresholdLabel {
+            get {
+                return ResourceManager.GetString("TemporalSceneThresholdLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to This is a temporal model: it upscales each frame from a {0}-frame window around it..
+        /// </summary>
+        public static string TemporalModelDescription {
+            get {
+                return ResourceManager.GetString("TemporalModelDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Interpolate before upscaling.
+        /// </summary>
+        public static string RifeBeforeUpscaleLabel {
+            get {
+                return ResourceManager.GetString("RifeBeforeUpscaleLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Run RIFE at the source resolution before upscaling (faster, recommended)..
+        /// </summary>
+        public static string RifeBeforeUpscaleDescription {
+            get {
+                return ResourceManager.GetString("RifeBeforeUpscaleDescription", resourceCulture);
             }
         }
     }

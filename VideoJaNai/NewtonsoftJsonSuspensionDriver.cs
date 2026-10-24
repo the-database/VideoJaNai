@@ -1,10 +1,10 @@
-using VideoJaNai.ViewModels;
+﻿using VideoJaNai.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using ReactiveUI;
 using System;
-using System.Reactive.Linq;
-using System.Reactive;
+using ReactiveUI.Primitives;
+using ReactiveUI.Primitives.Signals;
 using Newtonsoft.Json;
 using System.IO;
 using System.Text.Json.Serialization.Metadata;
@@ -22,44 +22,72 @@ namespace VideoJaNai
 
         public NewtonsoftJsonSuspensionDriver(string file) => _file = file;
 
-        public IObservable<Unit> InvalidateState()
+        // The default state shipped next to the exe (the template a first launch copies), or null.
+        public static object? LoadDefaultState()
+        {
+            try
+            {
+                var path = Path.Combine(AppContext.BaseDirectory, Program.AppStateFilename);
+                return JsonConvert.DeserializeObject<object>(File.ReadAllText(path), Settings);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        // ReactiveUI invalidates the state after any unhandled exception, so a crash would otherwise
+        // delete the user's saved workflows. Move it aside instead: the next launch starts fresh and
+        // the previous state stays recoverable as <file>.bak.
+        public IObservable<RxVoid> InvalidateState()
         {
             if (File.Exists(_file))
-                File.Delete(_file);
-            return Observable.Return(Unit.Default);
+                File.Move(_file, _file + ".bak", overwrite: true);
+            return Signal.Return(RxVoid.Default);
         }
 
         public IObservable<object> LoadState()
         {
             var lines = File.ReadAllText(_file);
-            var state = JsonConvert.DeserializeObject<object>(lines, Settings);
-            return Observable.Return(state);
+            try
+            {
+                var state = JsonConvert.DeserializeObject<object>(lines, Settings);
+                return Signal.Return(state);
+            }
+            catch (Exception)
+            {
+                // ReactiveUI falls back to fresh defaults, which the next save writes over this file;
+                // keep the unreadable state so a format change never silently drops saved workflows.
+                File.Copy(_file, _file + ".bak", overwrite: true);
+                throw;
+            }
         }
 
-        public IObservable<Unit> SaveState(object state)
+        public IObservable<RxVoid> SaveState(object state)
         {
             var lines = JsonConvert.SerializeObject(state, Settings);
             File.WriteAllText(_file, lines);
-            return Observable.Return(Unit.Default);
+            return Signal.Return(RxVoid.Default);
         }
 
-        // ReactiveUI 23 added AOT/source-gen-friendly generic overloads to ISuspensionDriver.
+        // ReactiveUI 23 added AOT/source-gen-friendly generic overloads to ISuspensionDriver (and 26
+        // moved it off System.Reactive: RxVoid/Signal instead of Unit/Observable).
         // We keep using Newtonsoft (with TypeNameHandling.All) for polymorphic state, so the
         // JsonTypeInfo<T> metadata argument is ignored.
-        public IObservable<Unit> SaveState<T>(T state)
+        public IObservable<RxVoid> SaveState<T>(T state)
         {
             var lines = JsonConvert.SerializeObject(state, Settings);
             File.WriteAllText(_file, lines);
-            return Observable.Return(Unit.Default);
+            return Signal.Return(RxVoid.Default);
         }
 
-        public IObservable<Unit> SaveState<T>(T state, JsonTypeInfo<T> typeInfo) => SaveState(state);
+        public IObservable<RxVoid> SaveState<T>(T state, JsonTypeInfo<T> typeInfo) => SaveState(state);
 
         public IObservable<T?> LoadState<T>(JsonTypeInfo<T> typeInfo)
         {
             var lines = File.ReadAllText(_file);
             var state = JsonConvert.DeserializeObject<T>(lines, Settings);
-            return Observable.Return(state);
+            return Signal.Return(state);
         }
     }
 }

@@ -21,6 +21,7 @@
 // Dev override: set VIDEOJANAI_PACKS_DIR to a local directory with packs.json + archives.
 
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using static Downloader;
@@ -36,6 +37,20 @@ string installDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar
 string localManifest = Path.Combine(installDir, "manifest.json");
 string playerExe = ReadManifestString(localManifest, "player_executable", "VideoJaNai.exe");
 string archiveTool = ReadManifestString(localManifest, "archive_tool", "7za.exe");
+// Release assets are shared across platforms on one tag, suffixed by RID on Linux
+// (…-linux-x64.tar.zst / packs-linux-x64.json / component-*-linux-x64.7z). Windows keeps its legacy
+// unsuffixed names. This RID selects our platform's assets from a release that carries both.
+string platformRid = ReadManifestString(localManifest, "platform", "win-x64");
+bool isWinRid = platformRid == "win-x64";
+
+// NVML ships in the NVIDIA driver as nvml.dll on Windows and libnvidia-ml.so.1 on Linux; remap the
+// DllImport library name on non-Windows so DetectGpu works without per-OS P/Invoke declarations.
+if (!OperatingSystem.IsWindows())
+{
+    NativeLibrary.SetDllImportResolver(typeof(Nvml).Assembly, (name, asm, search) =>
+        name == "nvml.dll" ? NativeLibrary.Load("libnvidia-ml.so.1", asm, search)
+                           : IntPtr.Zero);
+}
 
 string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "--check";
 
@@ -95,6 +110,10 @@ async Task CheckAsync()
 // marker (the new inference dir) exist — never true on a clean install or a pure 3.x install.
 void CleanupLegacy()
 {
+    if (!OperatingSystem.IsWindows())
+    {
+        return; // the VapourSynth-era builds were Windows-only
+    }
     try
     {
         string oldBackend = Path.Combine(
@@ -256,6 +275,18 @@ async Task<string> DownloadOverlayAsync(Release release, string work)
 
 async Task<string> DownloadFullAsync(Release release, string work)
 {
+    if (!isWinRid)
+    {
+        // Linux full package is a single zstd tarball (…-<rid>.tar.zst).
+        var tar = release.Assets.FirstOrDefault(a =>
+                Regex.IsMatch(a.Name, $@"{Regex.Escape(platformRid)}\.tar\.zst$"))
+            ?? throw new InvalidOperationException("No full-package tarball found on the latest release.");
+        string tarDest = Path.Combine(work, tar.Name);
+        await DownloadWithProgress(tar, tarDest);
+        return tarDest;
+    }
+
+    // Windows full package is a multi-volume .7z (full-package-*.7z.001/.002/...).
     var parts = release.Assets
         .Where(a => a.Name.Contains("full-package-") && Regex.IsMatch(a.Name, @"\.7z\.\d+$"))
         .OrderBy(a => a.Name)
@@ -292,17 +323,23 @@ async Task DownloadWithProgress(Asset asset, string dest)
 void Extract(string archiveEntry, string outDir)
 {
     Directory.CreateDirectory(outDir);
-    string sevenZip = Path.Combine(installDir, archiveTool);
+    // The Linux full package is a zstd tarball; the Windows archives and the component packs
+    // extract with the manifest's archive_tool.
+    bool isTar = archiveEntry.EndsWith(".tar.zst", StringComparison.OrdinalIgnoreCase);
+    string tool = isTar ? "tar" : Path.Combine(installDir, archiveTool);
+    string toolArgs = isTar
+        ? $"--zstd -xf \"{archiveEntry}\" -C \"{outDir}\""
+        : $"x \"{archiveEntry}\" -o\"{outDir}\" -snl -y";   // -snl: restore symlinks as links
     var psi = new ProcessStartInfo
     {
-        FileName = sevenZip,
-        Arguments = $"x \"{archiveEntry}\" -o\"{outDir}\" -y",
+        FileName = tool,
+        Arguments = toolArgs,
         UseShellExecute = false,
         RedirectStandardOutput = true,
         RedirectStandardError = true,
         CreateNoWindow = true,
     };
-    using var p = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start 7z");
+    using var p = Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start {tool}");
     string err = p.StandardError.ReadToEnd();
     p.StandardOutput.ReadToEnd();
     p.WaitForExit();
@@ -408,10 +445,30 @@ string ReadLocalVersion()
     return File.Exists(path) ? File.ReadAllText(path).Trim() : "0.0.0";
 }
 
-async Task<Release> GetLatestReleaseAsync()
+Task<Release> GetLatestReleaseAsync() => GetReleaseAsync(apiLatest);
+
+// Component packs must match this installation (its aji/TensorRT builds), so they come from the
+// installed version's release, including prereleases and older versions. The latest endpoint is
+// only for updating the application. A test/core-only package may pin component_package_version to
+// reuse a release whose inference/runtime/model deps are unchanged.
+string ReadComponentVersion() => ReadManifestString(
+    localManifest, "component_package_version", ReadLocalVersion()).Trim();
+
+Task<Release> GetInstalledReleaseAsync()
+{
+    string tag = ReadComponentVersion();
+    if (string.IsNullOrWhiteSpace(tag) || tag == "0.0.0")
+    {
+        throw new InvalidOperationException(
+            "Cannot select component packs: the installed component version is missing or empty.");
+    }
+    return GetReleaseAsync($"https://api.github.com/repos/{Repo}/releases/tags/{Uri.EscapeDataString(tag)}");
+}
+
+async Task<Release> GetReleaseAsync(string url)
 {
     using var client = NewClient();
-    string json = await client.GetStringAsync(apiLatest);
+    string json = await client.GetStringAsync(url);
     using var doc = JsonDocument.Parse(json);
     var root = doc.RootElement;
     string tag = root.GetProperty("tag_name").GetString() ?? "";
@@ -431,11 +488,30 @@ async Task<Release> GetLatestReleaseAsync()
 void RelaunchApp()
 {
     string app = Path.Combine(installDir, playerExe);
-    if (File.Exists(app))
+    if (!File.Exists(app))
     {
-        try { Process.Start(new ProcessStartInfo { FileName = app, UseShellExecute = true }); }
-        catch (Exception e) { Console.WriteLine($"Could not relaunch VideoJaNai: {e.Message}"); }
+        return;
     }
+    try
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Process.Start(new ProcessStartInfo { FileName = app, UseShellExecute = true });
+        }
+        else
+        {
+            // Shell-exec would hand the binary to xdg-open; start it directly, making sure the
+            // extraction kept its execute bit.
+            try
+            {
+                File.SetUnixFileMode(app, File.GetUnixFileMode(app)
+                    | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
+            }
+            catch { /* best effort */ }
+            Process.Start(new ProcessStartInfo { FileName = app, UseShellExecute = false, WorkingDirectory = installDir });
+        }
+    }
+    catch (Exception e) { Console.WriteLine($"Could not relaunch VideoJaNai: {e.Message}"); }
 }
 
 static void WaitForProcessExit(string name, TimeSpan timeout)
@@ -485,16 +561,21 @@ async Task<PackIndex> GetPackIndexAsync()
     List<Asset> assets;
     if (!string.IsNullOrEmpty(local))
     {
-        json = File.ReadAllText(Path.Combine(local, "packs.json"));
+        string localIndex = Path.Combine(local, isWinRid ? "packs.json" : $"packs-{platformRid}.json");
+        json = File.ReadAllText(File.Exists(localIndex) ? localIndex : Path.Combine(local, "packs.json"));
         assets = Directory.GetFiles(local, "component-*.7z")
             .Select(f => new Asset(Path.GetFileName(f), f)).ToList();
     }
     else
     {
-        var release = await GetLatestReleaseAsync();
-        var idx = release.Assets.FirstOrDefault(a => a.Name == "packs.json")
+        var release = await GetInstalledReleaseAsync();
+        // The packs index is RID-suffixed on Linux (packs-linux-x64.json) so it can coexist with the
+        // Windows packs.json on a shared release; its "asset" fields already carry the matching
+        // component-*-<rid>.7z names.
+        string packsName = isWinRid ? "packs.json" : $"packs-{platformRid}.json";
+        var idx = release.Assets.FirstOrDefault(a => a.Name == packsName)
             ?? throw new InvalidOperationException(
-                "The latest release publishes no component packs (packs.json missing).");
+                $"Release {release.Tag} publishes no component packs ({packsName} missing).");
         using var client = NewClient();
         json = await client.GetStringAsync(idx.Url);
         assets = release.Assets;
@@ -512,11 +593,63 @@ async Task<PackIndex> GetPackIndexAsync()
             asset,
             assets.FirstOrDefault(a => a.Name == asset)?.Url,
             e.GetProperty("bytes").GetInt64(),
-            files));
+            files,
+            e.TryGetProperty("dep", out var d) ? d.GetString() : null,
+            e.TryGetProperty("installed_bytes", out var ib) ? ib.GetInt64() : 0));
     }
     return new PackIndex(
         doc.RootElement.TryGetProperty("package_version", out var v)
             ? v.GetString() ?? "" : "", packs);
+}
+
+// One heavy-dependency version out of a manifest's deps (e.g. "inference_runtime", "rife"). "" if the
+// manifest/key is missing - used to decide whether an already-present pack's content is unchanged.
+static string ReadManifestDep(string manifestPath, string depKey)
+{
+    try
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        if (doc.RootElement.TryGetProperty("deps", out var deps) &&
+            deps.TryGetProperty(depKey, out var v) && v.ValueKind == JsonValueKind.String)
+        {
+            return v.GetString() ?? "";
+        }
+    }
+    catch { /* missing/unreadable manifest -> "" */ }
+    return "";
+}
+
+// Does the pack's content on disk actually match the published pack? components.json records only
+// what the updater BELIEVES it installed, and that record can be wrong - e.g. a component whose
+// download was skipped or failed while the record was still written, leaving the previous release's
+// files in place. That state is self-perpetuating: the record then says "current" forever and the
+// real files are never refreshed (how a TensorRT 11.0 runtime survived an upgrade to an 11.1 build in
+// mpv-AnimeJaNai). Comparing the total extracted size against the index catches it - a different
+// upstream build is a different size - and costs only a directory stat. Older indexes carry no
+// installed_bytes; there is nothing to verify against, so trust the record.
+bool PackContentMatches(Pack pack)
+{
+    if (pack.InstalledBytes <= 0)
+    {
+        return true;
+    }
+    long actual = 0;
+    foreach (var f in pack.Files)
+    {
+        var fi = new FileInfo(Path.Combine(installDir, f));
+        if (!fi.Exists)
+        {
+            return false;
+        }
+        actual += fi.Length;
+    }
+    if (actual != pack.InstalledBytes)
+    {
+        Console.WriteLine($"{pack.Name}: on-disk content does not match the published pack " +
+                          $"({actual:N0} vs {pack.InstalledBytes:N0} bytes); reinstalling.");
+        return false;
+    }
+    return true;
 }
 
 // Installed state: components.json, else inferred from what's on disk so
@@ -559,15 +692,19 @@ void WriteInstalledComponents(Dictionary<string, string> installed)
 
 string? PackVersionMismatch(PackIndex index)
 {
-    string localVersion = ReadManifestString(localManifest, "package_version", "");
+    string localVersion = ReadComponentVersion();
     return localVersion != "" && index.PackageVersion != "" && localVersion != index.PackageVersion
-        ? $"Installed package is v{localVersion} but the published packs are for v{index.PackageVersion}."
+        ? $"This installation selects component release v{localVersion} but the published packs are for v{index.PackageVersion}."
         : null;
 }
 
 // NVIDIA detection via NVML (ships with the driver); its absence means a non-NVIDIA GPU.
 // Only the TensorRT engine needs downloadable component packs, and they apply to NVIDIA GPUs
 // only; non-NVIDIA GPUs use the built-in DirectML engine, which ships in the base install.
+//
+// Every NVIDIA GPU is reported (Sm "sm89, sm120", names joined with " + "): NVML enumerates in PCI
+// order while CUDA picks the fastest GPU first, so recommending only NVML's device 0 left the GPU
+// TensorRT actually builds on without its builder kernels on multi-GPU systems.
 static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
 {
     try
@@ -578,15 +715,31 @@ static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
         }
         try
         {
-            if (Nvml.nvmlDeviceGetHandleByIndex_v2(0, out var dev) != 0)
+            if (Nvml.nvmlDeviceGetCount_v2(out uint count) != 0 || count == 0)
             {
                 return (false, "", "");
             }
-            Nvml.nvmlDeviceGetCudaComputeCapability(dev, out int major, out int minor);
-            var name = new byte[96];
-            Nvml.nvmlDeviceGetName(dev, name, (uint)name.Length);
-            string gpu = System.Text.Encoding.ASCII.GetString(name).TrimEnd('\0');
-            return (true, $"sm{major}{minor}", gpu);
+            var sms = new List<string>();
+            var names = new List<string>();
+            for (uint i = 0; i < count; i++)
+            {
+                if (Nvml.nvmlDeviceGetHandleByIndex_v2(i, out var dev) != 0)
+                {
+                    continue;
+                }
+                Nvml.nvmlDeviceGetCudaComputeCapability(dev, out int major, out int minor);
+                var name = new byte[96];
+                Nvml.nvmlDeviceGetName(dev, name, (uint)name.Length);
+                names.Add(System.Text.Encoding.ASCII.GetString(name).TrimEnd('\0'));
+                var sm = $"sm{major}{minor}";
+                if (!sms.Contains(sm))
+                {
+                    sms.Add(sm);
+                }
+            }
+            return sms.Count == 0
+                ? (false, "", "")
+                : (true, string.Join(", ", sms), string.Join(" + ", names));
         }
         finally { Nvml.nvmlShutdown(); }
     }
@@ -605,8 +758,15 @@ List<string> RecommendedPacks(PackIndex index, bool hasNvidia, string sm)
     if (hasNvidia)
     {
         rec.Add("trt-runtime");
-        // exact generation pack if published, else the PTX fallback pack
-        rec.Add(index.Packs.Any(p => p.Name == $"trt-{sm}") ? $"trt-{sm}" : "trt-ptx");
+        // per GPU generation: the exact pack if published, else the PTX fallback pack
+        foreach (var s in sm.Split(", ", StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pack = index.Packs.Any(p => p.Name == $"trt-{s}") ? $"trt-{s}" : "trt-ptx";
+            if (!rec.Contains(pack))
+            {
+                rec.Add(pack);
+            }
+        }
     }
     return rec;
 }
@@ -678,15 +838,39 @@ async Task<int> InstallComponentAsync(string name)
     }
     if (pack.Url is null)
     {
-        Console.WriteLine($"Pack '{name}' has no downloadable asset on the latest release.");
+        Console.WriteLine($"Pack '{name}' has no downloadable asset on the selected release.");
         return 1;
     }
     if (PackVersionMismatch(index) is string warn)
     {
         // a pack from a different release can mismatch the installed aji/TensorRT builds
         Console.WriteLine(warn);
-        Console.WriteLine("Update first (VideoJaNaiUpdater.exe --apply), then install components.");
+        Console.WriteLine("Update first (VideoJaNaiUpdater --apply), then install components.");
         return 1;
+    }
+
+    // Skip the (large) download when the identical content is already on disk: every file the pack
+    // ships is present, its total size matches the index, AND the upstream version that governs it
+    // (the manifest dep the build tagged the pack with: inference_runtime for TensorRT, rife for
+    // RIFE) is unchanged - either vs. the pre-upgrade manifest snapshot (manifest.prev.json) or vs.
+    // the dep version components.json recorded on a prior managed install. A TensorRT/RIFE bump
+    // changes the dep, so this correctly re-downloads then.
+    string target = pack.Dep is null ? "" : ReadManifestDep(localManifest, pack.Dep);
+    bool filesPresent = pack.Files.Count > 0 &&
+        pack.Files.All(f => File.Exists(Path.Combine(installDir, f)));
+    if (filesPresent && target != "" && PackContentMatches(pack))
+    {
+        string prev = pack.Dep is null ? "" :
+            ReadManifestDep(Path.Combine(installDir, "manifest.prev.json"), pack.Dep);
+        var current = ReadInstalledComponents(index);
+        current.TryGetValue(pack.Name, out var recorded);
+        if (prev == target || recorded == target)
+        {
+            current[pack.Name] = target;
+            WriteInstalledComponents(current);
+            Console.WriteLine($"{pack.Name} already up to date ({target}); skipping download.");
+            return 0;
+        }
     }
 
     string work = Path.Combine(Path.GetTempPath(), "videojanai-packs");
@@ -705,7 +889,9 @@ async Task<int> InstallComponentAsync(string name)
     TryDelete(() => File.Delete(archive));
 
     var installed = ReadInstalledComponents(index);
-    installed[pack.Name] = index.PackageVersion;
+    // Record the dep version (not the package version) so a later reinstall can tell whether this
+    // pack's content actually changed; fall back to the package version for an untagged pack.
+    installed[pack.Name] = target != "" ? target : index.PackageVersion;
     WriteInstalledComponents(installed);
     Console.WriteLine($"{pack.Name} installed.");
     return 0;
@@ -743,8 +929,16 @@ async Task<int> AutoComponentsAsync()
     var (hasNvidia, sm, gpu) = DetectGpu();
     var rec = RecommendedPacks(index, hasNvidia, sm);
     var installed = ReadInstalledComponents(index);
+    // "Needs installing" is not just "absent": a pack already recorded as installed is stale when the
+    // dep that governs it moved (a TensorRT/RIFE bump) or when its files on disk are not this pack's
+    // content. Without this, --auto reports "everything is installed" after an upgrade and the old
+    // runtime is kept forever; InstallComponentAsync re-checks and still skips genuine no-ops.
     var missing = index.Packs
-        .Where(p => PreselectPack(p, installed, rec) && !installed.ContainsKey(p.Name))
+        .Where(p => PreselectPack(p, installed, rec))
+        .Where(p => !installed.TryGetValue(p.Name, out var recorded) ||
+                    (p.Dep is not null && ReadManifestDep(localManifest, p.Dep) is string t &&
+                     t != "" && recorded != t) ||
+                    !PackContentMatches(p))
         .Select(p => p.Name).ToList();
     if (missing.Count == 0)
     {
@@ -808,6 +1002,8 @@ static class Nvml
     [System.Runtime.InteropServices.DllImport("nvml.dll")]
     public static extern int nvmlShutdown();
     [System.Runtime.InteropServices.DllImport("nvml.dll")]
+    public static extern int nvmlDeviceGetCount_v2(out uint deviceCount);
+    [System.Runtime.InteropServices.DllImport("nvml.dll")]
     public static extern int nvmlDeviceGetHandleByIndex_v2(uint index, out IntPtr device);
     [System.Runtime.InteropServices.DllImport("nvml.dll")]
     public static extern int nvmlDeviceGetCudaComputeCapability(IntPtr device, out int major, out int minor);
@@ -817,5 +1013,8 @@ static class Nvml
 
 record Release(string Tag, List<Asset> Assets);
 record Asset(string Name, string Url);
-record Pack(string Name, string Asset, string? Url, long Bytes, List<string> Files);
+// Dep: the manifest deps key that governs the pack's content. InstalledBytes: the pack's total size
+// once extracted, to verify what is on disk really is this pack (0 for indexes that predate it).
+record Pack(string Name, string Asset, string? Url, long Bytes, List<string> Files, string? Dep,
+            long InstalledBytes = 0);
 record PackIndex(string PackageVersion, List<Pack> Packs);

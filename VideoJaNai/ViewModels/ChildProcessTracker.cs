@@ -35,7 +35,9 @@ namespace VideoJaNai.ViewModels
             //  app.manifest change.
             //  https://stackoverflow.com/a/4232259/386091
             //  https://stackoverflow.com/a/9507862/386091
-            if (Environment.OSVersion.Version < new Version(6, 2))
+            // Job objects are Windows-only (OSVersion is the kernel version elsewhere, so the version
+            //  check alone would let Linux reach the kernel32 P/Invokes).
+            if (!OperatingSystem.IsWindows() || Environment.OSVersion.Version < new Version(6, 2))
                 return;
 
             // The job name is optional (and can be null) but it helps with diagnostics.
