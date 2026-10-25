@@ -1,5 +1,7 @@
 ﻿using AnimeJaNaiConverterGui.Services;
 using Avalonia.Collections;
+using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using Newtonsoft.Json;
 using ReactiveUI;
 using ReactiveUI.Primitives;
@@ -198,6 +200,67 @@ namespace VideoJaNai.ViewModels
         {
             get => _showConsole;
             set => this.RaiseAndSetIfChanged(ref _showConsole, value);
+        }
+
+        // Preview of the upscale while it runs: aji_encode keeps a JPEG of its latest output frame
+        // up to date (--preview) and prints a PREVIEW line each time it rewrites it.
+        private static readonly string PreviewPath =
+            Path.Combine(Path.GetTempPath(), $"videojanai-preview-{Environment.ProcessId}.jpg");
+
+        private bool _showPreview = true;
+        [DataMember]
+        public bool ShowPreview
+        {
+            get => _showPreview;
+            set => this.RaiseAndSetIfChanged(ref _showPreview, value);
+        }
+
+        private Bitmap? _previewImage;
+        [IgnoreDataMember]
+        public Bitmap? PreviewImage
+        {
+            get => _previewImage;
+            set
+            {
+                var old = _previewImage;
+                this.RaiseAndSetIfChanged(ref _previewImage, value);
+                if (!ReferenceEquals(old, value))
+                {
+                    old?.Dispose();
+                }
+            }
+        }
+
+        // Called off the UI thread (process output): read the whole file first, so aji_encode can
+        // replace it again right away, then swap the image in on the UI thread.
+        private void LoadPreview()
+        {
+            byte[] bytes;
+            try
+            {
+                bytes = File.ReadAllBytes(PreviewPath);
+            }
+            catch (IOException)
+            {
+                return;   // being replaced; the next PREVIEW line brings it
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return;
+            }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    using var ms = new MemoryStream(bytes);
+                    PreviewImage = new Bitmap(ms);
+                }
+                catch (Exception)
+                {
+                    // a bad frame only costs the preview
+                }
+            });
         }
 
 
@@ -689,6 +752,15 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 _cancellationTokenSource.Dispose();
                 Upscaling = false;
                 CurrentWorkflow.Validate();
+                try
+                {
+                    File.Delete(PreviewPath);
+                    File.Delete(PreviewPath + ".tmp");
+                }
+                catch (Exception)
+                {
+                    // a leftover temp file is harmless
+                }
             }
         }
 
@@ -740,6 +812,12 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             sb.Append(ENGLISH_CULTURE, $"--trtexec \"{_pythonService.TrtexecPath}\" ");
             sb.Append(ENGLISH_CULTURE, $"--backend {backend} ");
 
+            // Engine builds see it too: deinterlacing changes the frame rate chains are matched on.
+            if (CurrentWorkflow.Deinterlace != "off")
+            {
+                sb.Append(ENGLISH_CULTURE, $"--deinterlace {CurrentWorkflow.Deinterlace} ");
+            }
+
             if (buildOnly)
             {
                 sb.Append("--build-only ");
@@ -771,6 +849,8 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 {
                     sb.Append("--overwrite ");
                 }
+
+                sb.Append(ENGLISH_CULTURE, $"--preview \"{PreviewPath}\" ");
             }
 
             sb.Append("--progress line");
@@ -840,8 +920,13 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                             outputFile.WriteLine(e.Data); // Write the output to the log file
 
                             // aji_encode emits machine-readable "PROGRESS ..." lines on stdout;
-                            // route those to the progress bar instead of the console.
-                            if (!TryHandleProgressLine(e.Data))
+                            // route those to the progress bar instead of the console, and
+                            // "PREVIEW ..." lines to the preview.
+                            if (e.Data.StartsWith("PREVIEW", StringComparison.Ordinal))
+                            {
+                                LoadPreview();
+                            }
+                            else if (!TryHandleProgressLine(e.Data))
                             {
                                 ConsoleQueueEnqueue(e.Data);
                             }
@@ -923,6 +1008,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             ProgressValue = 0;
             ProgressText = string.Empty;
             ProgressPhase = string.Empty;
+            PreviewImage = null;
         }
 
         private void ConsoleQueueClear()
@@ -1386,6 +1472,31 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 this.RaisePropertyChanged(nameof(FfmpegLosslessSelected));
             }
         }
+
+        // Deinterlacing of the source -> aji_encode --deinterlace: off, ivtc (telecined film, e.g.
+        // NTSC anime DVDs: restores the 23.976 fps frames) or bwdif (true interlaced video,
+        // deinterlaced to one frame per field).
+        public bool DeinterlaceOffSelected => Deinterlace == "off";
+        public bool DeinterlaceIvtcSelected => Deinterlace == "ivtc";
+        public bool DeinterlaceBwdifSelected => Deinterlace == "bwdif";
+
+        private string _deinterlace = "off";
+        [DataMember]
+        public string Deinterlace
+        {
+            get => _deinterlace ?? "off";
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _deinterlace, value ?? "off");
+                this.RaisePropertyChanged(nameof(DeinterlaceOffSelected));
+                this.RaisePropertyChanged(nameof(DeinterlaceIvtcSelected));
+                this.RaisePropertyChanged(nameof(DeinterlaceBwdifSelected));
+            }
+        }
+
+        public void SetDeinterlaceOff() => Deinterlace = "off";
+        public void SetDeinterlaceIvtc() => Deinterlace = "ivtc";
+        public void SetDeinterlaceBwdif() => Deinterlace = "bwdif";
 
         // Output pixel format -> aji_encode --pix-fmt (chroma + bit depth), decoupled from source.
         public bool OutputPixFmt420P8Selected => OutputPixFmt == "yuv420p";

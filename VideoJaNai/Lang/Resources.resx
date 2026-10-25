@@ -390,4 +390,22 @@
   <data name="RifeBeforeUpscaleDescription" xml:space="preserve">
     <value>Run RIFE at the source resolution before upscaling (faster, recommended). Uncheck to interpolate the upscaled frames instead (slower). With a temporal upscaling model, interpolation always runs after upscaling.</value>
   </data>
+  <data name="DeinterlaceLabel" xml:space="preserve">
+    <value>Deinterlace</value>
+  </data>
+  <data name="DeinterlaceOffText" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="DeinterlaceBwdifText" xml:space="preserve">
+    <value>Deinterlace</value>
+  </data>
+  <data name="DeinterlaceIvtcDescription" xml:space="preserve">
+    <value>for telecined film sources, such as most NTSC anime DVDs. Restores the original 23.976 fps frames.</value>
+  </data>
+  <data name="DeinterlaceBwdifDescription" xml:space="preserve">
+    <value>for truly interlaced video, such as TV recordings. Outputs one frame per field (e.g. 29.97i to 59.94 fps).</value>
+  </data>
+  <data name="PreviewButtonText" xml:space="preserve">
+    <value>Preview</value>
+  </data>
 </root>
