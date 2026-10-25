@@ -456,4 +456,19 @@
   <data name="PreviewNoInputText" xml:space="preserve">
     <value>Select an input video first.</value>
   </data>
+  <data name="SourceSettingsHeader" xml:space="preserve">
+    <value>Source Settings</value>
+  </data>
+  <data name="SquarePixelsLabel" xml:space="preserve">
+    <value>Square Pixels</value>
+  </data>
+  <data name="SquarePixelsBeforeText" xml:space="preserve">
+    <value>Before processing</value>
+  </data>
+  <data name="SquarePixelsAfterText" xml:space="preserve">
+    <value>After processing</value>
+  </data>
+  <data name="SquarePixelsDescription" xml:space="preserve">
+    <value>For videos with non-square pixels, such as DVDs and DV: stretches the picture to its true shape, so it displays correctly everywhere. Whether it looks better before or after processing (upscaling and interpolation) depends on the model, so compare them with Preview. Videos with square pixels are not changed.</value>
+  </data>
 </root>
