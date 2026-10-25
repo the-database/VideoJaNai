@@ -1148,14 +1148,6 @@ namespace VideoJaNai.Lang {
             }
         }
 
-        /// <summary>
-        ///   Looks up a localized string similar to Runs the upscaling and interpolation models..
-        /// </summary>
-        public static string BackendTooltip {
-            get {
-                return ResourceManager.GetString("BackendTooltip", resourceCulture);
-            }
-        }
 
         /// <summary>
         ///   Looks up a localized string similar to Custom.

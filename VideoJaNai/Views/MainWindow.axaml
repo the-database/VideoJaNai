@@ -224,9 +224,8 @@
       <ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="20">
           <!-- Workflow: name and import/export/reset (short labels, so they fit beside the
-               name at the minimum window width), then the backend (it runs upscaling and
-               interpolation alike) on its own line -->
-          <DockPanel Margin="0,0,0,8">
+               name at the minimum window width) -->
+          <DockPanel Margin="0,0,0,10">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0">
               <Button Click="ImportCurrentWorkflowButtonClick" ToolTip.Tip="{x:Static lang:Resources.ImportWorkflowButtonText}">
                 <StackPanel Orientation="Horizontal">
@@ -256,14 +255,6 @@
               <TextBox Grid.Column="1" Text="{Binding CurrentWorkflow.WorkflowName}"/>
             </Grid>
           </DockPanel>
-          <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,0,0,10">
-            <TextBlock VerticalAlignment="Center" Text="{x:Static lang:Resources.UpscalingBackendLabel}" />
-            <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{x:Static lang:Resources.BackendTooltip}" />
-            <ToggleButton IsChecked="{Binding CurrentWorkflow.TensorRtSelected}" Content="TensorRT" Command="{Binding CurrentWorkflow.SetTensorRtSelected}"
-                          ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" />
-            <ToggleButton IsChecked="{Binding CurrentWorkflow.DirectMlSelected}" Content="DirectML" Command="{Binding CurrentWorkflow.SetDirectMlSelected}"
-                          IsVisible="{x:Static vm:UpscaleWorkflow.DirectMlAvailable}" ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" />
-          </StackPanel>
 
           <!-- The sections follow the video through the pipeline: input, what the source is,
                upscaling, interpolation, output. Collapsed, each shows a one-line summary. -->
@@ -552,6 +543,17 @@
           <!-- App Settings -->
           <Border Classes="border">
             <StackPanel>
+              <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10" IsVisible="{x:Static vm:UpscaleWorkflow.DirectMlAvailable}">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.UpscalingBackendLabel}" />
+                  <ToggleButton IsChecked="{Binding TensorRtBackendSelected}" Content="TensorRT" Command="{Binding SetBackendTensorRt}" />
+                  <ToggleButton IsChecked="{Binding DirectMlBackendSelected}" Content="DirectML" Command="{Binding SetBackendDirectMl}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="40,0,0,0">
+                  <TextBlock Classes="help" xml:space="preserve"><Bold>TensorRT</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" /></TextBlock>
+                  <TextBlock Classes="help" xml:space="preserve"><Bold>DirectML</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" /></TextBlock>
+                </StackPanel>
+              </Grid>
               <StackPanel IsVisible="{Binding IsInstalled}">
                 <StackPanel>
                   <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10">
