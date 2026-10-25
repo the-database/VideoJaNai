@@ -140,6 +140,37 @@ namespace VideoJaNai.ViewModels
             set => this.RaiseAndSetIfChanged(ref _autoUpdate, value);
         }
 
+        // The inference backend, app-wide: chosen once per PC, so it's an App Setting (earlier
+        // versions kept it per workflow; null until taken over from those, see MigrateBackend).
+        private bool? _useDirectMl;
+        [DataMember]
+        public bool? UseDirectMl
+        {
+            get => _useDirectMl;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _useDirectMl, value);
+                this.RaisePropertyChanged(nameof(TensorRtBackendSelected));
+                this.RaisePropertyChanged(nameof(DirectMlBackendSelected));
+                foreach (var wf in Workflows ?? [])
+                {
+                    wf.BackendChanged();
+                }
+            }
+        }
+
+        public bool DirectMlBackendSelected => UseDirectMl == true && UpscaleWorkflow.DirectMlAvailable;
+        public bool TensorRtBackendSelected => !DirectMlBackendSelected;
+
+        public void SetBackendTensorRt() => UseDirectMl = false;
+        public void SetBackendDirectMl() => UseDirectMl = true;
+
+        // Settings saved before the backend became app-wide: keep what the selected workflow used.
+        public void MigrateBackend()
+        {
+            UseDirectMl ??= CurrentWorkflow?.LegacyDirectMlSelected ?? false;
+        }
+
         private string _validationText = string.Empty;
         public string ValidationText
         {
@@ -313,13 +344,13 @@ namespace VideoJaNai.ViewModels
             {
                 return (null, Resources.PreviewNoInputText, null);
             }
-            if (CurrentWorkflow.UpscaleSettings.Any(m => !File.Exists(m.OnnxModelPath)))
+            if (CurrentWorkflow.EnableUpscale && CurrentWorkflow.UpscaleSettings.Any(m => !File.Exists(m.OnnxModelPath)))
             {
                 return (null, "ONNX Model Path is required.", null);
             }
             if (CurrentWorkflow.TensorRtSelected && !TensorRtInstalled)
             {
-                return (null, "TensorRT is not installed. Install it in App Settings, or select DirectML.", null);
+                return (null, "TensorRT is not installed. Install it, or select DirectML, in App Settings.", null);
             }
 
             try
@@ -717,7 +748,7 @@ namespace VideoJaNai.ViewModels
             configText.AppendLine("chain_1_min_fps=0");
             configText.AppendLine("chain_1_max_fps=0");
 
-            for (var i = 0; i < CurrentWorkflow.UpscaleSettings.Count; i++)
+            for (var i = 0; CurrentWorkflow.EnableUpscale && i < CurrentWorkflow.UpscaleSettings.Count; i++)
             {
                 // aji resolves models by bare name against --model-dir, so copy the selected onnx in.
                 Directory.CreateDirectory(_pythonService.ModelsDirectory);
@@ -1460,6 +1491,16 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     });
             });
 
+            // The collapsed sections' summaries follow every setting (and the models' paths).
+            PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName is not null && !e.PropertyName.EndsWith("Summary", StringComparison.Ordinal))
+                {
+                    RaiseSummaries();
+                }
+            };
+            HookModels(_upscaleSettings);
+
             this.WhenAnyValue(x => x.InputFilePath).Subscribe(x =>
             {
                 if (string.IsNullOrWhiteSpace(OutputFolderPath) && !string.IsNullOrWhiteSpace(InputFilePath))
@@ -1824,20 +1865,27 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         [DataMember]
         public bool TensorRtSelected
         {
-            get => _tensorRtSelected || !DirectMlAvailable;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
-                this.RaisePropertyChanged(nameof(ShowTrtEngineSettings));
-            }
+            get => !DirectMlSelected;
+            set => _tensorRtSelected = value;
         }
 
         private bool _directMlSelected = false;
         [DataMember]
         public bool DirectMlSelected
         {
-            get => _directMlSelected && DirectMlAvailable;
-            set => this.RaiseAndSetIfChanged(ref _directMlSelected, value);
+            get => (Vm?.UseDirectMl ?? _directMlSelected) && DirectMlAvailable;
+            set => _directMlSelected = value;
+        }
+
+        // what this workflow had before the backend became an App Setting
+        public bool LegacyDirectMlSelected => _directMlSelected;
+
+        public void BackendChanged()
+        {
+            this.RaisePropertyChanged(nameof(TensorRtSelected));
+            this.RaisePropertyChanged(nameof(DirectMlSelected));
+            this.RaisePropertyChanged(nameof(ShowTrtEngineSettings));
+            Validate();
         }
 
         private int? _finalResizeHeight = 0;
@@ -1912,7 +1960,52 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public AvaloniaList<UpscaleModel> UpscaleSettings
         {
             get => _upscaleSettings;
-            set => this.RaiseAndSetIfChanged(ref _upscaleSettings, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _upscaleSettings, value);
+                HookModels(value);
+            }
+        }
+
+        private void HookModels(AvaloniaList<UpscaleModel>? models)
+        {
+            if (models is null)
+            {
+                return;
+            }
+            void Watch(UpscaleModel m) => m.PropertyChanged += (_, _) => RaiseSummaries();
+            foreach (var m in models)
+            {
+                Watch(m);
+            }
+            models.CollectionChanged += (_, e) =>
+            {
+                foreach (UpscaleModel m in e.NewItems ?? Array.Empty<UpscaleModel>())
+                {
+                    Watch(m);
+                }
+                RaiseSummaries();
+            };
+        }
+
+        // Upscaling on or off. The models stay in the list while it's off; the chain just has none,
+        // so a workflow can interpolate (or only deinterlace, resize, ...) without losing them.
+        private bool _enableUpscale = true;
+        [DataMember]
+        public bool EnableUpscale
+        {
+            get => _enableUpscale;
+            set
+            {
+                var changed = value != _enableUpscale;
+                this.RaiseAndSetIfChanged(ref _enableUpscale, value);
+                // a section follows its switch when the person flips it (not while loading)
+                if (changed && Vm != null)
+                {
+                    UpscaleSectionExpanded = value;
+                }
+                Validate();
+            }
         }
 
         private bool _enableRife = false;
@@ -1920,7 +2013,120 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public bool EnableRife
         {
             get => _enableRife;
-            set => this.RaiseAndSetIfChanged(ref _enableRife, value);
+            set
+            {
+                var changed = value != _enableRife;
+                this.RaiseAndSetIfChanged(ref _enableRife, value);
+                if (changed && Vm != null)
+                {
+                    InterpolationSectionExpanded = value;
+                }
+            }
+        }
+
+        // The settings page's sections, open or collapsed to their summary line (per workflow).
+        private bool _inputSectionExpanded = true;
+        [DataMember]
+        public bool InputSectionExpanded
+        {
+            get => _inputSectionExpanded;
+            set => this.RaiseAndSetIfChanged(ref _inputSectionExpanded, value);
+        }
+
+        private bool _sourceSectionExpanded = false;
+        [DataMember]
+        public bool SourceSectionExpanded
+        {
+            get => _sourceSectionExpanded;
+            set => this.RaiseAndSetIfChanged(ref _sourceSectionExpanded, value);
+        }
+
+        private bool _upscaleSectionExpanded = true;
+        [DataMember]
+        public bool UpscaleSectionExpanded
+        {
+            get => _upscaleSectionExpanded;
+            set => this.RaiseAndSetIfChanged(ref _upscaleSectionExpanded, value);
+        }
+
+        private bool _interpolationSectionExpanded = false;
+        [DataMember]
+        public bool InterpolationSectionExpanded
+        {
+            get => _interpolationSectionExpanded;
+            set => this.RaiseAndSetIfChanged(ref _interpolationSectionExpanded, value);
+        }
+
+        private bool _outputSectionExpanded = true;
+        [DataMember]
+        public bool OutputSectionExpanded
+        {
+            get => _outputSectionExpanded;
+            set => this.RaiseAndSetIfChanged(ref _outputSectionExpanded, value);
+        }
+
+        private static string Off => VideoJaNai.Lang.Resources.DeinterlaceOffText;
+
+        public string InputSummary => SelectedTabIndex == 0
+            ? Path.GetFileName(InputFilePath ?? string.Empty)
+            : InputFolderPath ?? string.Empty;
+
+        public string SourceSummary
+        {
+            get
+            {
+                var parts = new List<string>();
+                if (Deinterlace == "ivtc") parts.Add("IVTC");
+                else if (Deinterlace == "bwdif") parts.Add(VideoJaNai.Lang.Resources.DeinterlaceBwdifText);
+                if (SquarePixels != "off")
+                {
+                    parts.Add($"{VideoJaNai.Lang.Resources.SquarePixelsLabel}: " + (SquarePixels == "before"
+                        ? VideoJaNai.Lang.Resources.SquarePixelsBeforeText
+                        : VideoJaNai.Lang.Resources.SquarePixelsAfterText));
+                }
+                return parts.Count > 0 ? string.Join(" · ", parts) : Off;
+            }
+        }
+
+        public string UpscaleSummary => !EnableUpscale || UpscaleSettings.Count == 0
+            ? Off
+            : string.Join(" → ", UpscaleSettings.Select(m => Path.GetFileNameWithoutExtension(m.OnnxModelPath ?? string.Empty)));
+
+        public string InterpolationSummary => !EnableRife
+            ? Off
+            : RifeFactorDenominator == 1
+                ? $"{RifeModel} · {RifeFactorNumerator}x"
+                : $"{RifeModel} · {RifeFactorNumerator}/{RifeFactorDenominator}x";
+
+        public string OutputSummary
+        {
+            get
+            {
+                var parts = new List<string>
+                {
+                    FfmpegHevcNvencSelected ? "NVENC HEVC" : FfmpegX265Selected ? "x265" : FfmpegX264Selected ? "x264"
+                        : FfmpegLosslessSelected ? "Lossless" : VideoJaNai.Lang.Resources.CustomPresetText,
+                    OutputPixFmt switch
+                    {
+                        "yuv420p" => "8-bit 4:2:0",
+                        "yuv444p" => "8-bit 4:4:4",
+                        "yuv444p10" => "10-bit 4:4:4",
+                        _ => "10-bit 4:2:0",
+                    },
+                };
+                if (FinalResizeHeight is int h && h > 0) parts.Add($"{h}p");
+                else if (FinalResizeFactor is int f && f > 0 && f != 100) parts.Add($"{f}%");
+                return string.Join(" · ", parts);
+            }
+        }
+
+        private void RaiseSummaries()
+        {
+            this.RaisePropertyChanged(nameof(InputSummary));
+            this.RaisePropertyChanged(nameof(SourceSummary));
+            this.RaisePropertyChanged(nameof(UpscaleSummary));
+            this.RaisePropertyChanged(nameof(InterpolationSummary));
+            this.RaisePropertyChanged(nameof(OutputSummary));
         }
 
         public List<string> RifeModelList { get => Vm?.RifeModels; }
@@ -2048,20 +2254,6 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public void SetOutputPixFmt444P8() { OutputPixFmt = "yuv444p"; Validate(); }
         public void SetOutputPixFmt444P10() { OutputPixFmt = "yuv444p10"; Validate(); }
 
-        public void SetTensorRtSelected()
-        {
-            TensorRtSelected = true;
-            DirectMlSelected = false;
-            Validate();
-        }
-
-        public void SetDirectMlSelected()
-        {
-            DirectMlSelected = true;
-            TensorRtSelected = false;
-            Validate();
-        }
-
         public void Validate()
         {
             var valid = true;
@@ -2095,7 +2287,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 validationText.Add("Output Filename is required.");
             }
 
-            foreach (var upscaleModel in UpscaleSettings)
+            foreach (var upscaleModel in EnableUpscale ? UpscaleSettings : [])
             {
                 if (!File.Exists(upscaleModel.OnnxModelPath))
                 {
@@ -2114,7 +2306,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             {
                 valid = false;
                 validationText.Add(DirectMlAvailable
-                    ? "The TensorRT components are not installed (they are for NVIDIA GPUs). Select DirectML, or install TensorRT from App Settings."
+                    ? "The TensorRT components are not installed (they are for NVIDIA GPUs). Select DirectML or install TensorRT in App Settings."
                     : "The TensorRT components are not installed. Install them from App Settings.");
             }
 

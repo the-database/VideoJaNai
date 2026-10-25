@@ -87,6 +87,7 @@ namespace VideoJaNai
                 wf.TrtEngineSettings = UpscaleWorkflow.NormalizeTrtEngineSettings(wf.TrtEngineSettings);
             }
 
+            state.MigrateBackend();
             state.CurrentWorkflow?.Validate();
 
             new MainWindow { DataContext = state }.Show();
