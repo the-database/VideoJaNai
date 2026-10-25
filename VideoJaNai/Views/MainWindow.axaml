@@ -120,6 +120,13 @@
               </StackPanel>
 
             </Button>
+            <Button Margin="20,10,0,10" FontWeight="Bold" IsEnabled="{Binding PreviewEnabled}" Click="PreviewButtonClick"
+                    ToolTip.Tip="{x:Static lang:Resources.PreviewWindowTooltip}">
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Kind="Eye" />
+                <TextBlock Margin="5,0,0,0" Text="{x:Static lang:Resources.PreviewWindowButtonText}" />
+              </StackPanel>
+            </Button>
             <Button Margin="20,10,0,10" FontWeight="Bold" Background="Red" IsEnabled="{Binding Upscaling}" Command="{Binding CancelUpscale}">
               <StackPanel Orientation="Horizontal">
                 <materialIcons:MaterialIcon Kind="StopCircle" />
