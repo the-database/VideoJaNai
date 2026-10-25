@@ -925,11 +925,155 @@ namespace VideoJaNai.Lang {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to Preview.
+        ///   Looks up a localized string similar to Live Preview.
         /// </summary>
         public static string PreviewButtonText {
             get {
                 return ResourceManager.GetString("PreviewButtonText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Preview.
+        /// </summary>
+        public static string PreviewWindowButtonText {
+            get {
+                return ResourceManager.GetString("PreviewWindowButtonText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Look at the upscale anywhere in the video with the current settings, before encoding..
+        /// </summary>
+        public static string PreviewWindowTooltip {
+            get {
+                return ResourceManager.GetString("PreviewWindowTooltip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Preview.
+        /// </summary>
+        public static string PreviewWindowTitle {
+            get {
+                return ResourceManager.GetString("PreviewWindowTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Source.
+        /// </summary>
+        public static string PreviewSourceText {
+            get {
+                return ResourceManager.GetString("PreviewSourceText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Upscaled.
+        /// </summary>
+        public static string PreviewUpscaledText {
+            get {
+                return ResourceManager.GetString("PreviewUpscaledText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Switch between the upscaled and the source frame (S).
+        /// </summary>
+        public static string PreviewToggleTooltip {
+            get {
+                return ResourceManager.GetString("PreviewToggleTooltip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Play / pause (Space). Left / Right steps one frame..
+        /// </summary>
+        public static string PreviewPlayTooltip {
+            get {
+                return ResourceManager.GetString("PreviewPlayTooltip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Reload Settings.
+        /// </summary>
+        public static string PreviewReloadText {
+            get {
+                return ResourceManager.GetString("PreviewReloadText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Restart the preview with the current settings, at the same position..
+        /// </summary>
+        public static string PreviewReloadTooltip {
+            get {
+                return ResourceManager.GetString("PreviewReloadTooltip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Starting....
+        /// </summary>
+        public static string PreviewStartingText {
+            get {
+                return ResourceManager.GetString("PreviewStartingText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Building the TensorRT engine. This is only needed the first time these settings are used and can take a few minutes..
+        /// </summary>
+        public static string PreviewBuildingEngineText {
+            get {
+                return ResourceManager.GetString("PreviewBuildingEngineText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to End of video.
+        /// </summary>
+        public static string PreviewEndText {
+            get {
+                return ResourceManager.GetString("PreviewEndText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to The video ends before this position..
+        /// </summary>
+        public static string PreviewPastEndText {
+            get {
+                return ResourceManager.GetString("PreviewPastEndText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to The preview stopped. See the console for details..
+        /// </summary>
+        public static string PreviewStoppedText {
+            get {
+                return ResourceManager.GetString("PreviewStoppedText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to slower than real time.
+        /// </summary>
+        public static string PreviewSlowText {
+            get {
+                return ResourceManager.GetString("PreviewSlowText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Select an input video first..
+        /// </summary>
+        public static string PreviewNoInputText {
+            get {
+                return ResourceManager.GetString("PreviewNoInputText", resourceCulture);
             }
         }
     }

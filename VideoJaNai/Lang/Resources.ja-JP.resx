@@ -361,6 +361,54 @@
     <value>TV録画などの本来のインターレース映像向け。フィールドごとに1フレームを出力します（例：29.97iから59.94fps）。</value>
   </data>
   <data name="PreviewButtonText" xml:space="preserve">
+    <value>ライブプレビュー</value>
+  </data>
+  <data name="PreviewWindowButtonText" xml:space="preserve">
     <value>プレビュー</value>
+  </data>
+  <data name="PreviewWindowTooltip" xml:space="preserve">
+    <value>エンコード前に、現在の設定でのアップスケール結果を動画の任意の位置で確認します。</value>
+  </data>
+  <data name="PreviewWindowTitle" xml:space="preserve">
+    <value>プレビュー</value>
+  </data>
+  <data name="PreviewSourceText" xml:space="preserve">
+    <value>元の映像</value>
+  </data>
+  <data name="PreviewUpscaledText" xml:space="preserve">
+    <value>アップスケール後</value>
+  </data>
+  <data name="PreviewToggleTooltip" xml:space="preserve">
+    <value>アップスケール後と元のフレームを切り替えます (S)</value>
+  </data>
+  <data name="PreviewPlayTooltip" xml:space="preserve">
+    <value>再生 / 一時停止 (Space)。左右キーで1フレームずつ移動します。</value>
+  </data>
+  <data name="PreviewReloadText" xml:space="preserve">
+    <value>設定を再読み込み</value>
+  </data>
+  <data name="PreviewReloadTooltip" xml:space="preserve">
+    <value>現在の設定でプレビューを同じ位置から再開します。</value>
+  </data>
+  <data name="PreviewStartingText" xml:space="preserve">
+    <value>起動中...</value>
+  </data>
+  <data name="PreviewBuildingEngineText" xml:space="preserve">
+    <value>TensorRTエンジンを構築中です。この設定を初めて使うときだけ必要で、数分かかることがあります。</value>
+  </data>
+  <data name="PreviewEndText" xml:space="preserve">
+    <value>動画の終わり</value>
+  </data>
+  <data name="PreviewPastEndText" xml:space="preserve">
+    <value>動画はこの位置より前に終わります。</value>
+  </data>
+  <data name="PreviewStoppedText" xml:space="preserve">
+    <value>プレビューが停止しました。詳細はコンソールを確認してください。</value>
+  </data>
+  <data name="PreviewSlowText" xml:space="preserve">
+    <value>リアルタイムより遅い</value>
+  </data>
+  <data name="PreviewNoInputText" xml:space="preserve">
+    <value>先に入力動画を選択してください。</value>
   </data>
 </root>

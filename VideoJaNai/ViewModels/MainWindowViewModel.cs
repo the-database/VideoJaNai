@@ -18,6 +18,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using VideoJaNai.Lang;
 
 namespace VideoJaNai.ViewModels
 {
@@ -263,6 +264,75 @@ namespace VideoJaNai.ViewModels
             });
         }
 
+        // The preview window: a player over an aji_encode --preview-session with the current
+        // settings, to look at the upscale anywhere in the video before encoding it. One at a
+        // time; an upscale starting closes it (and the GPU memory its session holds).
+        private PreviewWindowViewModel? _preview;
+
+        public bool PreviewEnabled => !Upscaling;
+
+        public PreviewWindowViewModel CreatePreview()
+        {
+            _preview = new PreviewWindowViewModel(StartPreviewSession, ConsoleQueueEnqueue);
+            return _preview;
+        }
+
+        public void PreviewClosed(PreviewWindowViewModel preview)
+        {
+            if (_preview == preview)
+            {
+                _preview = null;
+            }
+        }
+
+        // The video the preview shows: the input video, or the first one in the input folder.
+        private string? PreviewInputPath()
+        {
+            if (CurrentWorkflow.SelectedTabIndex == 0)
+            {
+                return File.Exists(CurrentWorkflow.InputFilePath) ? CurrentWorkflow.InputFilePath : null;
+            }
+            if (!Directory.Exists(CurrentWorkflow.InputFolderPath))
+            {
+                return null;
+            }
+            return Directory.GetFiles(CurrentWorkflow.InputFolderPath)
+                .Where(file => VIDEO_EXTENSIONS.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
+        }
+
+        private (PreviewSession? session, string? error, string? title) StartPreviewSession()
+        {
+            var input = PreviewInputPath();
+            if (input == null)
+            {
+                return (null, Resources.PreviewNoInputText, null);
+            }
+            if (CurrentWorkflow.UpscaleSettings.Any(m => !File.Exists(m.OnnxModelPath)))
+            {
+                return (null, "ONNX Model Path is required.", null);
+            }
+            if (CurrentWorkflow.TensorRtSelected && !TensorRtInstalled)
+            {
+                return (null, "TensorRT is not installed. Install it in App Settings, or select DirectML.", null);
+            }
+
+            try
+            {
+                SetupAnimeJaNaiConfSlot1();
+                var args = BuildAjiEncodeArgs(input, null, AjiMode.Preview);
+                ConsoleQueueEnqueue($"Previewing with command: {_pythonService.AjiEncodePath} {args}");
+                var session = PreviewSession.Start(_pythonService.AjiEncodePath, args,
+                                                   _pythonService.InferenceDirectory, AjiEnvironment());
+                return (session, null, Path.GetFileName(input));
+            }
+            catch (Exception e)
+            {
+                return (null, e.Message, null);
+            }
+        }
+
 
 
         private bool _showAppSettings = false;
@@ -341,6 +411,7 @@ namespace VideoJaNai.ViewModels
             {
                 this.RaiseAndSetIfChanged(ref _upscaling, value);
                 this.RaisePropertyChanged(nameof(UpscaleEnabled));
+                this.RaisePropertyChanged(nameof(PreviewEnabled));
                 this.RaisePropertyChanged(nameof(LeftStatus));
                 this.RaisePropertyChanged(nameof(AllowReinstall));
             }
@@ -701,6 +772,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             //{
             ct.ThrowIfCancellationRequested();
             ConsoleQueueClear();
+            _preview?.RequestClose();
             Upscaling = true;
             SetupAnimeJaNaiConfSlot1();
 
@@ -787,19 +859,21 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
 
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
-            var args = BuildAjiEncodeArgs(inputFilePath, outputFilePath, buildOnly: false);
+            var args = BuildAjiEncodeArgs(inputFilePath, outputFilePath, AjiMode.Encode);
             ConsoleQueueEnqueue($"Upscaling with command: {_pythonService.AjiEncodePath} {args}");
             await RunAjiEncode(args, resetProgress: true);
         }
 
         public async Task GenerateEngine(string inputFilePath)
         {
-            var args = BuildAjiEncodeArgs(inputFilePath, null, buildOnly: true);
+            var args = BuildAjiEncodeArgs(inputFilePath, null, AjiMode.BuildOnly);
             ConsoleQueueEnqueue($"Generating TensorRT engine with command: {_pythonService.AjiEncodePath} {args}");
             await RunAjiEncode(args, resetProgress: false);
         }
 
-        private string BuildAjiEncodeArgs(string inputFilePath, string? outputFilePath, bool buildOnly)
+        private enum AjiMode { Encode, BuildOnly, Preview }
+
+        private string BuildAjiEncodeArgs(string inputFilePath, string? outputFilePath, AjiMode mode)
         {
             var backend = CurrentWorkflow.DirectMlSelected ? "directml" : "tensorrt";
 
@@ -818,17 +892,22 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 sb.Append(ENGLISH_CULTURE, $"--deinterlace {CurrentWorkflow.Deinterlace} ");
             }
 
-            if (buildOnly)
+            if (mode == AjiMode.BuildOnly)
             {
                 sb.Append("--build-only ");
             }
             else
             {
-                sb.Append(ENGLISH_CULTURE, $"--output \"{outputFilePath}\" ");
+                // The preview session takes the encode's settings too: the output format and the
+                // final resize change the frames it shows, and the encoder is validated against them.
+                if (mode == AjiMode.Encode)
+                {
+                    sb.Append(ENGLISH_CULTURE, $"--output \"{outputFilePath}\" ");
+                }
 
                 var (vcodec, vquality) = MapFfmpegSettings(CurrentWorkflow.FfmpegVideoSettings);
                 sb.Append(ENGLISH_CULTURE, $"--vcodec {vcodec} ");
-                if (!string.IsNullOrWhiteSpace(vquality))
+                if (mode == AjiMode.Encode && !string.IsNullOrWhiteSpace(vquality))
                 {
                     sb.Append(ENGLISH_CULTURE, $"--vquality \"{vquality}\" ");
                 }
@@ -845,12 +924,19 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     sb.Append(ENGLISH_CULTURE, $"--final-resize-factor {frf} ");
                 }
 
-                if (CurrentWorkflow.OverwriteExistingVideos)
+                if (mode == AjiMode.Preview)
                 {
-                    sb.Append("--overwrite ");
+                    sb.Append("--preview-session ");
                 }
+                else
+                {
+                    if (CurrentWorkflow.OverwriteExistingVideos)
+                    {
+                        sb.Append("--overwrite ");
+                    }
 
-                sb.Append(ENGLISH_CULTURE, $"--preview \"{PreviewPath}\" ");
+                    sb.Append(ENGLISH_CULTURE, $"--preview \"{PreviewPath}\" ");
+                }
             }
 
             sb.Append("--progress line");
@@ -888,14 +974,9 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 process.StartInfo.UseShellExecute = false;
                 process.StartInfo.CreateNoWindow = true;
                 process.StartInfo.WorkingDirectory = _pythonService.InferenceDirectory;
-                if (!OperatingSystem.IsWindows())
+                foreach (var (k, v) in AjiEnvironment() ?? [])
                 {
-                    // libaji_trt.so's RUNPATH points at system TensorRT/CUDA paths; the bundled runtime
-                    // next to it is found through the loader path (inherited by trtexec too).
-                    var ldPath = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH");
-                    process.StartInfo.Environment["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(ldPath)
-                        ? _pythonService.InferenceDirectory
-                        : $"{_pythonService.InferenceDirectory}:{ldPath}";
+                    process.StartInfo.Environment[k] = v;
                 }
                 process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
                 process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
@@ -942,6 +1023,23 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     await process.WaitForExitAsync();
                 }
             }
+        }
+
+        private Dictionary<string, string>? AjiEnvironment()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                return null;
+            }
+            // libaji_trt.so's RUNPATH points at system TensorRT/CUDA paths; the bundled runtime
+            // next to it is found through the loader path (inherited by trtexec too).
+            var ldPath = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH");
+            return new Dictionary<string, string>
+            {
+                ["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(ldPath)
+                    ? _pythonService.InferenceDirectory
+                    : $"{_pythonService.InferenceDirectory}:{ldPath}",
+            };
         }
 
         private bool TryHandleProgressLine(string line)

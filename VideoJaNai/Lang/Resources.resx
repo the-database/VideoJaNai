@@ -406,6 +406,54 @@
     <value>for truly interlaced video, such as TV recordings. Outputs one frame per field (e.g. 29.97i to 59.94 fps).</value>
   </data>
   <data name="PreviewButtonText" xml:space="preserve">
+    <value>Live Preview</value>
+  </data>
+  <data name="PreviewWindowButtonText" xml:space="preserve">
     <value>Preview</value>
+  </data>
+  <data name="PreviewWindowTooltip" xml:space="preserve">
+    <value>Look at the upscale anywhere in the video with the current settings, before encoding.</value>
+  </data>
+  <data name="PreviewWindowTitle" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="PreviewSourceText" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="PreviewUpscaledText" xml:space="preserve">
+    <value>Upscaled</value>
+  </data>
+  <data name="PreviewToggleTooltip" xml:space="preserve">
+    <value>Switch between the upscaled and the source frame (S)</value>
+  </data>
+  <data name="PreviewPlayTooltip" xml:space="preserve">
+    <value>Play / pause (Space). Left / Right steps one frame.</value>
+  </data>
+  <data name="PreviewReloadText" xml:space="preserve">
+    <value>Reload Settings</value>
+  </data>
+  <data name="PreviewReloadTooltip" xml:space="preserve">
+    <value>Restart the preview with the current settings, at the same position.</value>
+  </data>
+  <data name="PreviewStartingText" xml:space="preserve">
+    <value>Starting...</value>
+  </data>
+  <data name="PreviewBuildingEngineText" xml:space="preserve">
+    <value>Building the TensorRT engine. This is only needed the first time these settings are used and can take a few minutes.</value>
+  </data>
+  <data name="PreviewEndText" xml:space="preserve">
+    <value>End of video</value>
+  </data>
+  <data name="PreviewPastEndText" xml:space="preserve">
+    <value>The video ends before this position.</value>
+  </data>
+  <data name="PreviewStoppedText" xml:space="preserve">
+    <value>The preview stopped. See the console for details.</value>
+  </data>
+  <data name="PreviewSlowText" xml:space="preserve">
+    <value>slower than real time</value>
+  </data>
+  <data name="PreviewNoInputText" xml:space="preserve">
+    <value>Select an input video first.</value>
   </data>
 </root>
