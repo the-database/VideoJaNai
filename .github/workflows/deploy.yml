@@ -18,6 +18,8 @@ on:
 #   - VideoJaNai-full-package-<ver>.7z.* the slim core, split volumes (the updater's full update)
 #   - manifest.json                      standalone, so the updater can compare deps before download
 #   - component-*.7z + packs.json        on-demand GPU/RIFE component packs (updater / in-app manager)
+#   - VideoJaNai-offline-package-<ver>.7z.* the core with every component pack included, for
+#                                        machines without internet access
 # Heavy GPU-specific pieces (TensorRT runtime, per-GPU builder kernels, RIFE models) are NOT in the
 # core or the installer; they download post-install via VideoJaNaiUpdater, keeping the base small.
 # The deploy-linux leg adds the RID-suffixed Linux assets to the same release (tarball, AppImage,
@@ -54,9 +56,10 @@ jobs:
 
     # Assemble the slim core (downloads aji / TensorRT runtime / ffmpeg shared / RIFE / ONNX models,
     # folds in the published app + updater) and, with --packs, carves the heavy GPU-specific pieces
-    # into publish/packs-v<ver>/component-*.7z + packs.json, then slims them out of the core.
+    # into publish/packs-v<ver>/component-*.7z + packs.json, then slims them out of the core. --offline
+    # first archives the complete tree as publish/VideoJaNai-offline-package-<ver>.7z.*.
     - name: Assemble package
-      run: ./publish/BuildVideoJaNai.exe ${{ github.event.inputs.release_version }} --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater.exe --packs
+      run: ./publish/BuildVideoJaNai.exe ${{ github.event.inputs.release_version }} --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater.exe --packs --offline
 
     - name: Install 7zip
       run: choco install 7zip -y
@@ -97,7 +100,7 @@ jobs:
         allowUpdates: true
         updateOnlyUnreleased: true
         # No removeArtifacts: the Linux leg's assets share this tag. Same-named assets are replaced.
-        artifacts: "VideoJaNai-Setup-${{ github.event.inputs.release_version }}.exe,VideoJaNai-full-package-${{ github.event.inputs.release_version }}.7z.*,manifest.json,publish/packs-v${{ github.event.inputs.release_version }}/component-*.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs.json"
+        artifacts: "VideoJaNai-Setup-${{ github.event.inputs.release_version }}.exe,VideoJaNai-full-package-${{ github.event.inputs.release_version }}.7z.*,manifest.json,publish/packs-v${{ github.event.inputs.release_version }}/component-*.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs.json,publish/VideoJaNai-offline-package-${{ github.event.inputs.release_version }}.7z.*"
         token: ${{ secrets.GITHUB_TOKEN }}
 
   # Linux leg. Runs in mpv-AnimeJaNai's old-baseline build image (Ubuntu 22.04: glibc 2.35, .NET 10
@@ -147,8 +150,8 @@ jobs:
     - name: Publish updater (linux-x64, single file)
       run: dotnet publish VideoJaNaiUpdater/VideoJaNaiUpdater.csproj -c Release -r linux-x64 -o updater-publish
 
-    - name: Assemble package (linux-x64, with packs)
-      run: ./publish/BuildVideoJaNai "$VER" --target linux-x64 --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater --packs
+    - name: Assemble package (linux-x64, with packs + offline package)
+      run: ./publish/BuildVideoJaNai "$VER" --target linux-x64 --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater --packs --offline
 
     - name: Package portable tarball (+ install scripts)
       run: |
@@ -179,5 +182,5 @@ jobs:
         omitDraftDuringUpdate: true
         omitNameDuringUpdate: true
         omitBodyDuringUpdate: true
-        artifacts: "VideoJaNai-v${{ github.event.inputs.release_version }}-linux-x64.tar.zst,*.AppImage,manifest-linux-x64.json,publish/packs-v${{ github.event.inputs.release_version }}/component-*-linux-x64.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs-linux-x64.json"
+        artifacts: "VideoJaNai-v${{ github.event.inputs.release_version }}-linux-x64.tar.zst,*.AppImage,manifest-linux-x64.json,publish/packs-v${{ github.event.inputs.release_version }}/component-*-linux-x64.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs-linux-x64.json,publish/VideoJaNai-offline-package-${{ github.event.inputs.release_version }}-linux-x64.7z.*"
         token: ${{ secrets.GITHUB_TOKEN }}

@@ -7,8 +7,11 @@
 // packs.json release assets, then slims them out of the core. End users only ever download the
 // small core + their GPU's component packs.
 //
-//   BuildVideoJaNai <version> [--target win-x64|linux-x64] [--app-dir <dir>] [--updater <exe>] [--packs]
+//   BuildVideoJaNai <version> [--target win-x64|linux-x64] [--app-dir <dir>] [--updater <exe>] [--packs [--offline]]
 //   BuildVideoJaNai <version> --packs-only [dir]   (emit packs from an existing tree)
+//
+// --offline (with --packs) also writes VideoJaNai-offline-package-<ver>[-<rid>].7z.*: the complete
+// tree, every component pack included, for installs without internet access.
 //
 // Target-parameterized like mpv-AnimeJaNai's assembler: every platform-varying name/source lives in
 // the Platform descriptor at the bottom. --target defaults to the host RID.
@@ -62,8 +65,9 @@ var trtDebSha256 = new Dictionary<string, string>
 // and runs on DirectML (shared D3D11 frames; CUDA delay-loaded, so it starts without the NVIDIA driver).
 // On Linux aji_encode ships as its own asset carrying the FFmpeg 9.0 libs it links. v0.13.0: keeps
 // source timestamps (VFR), handles legacy/odd-format inputs, builds engines atomically (a killed build
-// no longer leaves an empty engine behind), and opts out of Windows power throttling.
-const string AjiVersion        = "v0.13.0";
+// no longer leaves an empty engine behind), and opts out of Windows power throttling. v0.14.0:
+// --deinterlace (IVTC / bwdif) and --preview (the live upscale preview).
+const string AjiVersion        = "v0.14.0";
 const string SevenZipVersion   = "2602";                  // 7-zip "extra" (Windows) / linux-x64 standalone console
 const string RifeModelsVersion = "models-rife-fp16-1";    // animejanai-inference rife fp16 release
 // gyan.dev ffmpeg shared build (Windows; the DLLs aji_encode links). Must match the ffmpeg major the
@@ -726,6 +730,10 @@ async Task Main()
     if (args.Contains("--packs"))
     {
         var packFiles = await EmitComponentPacks();
+        if (args.Contains("--offline"))
+        {
+            await WriteOfflinePackage();
+        }
         SlimInstallTree(packFiles);
     }
 
@@ -751,6 +759,67 @@ void SlimInstallTree(List<string> packFiles)
         if (!Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir);
     }
     Console.WriteLine($"Slimmed {removed / 1048576} MB out of the package tree.");
+}
+
+// --offline: the package with every component pack already in it, for machines without internet
+// access (or to carry one download to several PCs). Archived from the complete tree before
+// SlimInstallTree strips the packs out, with a components.json recording each pack as installed at
+// this release's dep versions - exactly what the updater writes after installing them - so neither
+// the app's first-launch setup nor the updater's --auto fetches anything. Split volumes like the full
+// package: it's over GitHub's 2 GB per-asset limit.
+async Task WriteOfflinePackage()
+{
+    Console.WriteLine("Writing the offline package (all component packs included)...");
+    var packsIndex = Path.Combine(assemblyDirectory, $"packs-v{version}", $"packs{plat.PackSuffix}.json");
+    using var packsDoc = JsonDocument.Parse(File.ReadAllText(packsIndex));
+    using var manifestDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(installDirectory, "manifest.json")));
+    var deps = manifestDoc.RootElement.GetProperty("deps");
+    var installed = new Dictionary<string, string>();
+    foreach (var p in packsDoc.RootElement.GetProperty("packs").EnumerateArray())
+    {
+        var name = p.GetProperty("name").GetString()!;
+        var dep = p.TryGetProperty("dep", out var d) ? d.GetString() : null;
+        installed[name] = dep is not null && deps.TryGetProperty(dep, out var v) && v.GetString() is string s
+            ? s : version;
+    }
+    var componentsJson = Path.Combine(installDirectory, "components.json");
+    File.WriteAllText(componentsJson, JsonSerializer.Serialize(new { installed },
+        new JsonSerializerOptions { WriteIndented = true }));
+
+    var sevenZ = Path.Combine(installDirectory, plat.ArchiveTool);
+    var archive = Path.Combine(assemblyDirectory, $"VideoJaNai-offline-package-{version}{plat.PackSuffix}.7z");
+    foreach (var old in Directory.GetFiles(assemblyDirectory, Path.GetFileName(archive) + ".*"))
+    {
+        File.Delete(old);
+    }
+    // -snl (Linux): keep the TensorRT library symlink chains as links
+    var psi = new ProcessStartInfo
+    {
+        FileName = sevenZ,
+        Arguments = $"a -t7z -mx=5 -v1900m {(plat.IsWindows ? "" : "-snl ")}\"{archive}\" \"{Path.GetFileName(installDirectory)}\"",
+        WorkingDirectory = assemblyDirectory,
+        UseShellExecute = false,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+    };
+    using (var proc = Process.Start(psi)!)
+    {
+        // drain both pipes: a full one would stall the archiver
+        var stdout = proc.StandardOutput.ReadToEndAsync();
+        var stderr = proc.StandardError.ReadToEndAsync();
+        await proc.WaitForExitAsync();
+        if (proc.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"{plat.ArchiveTool} failed for the offline package: {await stderr}");
+        }
+        await stdout;
+    }
+    // the slim core keeps its components unmanaged until the updater installs them
+    File.Delete(componentsJson);
+    foreach (var part in Directory.GetFiles(assemblyDirectory, Path.GetFileName(archive) + ".*").Order())
+    {
+        Console.WriteLine($"  {Path.GetFileName(part)} ({new FileInfo(part).Length / 1048576} MB)");
+    }
 }
 
 // Component packs: rooted 7z archives + a packs.json index, downloaded on demand by the updater /

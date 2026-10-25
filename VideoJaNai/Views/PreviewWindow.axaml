@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:VideoJaNai.ViewModels"
+        xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        xmlns:lang="clr-namespace:VideoJaNai.Lang"
+        x:Class="VideoJaNai.Views.PreviewWindow"
+        x:DataType="vm:PreviewWindowViewModel"
+        Icon="/Assets/logo.ico"
+        Width="1280" Height="820" MinWidth="640" MinHeight="400"
+        WindowStartupLocation="CenterOwner"
+        Title="{Binding Title}"
+        RequestedThemeVariant="Dark"
+        Background="#111111">
+
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Bottom" Background="#1E1E1E">
+      <Slider x:Name="PositionSlider" Margin="15,0,15,0" Minimum="0" Maximum="{Binding DurationMs}"
+              Value="{Binding PositionMs}" IsEnabled="{Binding IsReady}" Focusable="False" />
+
+      <DockPanel Margin="10,0,10,8">
+        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8">
+          <Button Command="{Binding TogglePlay}" IsEnabled="{Binding IsReady}" Focusable="False"
+                  ToolTip.Tip="{x:Static lang:Resources.PreviewPlayTooltip}">
+            <Panel>
+              <materialIcons:MaterialIcon Kind="Play" IsVisible="{Binding !Playing}" />
+              <materialIcons:MaterialIcon Kind="Pause" IsVisible="{Binding Playing}" />
+            </Panel>
+          </Button>
+          <TextBlock Text="{Binding TimeText}" FontFamily="Consolas" Margin="4,0,0,0" />
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+          <RadioButton GroupName="PreviewView" IsChecked="{Binding ShowUpscaled}" Focusable="False"
+                       ToolTip.Tip="{x:Static lang:Resources.PreviewToggleTooltip}"
+                       Content="{x:Static lang:Resources.PreviewUpscaledText}" />
+          <RadioButton GroupName="PreviewView" IsChecked="{Binding ShowSource}" Focusable="False"
+                       ToolTip.Tip="{x:Static lang:Resources.PreviewToggleTooltip}"
+                       Content="{x:Static lang:Resources.PreviewSourceText}" />
+          <Button Command="{Binding Reload}" Focusable="False" Margin="12,0,0,0"
+                  ToolTip.Tip="{x:Static lang:Resources.PreviewReloadTooltip}">
+            <StackPanel Orientation="Horizontal">
+              <materialIcons:MaterialIcon Kind="Refresh" VerticalAlignment="Center" />
+              <TextBlock Margin="5,0,0,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.PreviewReloadText}" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <TextBlock Text="{Binding StatusText}" Foreground="Gray" FontSize="12" Margin="20,0,20,0"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      </DockPanel>
+    </StackPanel>
+
+    <Panel x:Name="PicturePanel">
+      <Image Source="{Binding Image}" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality" />
+      <TextBlock Text="{Binding StatusText}" IsVisible="{Binding !IsReady}" Foreground="Gray"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="40" />
+    </Panel>
+  </DockPanel>
+</Window>
