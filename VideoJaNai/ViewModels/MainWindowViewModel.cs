@@ -820,8 +820,9 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
                 process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
 
-                // Create a StreamWriter to write the output to a log file
-                using (var outputFile = new StreamWriter("error.log", append: true))
+                // Create a StreamWriter to write the output to a log file (in the state folder: the
+                // working directory may be anywhere, including somewhere read-only)
+                using (var outputFile = new StreamWriter(Path.Combine(Program.AppStateFolder, "error.log"), append: true))
                 {
                     process.ErrorDataReceived += (sender, e) =>
                     {
@@ -848,11 +849,13 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     };
 
                     process.Start();
+                    // Into the kill-on-close job right away, so closing VideoJaNai mid-encode
+                    // also stops aji_encode (and the trtexec it may be running).
+                    ChildProcessTracker.AddProcess(process);
                     process.BeginOutputReadLine();
                     process.BeginErrorReadLine(); // Start asynchronous reading of the output
                     await process.WaitForExitAsync();
                 }
-                ChildProcessTracker.AddProcess(process);
             }
         }
 

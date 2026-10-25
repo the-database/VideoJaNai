@@ -16,7 +16,11 @@ namespace VideoJaNai
         public static readonly string AppStateFolder =
             Environment.GetEnvironmentVariable("VIDEOJANAI_STATE_DIR") is { Length: > 0 } stateDir
                 ? stateDir
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VideoJaNai");
+                // Create: without it GetFolderPath returns "" when the folder doesn't exist yet
+                // (~/.config on a fresh Linux account), making this a relative "VideoJaNai" that
+                // collides with the executable of the same name.
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData,
+                                                         Environment.SpecialFolderOption.Create), "VideoJaNai");
         public static readonly string AppStateFilename = "appstate2.json";
         public static readonly string AppStatePath = Path.Combine(AppStateFolder, AppStateFilename);
 
