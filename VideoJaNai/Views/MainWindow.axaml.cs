@@ -38,6 +38,31 @@ namespace VideoJaNai.Views
             outputFolderNameTextBox?.AddHandler(DragDrop.DropEvent, SetOutputFolderPath);
         }
 
+        private PreviewWindow? _previewWindow;
+
+        private void PreviewButtonClick(object? sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainWindowViewModel vm)
+            {
+                return;
+            }
+            if (_previewWindow != null)
+            {
+                _previewWindow.Activate();
+                return;
+            }
+
+            var preview = vm.CreatePreview();
+            _previewWindow = new PreviewWindow { DataContext = preview };
+            _previewWindow.Closed += (_, _) =>
+            {
+                vm.PreviewClosed(preview);
+                _previewWindow = null;
+            };
+            _previewWindow.Show(this);
+            preview.Start();
+        }
+
         private void MainWindow_Opened(object? sender, EventArgs e)
         {
             if (DataContext is MainWindowViewModel vm)
