@@ -758,11 +758,20 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 sb.Append(ENGLISH_CULTURE, $"--pix-fmt {CurrentWorkflow.OutputPixFmt} ");
 
                 // final_resize has no conf field in the new engine; pass it to aji_encode directly.
+                // Width and height combine (both = exact dims, e.g. anamorphic stretch; one alone
+                // keeps aspect); factor only applies when neither is set.
+                var hasFinalResizeDims = false;
+                if (CurrentWorkflow.FinalResizeWidth is int frw && frw > 0)
+                {
+                    sb.Append(ENGLISH_CULTURE, $"--final-resize-width {frw} ");
+                    hasFinalResizeDims = true;
+                }
                 if (CurrentWorkflow.FinalResizeHeight is int frh && frh > 0)
                 {
                     sb.Append(ENGLISH_CULTURE, $"--final-resize-height {frh} ");
+                    hasFinalResizeDims = true;
                 }
-                else if (CurrentWorkflow.FinalResizeFactor is int frf && frf > 0 && frf != 100)
+                if (!hasFinalResizeDims && CurrentWorkflow.FinalResizeFactor is int frf && frf > 0 && frf != 100)
                 {
                     sb.Append(ENGLISH_CULTURE, $"--final-resize-factor {frf} ");
                 }
@@ -1596,6 +1605,18 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             set => this.RaiseAndSetIfChanged(ref _directMlSelected, value);
         }
 
+        private int? _finalResizeWidth = 0;
+        [DataMember]
+        public int? FinalResizeWidth
+        {
+            get => _finalResizeWidth;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _finalResizeWidth, value ?? 0);
+                this.RaisePropertyChanged(nameof(EnableFinalResizeFactor));
+            }
+        }
+
         private int? _finalResizeHeight = 0;
         [DataMember]
         public int? FinalResizeHeight
@@ -1616,7 +1637,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             set => this.RaiseAndSetIfChanged(ref _finalResizeFactor, value ?? 100);
         }
 
-        public bool EnableFinalResizeFactor => FinalResizeHeight == 0;
+        public bool EnableFinalResizeFactor => FinalResizeWidth == 0 && FinalResizeHeight == 0;
 
         private string _inputFilePath = string.Empty;
         [DataMember]

@@ -201,6 +201,12 @@
   <data name="FinalResizeFactorLabel" xml:space="preserve">
     <value>Final Resize Factor</value>
   </data>
+  <data name="FinalResizeWidthDescription" xml:space="preserve">
+    <value>Resize the video to this width after running all models, set to 0 to disable. When both Final Resize Width and Final Resize Height are set, the video is resized to exactly that resolution (useful to restore the correct aspect ratio of anamorphic sources such as DVDs); when only one is set, the other dimension is calculated to keep the aspect ratio. Note that the final video width and height must be divisble by 2 or the output video will be invalid.</value>
+  </data>
+  <data name="FinalResizeWidthLabel" xml:space="preserve">
+    <value>Final Resize Width</value>
+  </data>
   <data name="FinalResizeHeightDescription" xml:space="preserve">
     <value>Resize the video to this height after running all models, set to 0 to disable. Note that the final video width and height must be divisble by 2 or the output video will be invalid.</value>
   </data>

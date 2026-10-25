@@ -331,6 +331,24 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Resize the video to this width after running all models, set to 0 to disable. When both Final Resize Width and Final Resize Height are set, the video is resized to exactly that resolution (useful to restore the correct aspect ratio of anamorphic sources such as DVDs); when only one is set, the other dimension is calculated to keep the aspect ratio. Note that the final video width and height must be divisble by 2 or the output video will be invalid..
+        /// </summary>
+        public static string FinalResizeWidthDescription {
+            get {
+                return ResourceManager.GetString("FinalResizeWidthDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Final Resize Width.
+        /// </summary>
+        public static string FinalResizeWidthLabel {
+            get {
+                return ResourceManager.GetString("FinalResizeWidthLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Performing first time setup. This may take several minutes....
         /// </summary>
         public static string FirstTimeSetupText {
