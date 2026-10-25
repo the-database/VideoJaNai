@@ -60,31 +60,53 @@ cp -rn "$HERE/animejanai/onnx/." "$AJ/onnx/" 2>/dev/null || true
 # Component packs fetched on demand into $DATA (writable). The AppImage bakes in only the base
 # TensorRT runtime; the GPU-matched builder kernels and the RIFE models are pulled when needed. A
 # fetch failure is non-fatal (offline, or a draft release whose assets need auth).
+#
+# The fetch runs in the background so the window appears right away (hundreds of MB would
+# otherwise delay the first start by minutes, with nothing on screen); the packs are only needed
+# once an engine is built or RIFE runs. Progress goes to $DATA/fetch.log. 7zz is copied out of
+# the image first: the AppImage mount goes away when the app exits, and the fetch may outlive it.
 ver="$(cat "$HERE/version.txt" 2>/dev/null || echo "")"
 relbase="https://github.com/the-database/VideoJaNai/releases/download/${ver}"
 
-fetch_pack() { # $1 = pack base (e.g. trt-sm120, rife); $2 = human note
-    pack="component-$1-linux-x64.7z"
-    { [ -n "$ver" ] && command -v curl >/dev/null 2>&1; } || return 0
-    echo "VideoJaNai: fetching $2 (one-time)..." >&2
-    if curl -fSL "$relbase/$pack" -o "$DATA/$pack"; then
-        "$HERE/7zz" x -snl -y -o"$DATA" "$DATA/$pack" >/dev/null 2>&1 || true
-        rm -f "$DATA/$pack"
-    else
-        echo "VideoJaNai: could not fetch $pack (offline / draft release?)." >&2
-    fi
-}
-
 # Per-SM TensorRT builder (needed to BUILD engines; cached engines run without it): just the one
-# matching this GPU.
+# matching this GPU. RIFE models: fetched once.
 sm="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' .')"
-if [ -n "$sm" ] && ! ls "$AJ/inference"/libnvinfer_builder_resource_sm${sm}.so* >/dev/null 2>&1; then
-    fetch_pack "trt-sm${sm}" "TensorRT kernels for sm${sm} (~250 MB)"
+need_sm=0
+need_rife=0
+[ -n "$sm" ] && ! ls "$AJ/inference"/libnvinfer_builder_resource_sm${sm}.so* >/dev/null 2>&1 && need_sm=1
+ls "$AJ/rife"/*.onnx >/dev/null 2>&1 || need_rife=1
+# One fetch at a time; the lock holds the fetching shell's pid, so a lock left by a fetch that
+# was killed (shutdown, ...) is noticed and cleared on the next launch.
+lock="$DATA/.fetch.lock"
+if [ -f "$lock" ] && ! kill -0 "$(cat "$lock" 2>/dev/null)" 2>/dev/null; then
+    rm -f "$lock"
 fi
-
-# RIFE models are small next to a video library but large to download; fetch them once.
-if ! ls "$AJ/rife"/*.onnx >/dev/null 2>&1; then
-    fetch_pack "rife" "RIFE interpolation models (~450 MB)"
+if { [ $need_sm = 1 ] || [ $need_rife = 1 ]; } && [ -n "$ver" ] &&
+   command -v curl >/dev/null 2>&1 && [ ! -f "$lock" ]; then
+    cp -f "$HERE/7zz" "$DATA/7zz" 2>/dev/null || true
+    export DATA relbase sm need_sm need_rife lock
+    # setsid: its own session, so closing the app (or Ctrl+C in its terminal) doesn't stop it
+    fetcher='
+        echo $$ > "$lock"
+        trap '\''rm -f "$lock"'\'' EXIT
+        fetch_pack() {
+            pack="component-$1-linux-x64.7z"
+            echo "VideoJaNai: fetching $2 (one-time)..."
+            if curl -fsSL "$relbase/$pack" -o "$DATA/$pack.part"; then
+                "$DATA/7zz" x -snl -y -o"$DATA" "$DATA/$pack.part" >/dev/null 2>&1 || true
+            else
+                echo "VideoJaNai: could not fetch $pack (offline / draft release?)."
+            fi
+            rm -f "$DATA/$pack.part"
+        }
+        [ "$need_sm" = 1 ] && fetch_pack "trt-sm$sm" "TensorRT kernels for sm$sm (~250 MB)"
+        [ "$need_rife" = 1 ] && fetch_pack rife "RIFE interpolation models (~450 MB)"
+        true'
+    if command -v setsid >/dev/null 2>&1; then
+        setsid sh -c "$fetcher" >"$DATA/fetch.log" 2>&1 < /dev/null &
+    else
+        nohup sh -c "$fetcher" >"$DATA/fetch.log" 2>&1 < /dev/null &
+    fi
 fi
 
 export VIDEOJANAI_ROOT="$HERE"
