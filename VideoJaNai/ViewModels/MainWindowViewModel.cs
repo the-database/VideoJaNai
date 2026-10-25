@@ -849,11 +849,13 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     };
 
                     process.Start();
+                    // Into the kill-on-close job right away, so closing VideoJaNai mid-encode
+                    // also stops aji_encode (and the trtexec it may be running).
+                    ChildProcessTracker.AddProcess(process);
                     process.BeginOutputReadLine();
                     process.BeginErrorReadLine(); // Start asynchronous reading of the output
                     await process.WaitForExitAsync();
                 }
-                ChildProcessTracker.AddProcess(process);
             }
         }
 
