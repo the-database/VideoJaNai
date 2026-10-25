@@ -820,8 +820,9 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
                 process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
 
-                // Create a StreamWriter to write the output to a log file
-                using (var outputFile = new StreamWriter("error.log", append: true))
+                // Create a StreamWriter to write the output to a log file (in the state folder: the
+                // working directory may be anywhere, including somewhere read-only)
+                using (var outputFile = new StreamWriter(Path.Combine(Program.AppStateFolder, "error.log"), append: true))
                 {
                     process.ErrorDataReceived += (sender, e) =>
                     {
