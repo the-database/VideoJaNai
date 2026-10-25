@@ -896,6 +896,12 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                 sb.Append(ENGLISH_CULTURE, $"--deinterlace {CurrentWorkflow.Deinterlace} ");
             }
 
+            // Engine builds too: stretched before processing, the frames the chain sees change size.
+            if (CurrentWorkflow.SquarePixels != "off")
+            {
+                sb.Append(ENGLISH_CULTURE, $"--square-pixels {CurrentWorkflow.SquarePixels} ");
+            }
+
             if (mode == AjiMode.BuildOnly)
             {
                 sb.Append("--build-only ");
@@ -1599,6 +1605,31 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public void SetDeinterlaceOff() => Deinterlace = "off";
         public void SetDeinterlaceIvtc() => Deinterlace = "ivtc";
         public void SetDeinterlaceBwdif() => Deinterlace = "bwdif";
+
+        // Non-square pixels (DVD, DV) stretched to square -> aji_encode --square-pixels: off,
+        // before or after processing (upscale / interpolation). Which order looks better depends
+        // on the model, so it's the person's choice; the preview compares them.
+        public bool SquarePixelsOffSelected => SquarePixels == "off";
+        public bool SquarePixelsBeforeSelected => SquarePixels == "before";
+        public bool SquarePixelsAfterSelected => SquarePixels == "after";
+
+        private string _squarePixels = "off";
+        [DataMember]
+        public string SquarePixels
+        {
+            get => _squarePixels ?? "off";
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _squarePixels, value ?? "off");
+                this.RaisePropertyChanged(nameof(SquarePixelsOffSelected));
+                this.RaisePropertyChanged(nameof(SquarePixelsBeforeSelected));
+                this.RaisePropertyChanged(nameof(SquarePixelsAfterSelected));
+            }
+        }
+
+        public void SetSquarePixelsOff() => SquarePixels = "off";
+        public void SetSquarePixelsBefore() => SquarePixels = "before";
+        public void SetSquarePixelsAfter() => SquarePixels = "after";
 
         // Output pixel format -> aji_encode --pix-fmt (chroma + bit depth), decoupled from source.
         public bool OutputPixFmt420P8Selected => OutputPixFmt == "yuv420p";
