@@ -439,7 +439,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Show Advanced Settings.
+        ///   Looks up a localized string similar to More Settings.
         /// </summary>
         public static string MoreUpscaleSettingsLabel {
             get {
@@ -1165,5 +1165,5 @@ namespace VideoJaNai.Lang {
                 return ResourceManager.GetString("CustomPresetText", resourceCulture);
             }
         }
-    }
+        }
 }

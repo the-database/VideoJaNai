@@ -66,6 +66,8 @@
       <Setter Property="Margin" Value="0,8,0,0"/>
       <!-- open and close at once: the theme's 0.25 s crossfade made sections feel slow -->
       <Setter Property="ContentTransition" Value="{x:Null}"/>
+      <!-- the theme pads 16 all round; less on top, right under the header -->
+      <Setter Property="Padding" Value="16,6,16,16"/>
     </Style>
     <Style Selector="Expander.section /template/ ToggleButton#ExpanderHeader">
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -346,8 +348,6 @@
               </Grid>
             </Expander.Header>
             <StackPanel IsEnabled="{Binding CurrentWorkflow.EnableUpscale}">
-              <CheckBox HorizontalAlignment="Right" IsChecked="{Binding CurrentWorkflow.ShowAdvancedSettings}" Content="{x:Static lang:Resources.MoreUpscaleSettingsLabel}" />
-
               <ItemsControl ItemsSource="{Binding CurrentWorkflow.UpscaleSettings}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:UpscaleModel">
@@ -389,12 +389,15 @@
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
-              <Button Margin="0,12,0,0" Command="{Binding CurrentWorkflow.AddModel}">
-                <StackPanel Orientation="Horizontal">
-                  <materialIcons:MaterialIcon Kind="PlusCircle" />
-                  <TextBlock Margin="5,0,0,0" Text="{x:Static lang:Resources.AddModelButtonText}" />
-                </StackPanel>
-              </Button>
+              <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+                <Button Command="{Binding CurrentWorkflow.AddModel}">
+                  <StackPanel Orientation="Horizontal">
+                    <materialIcons:MaterialIcon Kind="PlusCircle" />
+                    <TextBlock Margin="5,0,0,0" Text="{x:Static lang:Resources.AddModelButtonText}" />
+                  </StackPanel>
+                </Button>
+                <CheckBox Grid.Column="1" IsChecked="{Binding CurrentWorkflow.ShowAdvancedSettings}" Content="{x:Static lang:Resources.MoreUpscaleSettingsLabel}" />
+              </Grid>
 
               <StackPanel Margin="0,15,0,0" IsVisible="{Binding CurrentWorkflow.ShowTrtEngineSettings}">
                 <TextBlock Margin="0,0,0,5" Text="TensorRT Engine Settings" />
