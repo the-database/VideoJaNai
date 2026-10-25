@@ -318,11 +318,56 @@
                     </StackPanel>
                     <TextBlock Grid.Column="1" Classes="help" Margin="40,0,0,0" Text="10-bit reduces banding (default, matches the old pipeline). 4:4:4 preserves full chroma but needs a CPU encoder (x265/x264/Lossless) and produces larger files." />
                   </Grid>
+
+                  <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.FinalResizeHeightLabel}" />
+                      <NumericUpDown Margin="0,0,5,0" VerticalAlignment="Center" Value="{Binding CurrentWorkflow.FinalResizeHeight}" Minimum="0" AllowSpin="False" ShowButtonSpinner="False" Classes="clearButton"  />
+                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Classes="help" Text="{x:Static lang:Resources.FinalResizeHeightDescription}" />
+                  </Grid>
+
+                  <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10" IsVisible="{Binding CurrentWorkflow.ShowAdvancedSettings}">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.FinalResizeFactorLabel}" />
+                      <NumericUpDown Margin="0,0,5,0" VerticalAlignment="Center" Value="{Binding CurrentWorkflow.FinalResizeFactor}" IsEnabled="{Binding CurrentWorkflow.EnableFinalResizeFactor}" />
+                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">%</TextBlock>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Classes="help" Text="{x:Static lang:Resources.FinalResizeFactorDescription}" />
+                  </Grid>
                 </StackPanel>
               </Border>
 
             </StackPanel>
             </Border>
+
+          <!-- Source -->
+          <TextBlock Margin="0,40,0,0" FontWeight="Bold" Text="{x:Static lang:Resources.SourceSettingsHeader}" />
+          <Border Classes="border">
+            <StackPanel>
+              <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.DeinterlaceLabel}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.DeinterlaceOffSelected}" Content="{x:Static lang:Resources.DeinterlaceOffText}" Command="{Binding CurrentWorkflow.SetDeinterlaceOff}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.DeinterlaceIvtcSelected}" Content="IVTC" Command="{Binding CurrentWorkflow.SetDeinterlaceIvtc}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.DeinterlaceBwdifSelected}" Content="{x:Static lang:Resources.DeinterlaceBwdifText}" Command="{Binding CurrentWorkflow.SetDeinterlaceBwdif}" />
+                </StackPanel>
+                <TextBlock Grid.Column="1" Classes="help" Margin="40,0,0,0" xml:space="preserve"><Bold>IVTC</Bold>: <Run Text="{x:Static lang:Resources.DeinterlaceIvtcDescription}" />
+<Bold><Run Text="{x:Static lang:Resources.DeinterlaceBwdifText}" /></Bold>: <Run Text="{x:Static lang:Resources.DeinterlaceBwdifDescription}" /></TextBlock>
+              </Grid>
+
+              <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.SquarePixelsLabel}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.SquarePixelsOffSelected}" Content="{x:Static lang:Resources.DeinterlaceOffText}" Command="{Binding CurrentWorkflow.SetSquarePixelsOff}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.SquarePixelsBeforeSelected}" Content="{x:Static lang:Resources.SquarePixelsBeforeText}" Command="{Binding CurrentWorkflow.SetSquarePixelsBefore}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.SquarePixelsAfterSelected}" Content="{x:Static lang:Resources.SquarePixelsAfterText}" Command="{Binding CurrentWorkflow.SetSquarePixelsAfter}" />
+                </StackPanel>
+                <TextBlock Grid.Column="1" Classes="help" Margin="40,0,0,0" Text="{x:Static lang:Resources.SquarePixelsDescription}" />
+              </Grid>
+            </StackPanel>
+          </Border>
 
           <!-- Upscaling -->
           <Grid>
@@ -333,17 +378,6 @@
           <Border Classes="border">
             <StackPanel>
             
-          <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10">
-            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.DeinterlaceLabel}" />
-              <ToggleButton IsChecked="{Binding CurrentWorkflow.DeinterlaceOffSelected}" Content="{x:Static lang:Resources.DeinterlaceOffText}" Command="{Binding CurrentWorkflow.SetDeinterlaceOff}" />
-              <ToggleButton IsChecked="{Binding CurrentWorkflow.DeinterlaceIvtcSelected}" Content="IVTC" Command="{Binding CurrentWorkflow.SetDeinterlaceIvtc}" />
-              <ToggleButton IsChecked="{Binding CurrentWorkflow.DeinterlaceBwdifSelected}" Content="{x:Static lang:Resources.DeinterlaceBwdifText}" Command="{Binding CurrentWorkflow.SetDeinterlaceBwdif}" />
-            </StackPanel>
-            <TextBlock Grid.Column="1" Classes="help" Margin="40,0,0,0" xml:space="preserve"><Bold>IVTC</Bold>: <Run Text="{x:Static lang:Resources.DeinterlaceIvtcDescription}" />
-<Bold><Run Text="{x:Static lang:Resources.DeinterlaceBwdifText}" /></Bold>: <Run Text="{x:Static lang:Resources.DeinterlaceBwdifDescription}" /></TextBlock>
-          </Grid>
-
           <ItemsControl ItemsSource="{Binding CurrentWorkflow.UpscaleSettings}" >
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:UpscaleModel">
@@ -401,24 +435,6 @@
               <TextBlock Margin="5,0,0,0" Text="{x:Static lang:Resources.AddModelButtonText}" />
             </StackPanel>
           </Button>
-
-          <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10">
-            <StackPanel Grid.Column="0" Orientation="Horizontal">
-              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.FinalResizeHeightLabel}" />
-              <NumericUpDown Margin="0,0,5,0" VerticalAlignment="Center" Value="{Binding CurrentWorkflow.FinalResizeHeight}" Minimum="0" AllowSpin="False" ShowButtonSpinner="False" Classes="clearButton"  />
-              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">px</TextBlock>
-            </StackPanel>
-            <TextBlock Grid.Column="1" Classes="help" Text="{x:Static lang:Resources.FinalResizeHeightDescription}" />
-          </Grid>
-
-          <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10" IsVisible="{Binding CurrentWorkflow.ShowAdvancedSettings}">
-            <StackPanel Grid.Column="0" Orientation="Horizontal">
-              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.FinalResizeFactorLabel}" />
-              <NumericUpDown Margin="0,0,5,0" VerticalAlignment="Center" Value="{Binding CurrentWorkflow.FinalResizeFactor}" IsEnabled="{Binding CurrentWorkflow.EnableFinalResizeFactor}" />
-              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">%</TextBlock>
-            </StackPanel>
-            <TextBlock Grid.Column="1" Classes="help" Text="{x:Static lang:Resources.FinalResizeFactorDescription}" />
-          </Grid>
 
           <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10">
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">

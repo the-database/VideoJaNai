@@ -411,4 +411,19 @@
   <data name="PreviewNoInputText" xml:space="preserve">
     <value>先に入力動画を選択してください。</value>
   </data>
+  <data name="SourceSettingsHeader" xml:space="preserve">
+    <value>ソース設定</value>
+  </data>
+  <data name="SquarePixelsLabel" xml:space="preserve">
+    <value>正方形ピクセル</value>
+  </data>
+  <data name="SquarePixelsBeforeText" xml:space="preserve">
+    <value>処理前</value>
+  </data>
+  <data name="SquarePixelsAfterText" xml:space="preserve">
+    <value>処理後</value>
+  </data>
+  <data name="SquarePixelsDescription" xml:space="preserve">
+    <value>DVDやDVなど、ピクセルが正方形でない動画向け。映像を本来の形に引き伸ばし、どこでも正しく表示されるようにします。処理（アップスケール・補間）の前と後のどちらがきれいかはモデルによって異なるため、プレビューで比べてください。正方形ピクセルの動画は変更されません。</value>
+  </data>
 </root>
