@@ -238,13 +238,13 @@
     <value>Model</value>
   </data>
   <data name="InterpolationSettingsHeader" xml:space="preserve">
-    <value>Interpolation Settings</value>
+    <value>Interpolation</value>
   </data>
   <data name="ModelHeader" xml:space="preserve">
     <value>Model</value>
   </data>
   <data name="MoreUpscaleSettingsLabel" xml:space="preserve">
-    <value>Show More Upscale Settings</value>
+    <value>Show More Settings</value>
   </data>
   <data name="OnnxModelPathDescription" xml:space="preserve">
     <value>File path of the ONNX model to run.</value>
@@ -352,7 +352,7 @@
     <value>Upscale</value>
   </data>
   <data name="UpscaleSettingsHeader" xml:space="preserve">
-    <value>Upscale Settings</value>
+    <value>Upscaling</value>
   </data>
   <data name="UpscalingBackendDescriptionDirectMl" xml:space="preserve">
     <value>Works on any DirectX 12 GPU (NVIDIA, AMD, Intel) but slower than TensorRT. Output is 4:2:0. ONNX models must be opset 21 or lower (higher opsets fall back to the CPU, which is extremely slow).</value>
@@ -364,7 +364,7 @@
     <value>Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.</value>
   </data>
   <data name="UpscalingBackendLabel" xml:space="preserve">
-    <value>Upscaling Backend</value>
+    <value>Backend</value>
   </data>
   <data name="VideoInputAndOutputHeader" xml:space="preserve">
     <value>Video Input and Output</value>
@@ -457,7 +457,7 @@
     <value>Select an input video first.</value>
   </data>
   <data name="SourceSettingsHeader" xml:space="preserve">
-    <value>Source Settings</value>
+    <value>Source</value>
   </data>
   <data name="SquarePixelsLabel" xml:space="preserve">
     <value>Square Pixels</value>
@@ -470,5 +470,26 @@
   </data>
   <data name="SquarePixelsDescription" xml:space="preserve">
     <value>For videos with non-square pixels, such as DVDs and DV: stretches the picture to its true shape, so it displays correctly everywhere. Whether it looks better before or after processing (upscaling and interpolation) depends on the model, so compare them with Preview. Videos with square pixels are not changed.</value>
+  </data>
+  <data name="InputHeader" xml:space="preserve">
+    <value>Input</value>
+  </data>
+  <data name="OutputHeader" xml:space="preserve">
+    <value>Output</value>
+  </data>
+  <data name="EnableUpscalingLabel" xml:space="preserve">
+    <value>Enable Upscaling</value>
+  </data>
+  <data name="CustomPresetText" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="WorkflowImportText" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="WorkflowExportText" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="WorkflowResetText" xml:space="preserve">
+    <value>Reset</value>
   </data>
 </root>
