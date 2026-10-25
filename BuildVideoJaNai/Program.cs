@@ -66,8 +66,9 @@ var trtDebSha256 = new Dictionary<string, string>
 // On Linux aji_encode ships as its own asset carrying the FFmpeg 9.0 libs it links. v0.13.0: keeps
 // source timestamps (VFR), handles legacy/odd-format inputs, builds engines atomically (a killed build
 // no longer leaves an empty engine behind), and opts out of Windows power throttling. v0.14.0:
-// --deinterlace (IVTC / bwdif) and --preview (the live upscale preview).
-const string AjiVersion        = "v0.14.0";
+// --deinterlace (IVTC / bwdif), --preview (the live upscale preview) and --preview-session (the
+// preview window). v0.15.0: --square-pixels, and the final resize working with NVENC again.
+const string AjiVersion        = "v0.15.0";
 const string SevenZipVersion   = "2602";                  // 7-zip "extra" (Windows) / linux-x64 standalone console
 const string RifeModelsVersion = "models-rife-fp16-1";    // animejanai-inference rife fp16 release
 // gyan.dev ffmpeg shared build (Windows; the DLLs aji_encode links). Must match the ffmpeg major the
