@@ -435,9 +435,6 @@
   <data name="EnableUpscalingLabel" xml:space="preserve">
     <value>アップスケールを有効にする</value>
   </data>
-  <data name="BackendTooltip" xml:space="preserve">
-    <value>アップスケールと補間のモデルを実行します。</value>
-  </data>
   <data name="CustomPresetText" xml:space="preserve">
     <value>カスタム</value>
   </data>

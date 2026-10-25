@@ -480,9 +480,6 @@
   <data name="EnableUpscalingLabel" xml:space="preserve">
     <value>Enable Upscaling</value>
   </data>
-  <data name="BackendTooltip" xml:space="preserve">
-    <value>Runs the upscaling and interpolation models.</value>
-  </data>
   <data name="CustomPresetText" xml:space="preserve">
     <value>Custom</value>
   </data>

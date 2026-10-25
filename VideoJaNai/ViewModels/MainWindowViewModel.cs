@@ -140,6 +140,37 @@ namespace VideoJaNai.ViewModels
             set => this.RaiseAndSetIfChanged(ref _autoUpdate, value);
         }
 
+        // The inference backend, app-wide: chosen once per PC, so it's an App Setting (earlier
+        // versions kept it per workflow; null until taken over from those, see MigrateBackend).
+        private bool? _useDirectMl;
+        [DataMember]
+        public bool? UseDirectMl
+        {
+            get => _useDirectMl;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _useDirectMl, value);
+                this.RaisePropertyChanged(nameof(TensorRtBackendSelected));
+                this.RaisePropertyChanged(nameof(DirectMlBackendSelected));
+                foreach (var wf in Workflows ?? [])
+                {
+                    wf.BackendChanged();
+                }
+            }
+        }
+
+        public bool DirectMlBackendSelected => UseDirectMl == true && UpscaleWorkflow.DirectMlAvailable;
+        public bool TensorRtBackendSelected => !DirectMlBackendSelected;
+
+        public void SetBackendTensorRt() => UseDirectMl = false;
+        public void SetBackendDirectMl() => UseDirectMl = true;
+
+        // Settings saved before the backend became app-wide: keep what the selected workflow used.
+        public void MigrateBackend()
+        {
+            UseDirectMl ??= CurrentWorkflow?.LegacyDirectMlSelected ?? false;
+        }
+
         private string _validationText = string.Empty;
         public string ValidationText
         {
@@ -319,7 +350,7 @@ namespace VideoJaNai.ViewModels
             }
             if (CurrentWorkflow.TensorRtSelected && !TensorRtInstalled)
             {
-                return (null, "TensorRT is not installed. Install it in App Settings, or select DirectML.", null);
+                return (null, "TensorRT is not installed. Install it, or select DirectML, in App Settings.", null);
             }
 
             try
@@ -1834,20 +1865,27 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         [DataMember]
         public bool TensorRtSelected
         {
-            get => _tensorRtSelected || !DirectMlAvailable;
-            set
-            {
-                this.RaiseAndSetIfChanged(ref _tensorRtSelected, value);
-                this.RaisePropertyChanged(nameof(ShowTrtEngineSettings));
-            }
+            get => !DirectMlSelected;
+            set => _tensorRtSelected = value;
         }
 
         private bool _directMlSelected = false;
         [DataMember]
         public bool DirectMlSelected
         {
-            get => _directMlSelected && DirectMlAvailable;
-            set => this.RaiseAndSetIfChanged(ref _directMlSelected, value);
+            get => (Vm?.UseDirectMl ?? _directMlSelected) && DirectMlAvailable;
+            set => _directMlSelected = value;
+        }
+
+        // what this workflow had before the backend became an App Setting
+        public bool LegacyDirectMlSelected => _directMlSelected;
+
+        public void BackendChanged()
+        {
+            this.RaisePropertyChanged(nameof(TensorRtSelected));
+            this.RaisePropertyChanged(nameof(DirectMlSelected));
+            this.RaisePropertyChanged(nameof(ShowTrtEngineSettings));
+            Validate();
         }
 
         private int? _finalResizeHeight = 0;
@@ -2216,20 +2254,6 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
         public void SetOutputPixFmt444P8() { OutputPixFmt = "yuv444p"; Validate(); }
         public void SetOutputPixFmt444P10() { OutputPixFmt = "yuv444p10"; Validate(); }
 
-        public void SetTensorRtSelected()
-        {
-            TensorRtSelected = true;
-            DirectMlSelected = false;
-            Validate();
-        }
-
-        public void SetDirectMlSelected()
-        {
-            DirectMlSelected = true;
-            TensorRtSelected = false;
-            Validate();
-        }
-
         public void Validate()
         {
             var valid = true;
@@ -2282,7 +2306,7 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             {
                 valid = false;
                 validationText.Add(DirectMlAvailable
-                    ? "The TensorRT components are not installed (they are for NVIDIA GPUs). Select DirectML, or install TensorRT from App Settings."
+                    ? "The TensorRT components are not installed (they are for NVIDIA GPUs). Select DirectML or install TensorRT in App Settings."
                     : "The TensorRT components are not installed. Install them from App Settings.");
             }
 
