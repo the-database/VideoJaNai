@@ -349,7 +349,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Path of the folder to upscale. The folder will be scanned and all video files (*.mkv, *.mp4, *.mpg, *.mpeg, *.avi, *.mov, *.wmv) found will be upscaled..
+        ///   Looks up a localized string similar to Path of the folder to upscale. The folder will be scanned and all video files (.mkv, .mp4, .mov, .webm, .avi, .mpg, .vob, .ts, .m2ts and other common formats) found will be upscaled..
         /// </summary>
         public static string InputFolderDescription {
             get {
