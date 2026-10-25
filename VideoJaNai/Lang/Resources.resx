@@ -486,4 +486,13 @@
   <data name="CustomPresetText" xml:space="preserve">
     <value>Custom</value>
   </data>
+  <data name="WorkflowImportText" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="WorkflowExportText" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="WorkflowResetText" xml:space="preserve">
+    <value>Reset</value>
+  </data>
 </root>

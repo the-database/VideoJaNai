@@ -441,4 +441,13 @@
   <data name="CustomPresetText" xml:space="preserve">
     <value>カスタム</value>
   </data>
+  <data name="WorkflowImportText" xml:space="preserve">
+    <value>インポート</value>
+  </data>
+  <data name="WorkflowExportText" xml:space="preserve">
+    <value>エクスポート</value>
+  </data>
+  <data name="WorkflowResetText" xml:space="preserve">
+    <value>リセット</value>
+  </data>
 </root>
