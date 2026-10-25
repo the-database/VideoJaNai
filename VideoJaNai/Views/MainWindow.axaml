@@ -64,6 +64,8 @@
       <Setter Property="HorizontalAlignment" Value="Stretch"/>
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
       <Setter Property="Margin" Value="0,8,0,0"/>
+      <!-- open and close at once: the theme's 0.25 s crossfade made sections feel slow -->
+      <Setter Property="ContentTransition" Value="{x:Null}"/>
     </Style>
     <Style Selector="Expander.section /template/ ToggleButton#ExpanderHeader">
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
