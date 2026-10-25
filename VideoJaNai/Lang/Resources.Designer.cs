@@ -1076,5 +1076,50 @@ namespace VideoJaNai.Lang {
                 return ResourceManager.GetString("PreviewNoInputText", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Source Settings.
+        /// </summary>
+        public static string SourceSettingsHeader {
+            get {
+                return ResourceManager.GetString("SourceSettingsHeader", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Square Pixels.
+        /// </summary>
+        public static string SquarePixelsLabel {
+            get {
+                return ResourceManager.GetString("SquarePixelsLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Before processing.
+        /// </summary>
+        public static string SquarePixelsBeforeText {
+            get {
+                return ResourceManager.GetString("SquarePixelsBeforeText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to After processing.
+        /// </summary>
+        public static string SquarePixelsAfterText {
+            get {
+                return ResourceManager.GetString("SquarePixelsAfterText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to For videos with non-square pixels, such as DVDs and DV: stretches the picture to its true shape, so it displays correctly everywhere. Whether it looks better before or after processing (upscaling and interpolation) depends on the model, so compare them with Preview. Videos with square pixels are not changed..
+        /// </summary>
+        public static string SquarePixelsDescription {
+            get {
+                return ResourceManager.GetString("SquarePixelsDescription", resourceCulture);
+            }
+        }
     }
 }
