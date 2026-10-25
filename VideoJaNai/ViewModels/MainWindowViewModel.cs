@@ -25,7 +25,11 @@ namespace VideoJaNai.ViewModels
     [DataContract]
     public class MainWindowViewModel : ViewModelBase
     {
-        public static readonly List<string> VIDEO_EXTENSIONS = [".mkv", ".mp4", ".mpg", ".mpeg", ".avi", ".mov", ".wmv"];
+        // what batch mode picks up from the input folder (anything libav reads works as a single video)
+        public static readonly List<string> VIDEO_EXTENSIONS = [
+            ".mkv", ".mp4", ".m4v", ".mov", ".webm", ".avi", ".wmv", ".asf", ".flv", ".f4v",
+            ".mpg", ".mpeg", ".m2v", ".vob", ".ts", ".m2ts", ".mts", ".3gp", ".ogv", ".dv",
+            ".rm", ".rmvb", ".divx", ".y4m"];
 
         private static readonly CultureInfo ENGLISH_CULTURE = CultureInfo.GetCultureInfo("en-US");
 

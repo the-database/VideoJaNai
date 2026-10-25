@@ -214,7 +214,7 @@
     <value>Import Workflow</value>
   </data>
   <data name="InputFolderDescription" xml:space="preserve">
-    <value>Path of the folder to upscale. The folder will be scanned and all video files (*.mkv, *.mp4, *.mpg, *.mpeg, *.avi, *.mov, *.wmv) found will be upscaled.</value>
+    <value>Path of the folder to upscale. The folder will be scanned and all video files (.mkv, .mp4, .mov, .webm, .avi, .mpg, .vob, .ts, .m2ts and other common formats) found will be upscaled.</value>
   </data>
   <data name="InputFolderLabel" xml:space="preserve">
     <value>Input Folder</value>
