@@ -268,29 +268,37 @@
               </Grid>
             </Expander.Header>
             <StackPanel>
-              <TabControl SelectedIndex="{Binding CurrentWorkflow.SelectedTabIndex}">
-                <TabItem VerticalContentAlignment="Center" FontSize="15">
+              <TabControl SelectedIndex="{Binding CurrentWorkflow.SelectedTabIndex}" Margin="0,-8,0,0">
+                <!-- compact tabs inside the section (the theme's are 48 px tall) -->
+                <TabControl.Styles>
+                  <Style Selector="TabItem">
+                    <Setter Property="MinHeight" Value="34"/>
+                    <Setter Property="FontSize" Value="14"/>
+                    <Setter Property="Padding" Value="8,0"/>
+                  </Style>
+                </TabControl.Styles>
+                <TabItem VerticalContentAlignment="Center">
                   <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
                       <materialIcons:MaterialIcon Kind="File" />
                       <TextBlock Margin="5,0,5,0" Text="{x:Static lang:Resources.SingleVideoUpscaleTabHeader}" />
                     </StackPanel>
                   </TabItem.Header>
-                  <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,10,0,0">
+                  <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,8,0,0">
                     <TextBlock Grid.Column="0" Margin="0,0,5,0" Text="{x:Static lang:Resources.InputVideoLabel}" />
                     <materialIcons:MaterialIcon Grid.Column="1" Classes="hint" ToolTip.Tip="{x:Static lang:Resources.InputVideoDescription}" />
                     <TextBox Grid.Column="2" x:Name="InputFileNameTextBox" Margin="0,0,5,0" Text="{Binding CurrentWorkflow.InputFilePath}" HorizontalAlignment="Stretch" DragDrop.AllowDrop="True" />
                     <Button Grid.Column="3" Content="{x:Static lang:Resources.SelectFileButtonText}" Click="OpenInputFileButtonClick" />
                   </Grid>
                 </TabItem>
-                <TabItem VerticalAlignment="Center" FontSize="15">
+                <TabItem VerticalAlignment="Center">
                   <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
                       <materialIcons:MaterialIcon Kind="Folder" />
                       <TextBlock Margin="5,0,5,0" Text="{x:Static lang:Resources.BatchVideoUpscaleTabHeader}" />
                     </StackPanel>
                   </TabItem.Header>
-                  <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,10,0,0">
+                  <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,8,0,0">
                     <TextBlock Grid.Column="0" Margin="0,0,5,0" Text="{x:Static lang:Resources.InputFolderLabel}" />
                     <materialIcons:MaterialIcon Grid.Column="1" Classes="hint" ToolTip.Tip="{x:Static lang:Resources.InputFolderDescription}" />
                     <TextBox Grid.Column="2" x:Name="InputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding CurrentWorkflow.InputFolderPath}" HorizontalAlignment="Stretch" DragDrop.AllowDrop="True" />
