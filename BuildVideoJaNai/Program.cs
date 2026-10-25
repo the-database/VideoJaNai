@@ -60,8 +60,10 @@ var trtDebSha256 = new Dictionary<string, string>
 // the-database/animejanai-inference. v0.12.0: built against TensorRT 11.4; aji_encode drives temporal
 // (multi-frame) models, honors the RIFE-before-upscale order, uploads CPU-decoded / 4:4:4 sources,
 // and runs on DirectML (shared D3D11 frames; CUDA delay-loaded, so it starts without the NVIDIA driver).
-// On Linux aji_encode ships as its own asset carrying the FFmpeg 9.0 libs it links.
-const string AjiVersion        = "v0.12.0";
+// On Linux aji_encode ships as its own asset carrying the FFmpeg 9.0 libs it links. v0.13.0: keeps
+// source timestamps (VFR), handles legacy/odd-format inputs, builds engines atomically (a killed build
+// no longer leaves an empty engine behind), and opts out of Windows power throttling.
+const string AjiVersion        = "v0.13.0";
 const string SevenZipVersion   = "2602";                  // 7-zip "extra" (Windows) / linux-x64 standalone console
 const string RifeModelsVersion = "models-rife-fp16-1";    // animejanai-inference rife fp16 release
 // gyan.dev ffmpeg shared build (Windows; the DLLs aji_encode links). Must match the ffmpeg major the
