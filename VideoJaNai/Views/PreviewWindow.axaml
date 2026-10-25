@@ -9,6 +9,7 @@
         Width="1280" Height="820" MinWidth="640" MinHeight="400"
         WindowStartupLocation="CenterOwner"
         Title="{Binding Title}"
+        RequestedThemeVariant="Dark"
         Background="#111111">
 
   <DockPanel>
