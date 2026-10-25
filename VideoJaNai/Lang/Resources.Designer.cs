@@ -1165,5 +1165,31 @@ namespace VideoJaNai.Lang {
                 return ResourceManager.GetString("CustomPresetText", resourceCulture);
             }
         }
+                    /// <summary>
+        ///   Looks up a localized string similar to Import.
+        /// </summary>
+        public static string WorkflowImportText {
+            get {
+                return ResourceManager.GetString("WorkflowImportText", resourceCulture);
             }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Export.
+        /// </summary>
+        public static string WorkflowExportText {
+            get {
+                return ResourceManager.GetString("WorkflowExportText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Reset.
+        /// </summary>
+        public static string WorkflowResetText {
+            get {
+                return ResourceManager.GetString("WorkflowResetText", resourceCulture);
+            }
+        }
+    }
 }

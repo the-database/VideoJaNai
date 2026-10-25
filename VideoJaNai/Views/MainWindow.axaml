@@ -223,40 +223,47 @@
       
       <ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="20">
-          <!-- Workflow: name, backend (it runs upscaling and interpolation alike), import/export -->
-          <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
-            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
-              <TextBlock VerticalAlignment="Center" Text="{x:Static lang:Resources.WorkflowNameLabel}" />
-              <TextBox Width="420" Text="{Binding CurrentWorkflow.WorkflowName}"/>
-              <TextBlock Margin="25,0,0,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.UpscalingBackendLabel}" />
-              <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{x:Static lang:Resources.BackendTooltip}" />
-              <ToggleButton IsChecked="{Binding CurrentWorkflow.TensorRtSelected}" Content="TensorRT" Command="{Binding CurrentWorkflow.SetTensorRtSelected}"
-                            ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" />
-              <ToggleButton IsChecked="{Binding CurrentWorkflow.DirectMlSelected}" Content="DirectML" Command="{Binding CurrentWorkflow.SetDirectMlSelected}"
-                            IsVisible="{x:Static vm:UpscaleWorkflow.DirectMlAvailable}" ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" />
-            </StackPanel>
-
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
-              <Button Click="ImportCurrentWorkflowButtonClick">
+          <!-- Workflow: name and import/export/reset (short labels, so they fit beside the
+               name at the minimum window width), then the backend (it runs upscaling and
+               interpolation alike) on its own line -->
+          <DockPanel Margin="0,0,0,8">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0">
+              <Button Click="ImportCurrentWorkflowButtonClick" ToolTip.Tip="{x:Static lang:Resources.ImportWorkflowButtonText}">
                 <StackPanel Orientation="Horizontal">
                   <materialIcons:MaterialIcon Kind="Import" VerticalAlignment="Center" />
-                  <TextBlock Margin="8,0,4,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.ImportWorkflowButtonText}" />
+                  <TextBlock Margin="8,0,4,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.WorkflowImportText}" />
                 </StackPanel>
               </Button>
-              <Button Click="ExportCurrentWorkflowButtonClick">
+              <Button Click="ExportCurrentWorkflowButtonClick" ToolTip.Tip="{x:Static lang:Resources.ExportWorkflowButtonText}">
                 <StackPanel Orientation="Horizontal">
                   <materialIcons:MaterialIcon Kind="Export" VerticalAlignment="Center" />
-                  <TextBlock Margin="8,0,4,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.ExportWorkflowButtonText}" />
+                  <TextBlock Margin="8,0,4,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.WorkflowExportText}" />
                 </StackPanel>
               </Button>
-              <Button Click="ResetWorkflow">
+              <Button Click="ResetWorkflow" ToolTip.Tip="{x:Static lang:Resources.ResetWorkflowButtonText}">
                 <StackPanel Orientation="Horizontal">
                   <materialIcons:MaterialIcon Kind="Refresh" VerticalAlignment="Center" />
-                  <TextBlock Margin="8,0,4,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.ResetWorkflowButtonText}" />
+                  <TextBlock Margin="8,0,4,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.WorkflowResetText}" />
                 </StackPanel>
               </Button>
             </StackPanel>
-          </Grid>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MaxWidth="500" />
+              </Grid.ColumnDefinitions>
+              <TextBlock VerticalAlignment="Center" Margin="0,0,5,0" Text="{x:Static lang:Resources.WorkflowNameLabel}" />
+              <TextBox Grid.Column="1" Text="{Binding CurrentWorkflow.WorkflowName}"/>
+            </Grid>
+          </DockPanel>
+          <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,0,0,10">
+            <TextBlock VerticalAlignment="Center" Text="{x:Static lang:Resources.UpscalingBackendLabel}" />
+            <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{x:Static lang:Resources.BackendTooltip}" />
+            <ToggleButton IsChecked="{Binding CurrentWorkflow.TensorRtSelected}" Content="TensorRT" Command="{Binding CurrentWorkflow.SetTensorRtSelected}"
+                          ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" />
+            <ToggleButton IsChecked="{Binding CurrentWorkflow.DirectMlSelected}" Content="DirectML" Command="{Binding CurrentWorkflow.SetDirectMlSelected}"
+                          IsVisible="{x:Static vm:UpscaleWorkflow.DirectMlAvailable}" ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" />
+          </StackPanel>
 
           <!-- The sections follow the video through the pipeline: input, what the source is,
                upscaling, interpolation, output. Collapsed, each shows a one-line summary. -->
