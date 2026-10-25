@@ -345,4 +345,22 @@
   <data name="WorkflowsTooltip" xml:space="preserve">
     <value>Workflows provide convenient access to save and load preset settings for upscaling.</value>
   </data>
+  <data name="DeinterlaceLabel" xml:space="preserve">
+    <value>インターレース解除</value>
+  </data>
+  <data name="DeinterlaceOffText" xml:space="preserve">
+    <value>オフ</value>
+  </data>
+  <data name="DeinterlaceBwdifText" xml:space="preserve">
+    <value>インターレース解除</value>
+  </data>
+  <data name="DeinterlaceIvtcDescription" xml:space="preserve">
+    <value>テレシネされたフィルム素材（NTSCのアニメDVDの多くなど）向け。元の23.976fpsのフレームを復元します。</value>
+  </data>
+  <data name="DeinterlaceBwdifDescription" xml:space="preserve">
+    <value>TV録画などの本来のインターレース映像向け。フィールドごとに1フレームを出力します（例：29.97iから59.94fps）。</value>
+  </data>
+  <data name="PreviewButtonText" xml:space="preserve">
+    <value>プレビュー</value>
+  </data>
 </root>

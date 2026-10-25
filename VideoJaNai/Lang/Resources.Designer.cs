@@ -878,5 +878,59 @@ namespace VideoJaNai.Lang {
                 return ResourceManager.GetString("RifeBeforeUpscaleDescription", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Deinterlace.
+        /// </summary>
+        public static string DeinterlaceLabel {
+            get {
+                return ResourceManager.GetString("DeinterlaceLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Off.
+        /// </summary>
+        public static string DeinterlaceOffText {
+            get {
+                return ResourceManager.GetString("DeinterlaceOffText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Deinterlace.
+        /// </summary>
+        public static string DeinterlaceBwdifText {
+            get {
+                return ResourceManager.GetString("DeinterlaceBwdifText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to for telecined film sources, such as most NTSC anime DVDs. Restores the original 23.976 fps frames..
+        /// </summary>
+        public static string DeinterlaceIvtcDescription {
+            get {
+                return ResourceManager.GetString("DeinterlaceIvtcDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to for truly interlaced video, such as TV recordings. Outputs one frame per field (e.g. 29.97i to 59.94 fps)..
+        /// </summary>
+        public static string DeinterlaceBwdifDescription {
+            get {
+                return ResourceManager.GetString("DeinterlaceBwdifDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Preview.
+        /// </summary>
+        public static string PreviewButtonText {
+            get {
+                return ResourceManager.GetString("PreviewButtonText", resourceCulture);
+            }
+        }
     }
 }

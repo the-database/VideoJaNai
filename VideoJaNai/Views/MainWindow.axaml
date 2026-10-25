@@ -129,6 +129,8 @@
           </StackPanel>
 
           <StackPanel IsVisible="{Binding Upscaling}" Margin="20,0,20,5">
+            <Image Source="{Binding PreviewImage}" MaxHeight="270" HorizontalAlignment="Left" Margin="0,0,0,8" Stretch="Uniform"
+                   IsVisible="{Binding ShowPreview}" />
             <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressValue}" Height="18" />
             <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="Gray" Text="{Binding ProgressText}" />
           </StackPanel>
@@ -151,6 +153,12 @@
 
             <TextBlock Margin="10,10,10,0" DockPanel.Dock="Left" FontSize="10" Text="{Binding LeftStatus}" />
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+              <ToggleButton IsChecked="{Binding ShowPreview}" FontSize="10" Margin="5,0,5,0">
+                <StackPanel Orientation="Horizontal">
+                  <materialIcons:MaterialIcon Kind="ImageOutline" VerticalAlignment="Center" />
+                  <TextBlock Margin="5,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.PreviewButtonText}" />
+                </StackPanel>
+              </ToggleButton>
               <ToggleButton IsChecked="{Binding ShowConsole}" FontSize="10" Margin="5,0,5,0">
                 <StackPanel Orientation="Horizontal">
                   <materialIcons:MaterialIcon Kind="Console" VerticalAlignment="Center" />
@@ -318,6 +326,17 @@
           <Border Classes="border">
             <StackPanel>
             
+          <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.DeinterlaceLabel}" />
+              <ToggleButton IsChecked="{Binding CurrentWorkflow.DeinterlaceOffSelected}" Content="{x:Static lang:Resources.DeinterlaceOffText}" Command="{Binding CurrentWorkflow.SetDeinterlaceOff}" />
+              <ToggleButton IsChecked="{Binding CurrentWorkflow.DeinterlaceIvtcSelected}" Content="IVTC" Command="{Binding CurrentWorkflow.SetDeinterlaceIvtc}" />
+              <ToggleButton IsChecked="{Binding CurrentWorkflow.DeinterlaceBwdifSelected}" Content="{x:Static lang:Resources.DeinterlaceBwdifText}" Command="{Binding CurrentWorkflow.SetDeinterlaceBwdif}" />
+            </StackPanel>
+            <TextBlock Grid.Column="1" Classes="help" Margin="40,0,0,0" xml:space="preserve"><Bold>IVTC</Bold>: <Run Text="{x:Static lang:Resources.DeinterlaceIvtcDescription}" />
+<Bold><Run Text="{x:Static lang:Resources.DeinterlaceBwdifText}" /></Bold>: <Run Text="{x:Static lang:Resources.DeinterlaceBwdifDescription}" /></TextBlock>
+          </Grid>
+
           <ItemsControl ItemsSource="{Binding CurrentWorkflow.UpscaleSettings}" >
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:UpscaleModel">
