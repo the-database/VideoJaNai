@@ -28,7 +28,10 @@ namespace VideoJaNai
 
             if (!File.Exists(Program.AppStatePath))
             {
-                File.Copy(Program.AppStateFilename, Program.AppStatePath);
+                // The default state ships next to the app; the working directory is wherever the app
+                // was launched from (the AppImage's AppRun runs it from the data folder).
+                File.Copy(Path.Combine(System.AppContext.BaseDirectory, Program.AppStateFilename),
+                          Program.AppStatePath);
             }
 
             // Create a new Autofac container builder.
