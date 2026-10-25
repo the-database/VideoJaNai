@@ -244,7 +244,7 @@
     <value>Model</value>
   </data>
   <data name="MoreUpscaleSettingsLabel" xml:space="preserve">
-    <value>詳細設定を表示</value>
+    <value>その他の設定</value>
   </data>
   <data name="OnnxModelPathDescription" xml:space="preserve">
     <value>File path of the ONNX model to run.</value>
