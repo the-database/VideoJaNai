@@ -421,7 +421,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Interpolation Settings.
+        ///   Looks up a localized string similar to Interpolation.
         /// </summary>
         public static string InterpolationSettingsHeader {
             get {
@@ -439,7 +439,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Show More Upscale Settings.
+        ///   Looks up a localized string similar to Show Advanced Settings.
         /// </summary>
         public static string MoreUpscaleSettingsLabel {
             get {
@@ -763,7 +763,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Upscale Settings.
+        ///   Looks up a localized string similar to Upscaling.
         /// </summary>
         public static string UpscaleSettingsHeader {
             get {
@@ -799,7 +799,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Upscaling Backend.
+        ///   Looks up a localized string similar to Backend.
         /// </summary>
         public static string UpscalingBackendLabel {
             get {
@@ -1078,7 +1078,7 @@ namespace VideoJaNai.Lang {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to Source Settings.
+        ///   Looks up a localized string similar to Source.
         /// </summary>
         public static string SourceSettingsHeader {
             get {
@@ -1119,6 +1119,50 @@ namespace VideoJaNai.Lang {
         public static string SquarePixelsDescription {
             get {
                 return ResourceManager.GetString("SquarePixelsDescription", resourceCulture);
+            }
+        }
+            /// <summary>
+        ///   Looks up a localized string similar to Input.
+        /// </summary>
+        public static string InputHeader {
+            get {
+                return ResourceManager.GetString("InputHeader", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Output.
+        /// </summary>
+        public static string OutputHeader {
+            get {
+                return ResourceManager.GetString("OutputHeader", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Enable Upscaling.
+        /// </summary>
+        public static string EnableUpscalingLabel {
+            get {
+                return ResourceManager.GetString("EnableUpscalingLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Runs the upscaling and interpolation models..
+        /// </summary>
+        public static string BackendTooltip {
+            get {
+                return ResourceManager.GetString("BackendTooltip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Custom.
+        /// </summary>
+        public static string CustomPresetText {
+            get {
+                return ResourceManager.GetString("CustomPresetText", resourceCulture);
             }
         }
     }
