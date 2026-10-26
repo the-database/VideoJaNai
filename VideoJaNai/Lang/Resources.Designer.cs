@@ -1078,7 +1078,7 @@ namespace VideoJaNai.Lang {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to Source.
+        ///   Looks up a localized string similar to Pre-processing.
         /// </summary>
         public static string SourceSettingsHeader {
             get {
@@ -1200,5 +1200,76 @@ namespace VideoJaNai.Lang {
                 return ResourceManager.GetString("EnableUpscalingDescription", resourceCulture);
             }
         }
+        /// <summary>
+        ///   Looks up a localized string similar to Stabilization.
+        /// </summary>
+        public static string StabilizationHeader {
+            get {
+                return ResourceManager.GetString("StabilizationHeader", resourceCulture);
+            }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Whether or not to run vs_temporalfix after upscaling. It averages each frame with its neighbors t....
+        /// </summary>
+        public static string EnableTemporalFixDescription {
+            get {
+                return ResourceManager.GetString("EnableTemporalFixDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Strength.
+        /// </summary>
+        public static string TemporalFixStrengthLabel {
+            get {
+                return ResourceManager.GetString("TemporalFixStrengthLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to How aggressively temporal inconsistencies are suppressed. Higher resolutions tend to need a highe....
+        /// </summary>
+        public static string TemporalFixStrengthDescription {
+            get {
+                return ResourceManager.GetString("TemporalFixStrengthDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Neighboring frames across a scene change (an average frame difference above this threshold) are r....
+        /// </summary>
+        public static string TemporalFixSceneThresholdDescription {
+            get {
+                return ResourceManager.GetString("TemporalFixSceneThresholdDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Temporal fix · strength {0}.
+        /// </summary>
+        public static string TemporalFixSummaryText {
+            get {
+                return ResourceManager.GetString("TemporalFixSummaryText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The temporal fix model for this strength is missing from the models folder. Update or reinstall V....
+        /// </summary>
+        public static string TemporalFixModelMissingText {
+            get {
+                return ResourceManager.GetString("TemporalFixModelMissingText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Post-processing.
+        /// </summary>
+        public static string PostProcessingHeader {
+            get {
+                return ResourceManager.GetString("PostProcessingHeader", resourceCulture);
+            }
+        }
+    }
 }
