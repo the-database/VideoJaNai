@@ -447,4 +447,10 @@
   <data name="WorkflowResetText" xml:space="preserve">
     <value>リセット</value>
   </data>
+  <data name="DeinterlaceOffDescription" xml:space="preserve">
+    <value>プログレッシブの映像向け。インターレース解除は行いません。</value>
+  </data>
+  <data name="EnableUpscalingDescription" xml:space="preserve">
+    <value>アップスケールモデルを実行するかどうか。オフにすると、モデルはリストに残りますが実行されません（補間のみの場合など）。</value>
+  </data>
 </root>

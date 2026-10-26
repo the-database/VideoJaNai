@@ -1183,5 +1183,22 @@ namespace VideoJaNai.Lang {
                 return ResourceManager.GetString("WorkflowResetText", resourceCulture);
             }
         }
-    }
+            /// <summary>
+        ///   Looks up a localized string similar to for progressive sources, left as they are..
+        /// </summary>
+        public static string DeinterlaceOffDescription {
+            get {
+                return ResourceManager.GetString("DeinterlaceOffDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Whether or not to run the upscaling models. When off, the models stay in the list but are not run, e.g. to only interpolate..
+        /// </summary>
+        public static string EnableUpscalingDescription {
+            get {
+                return ResourceManager.GetString("EnableUpscalingDescription", resourceCulture);
+            }
+        }
+        }
 }
