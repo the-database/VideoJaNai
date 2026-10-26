@@ -233,6 +233,19 @@ namespace VideoJaNai.ViewModels
 
         public string ModelsDirectory => _pythonService.ModelsDirectory;
 
+        // The bundled vs_temporalfix model for a strength (temporalfix_s2_v1_op18_fp16.onnx, ...): the
+        // newest version in the models folder, or null when it is missing.
+        public string? TemporalFixModelPath(int strength)
+        {
+            if (!Directory.Exists(ModelsDirectory))
+            {
+                return null;
+            }
+            return Directory.EnumerateFiles(ModelsDirectory, $"temporalfix_s{strength}_v*.onnx")
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .LastOrDefault();
+        }
+
         public bool TensorRtInstalled => _pythonService.IsTensorRtInstalled();
 
         public static readonly string _ffmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\" -max_interleave_delta 0";
@@ -356,6 +369,10 @@ namespace VideoJaNai.ViewModels
             if (CurrentWorkflow.EnableUpscale && CurrentWorkflow.UpscaleSettings.Any(m => !File.Exists(m.OnnxModelPath)))
             {
                 return (null, "ONNX Model Path is required.", null);
+            }
+            if (CurrentWorkflow.EnableTemporalFix && TemporalFixModelPath(CurrentWorkflow.TemporalFixStrength ?? 2) == null)
+            {
+                return (null, Resources.TemporalFixModelMissingText, null);
             }
             if (CurrentWorkflow.TensorRtSelected && !TensorRtInstalled)
             {
@@ -757,28 +774,45 @@ namespace VideoJaNai.ViewModels
             configText.AppendLine("chain_1_min_fps=0");
             configText.AppendLine("chain_1_max_fps=0");
 
-            for (var i = 0; CurrentWorkflow.EnableUpscale && i < CurrentWorkflow.UpscaleSettings.Count; i++)
+            var modelCount = 0;
+            void AppendModel(string onnxPath, int? resizeHeight, decimal? resizeFactor, decimal? temporalSceneThreshold)
             {
+                var n = ++modelCount;
+
                 // aji resolves models by bare name against --model-dir, so copy the selected onnx in.
                 Directory.CreateDirectory(_pythonService.ModelsDirectory);
-                var targetCopyPath = Path.Combine(_pythonService.ModelsDirectory, Path.GetFileName(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath));
+                var targetCopyPath = Path.Combine(_pythonService.ModelsDirectory, Path.GetFileName(onnxPath));
 
-                if (Path.GetFullPath(targetCopyPath) != Path.GetFullPath(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath))
+                if (Path.GetFullPath(targetCopyPath) != Path.GetFullPath(onnxPath))
                 {
-                    File.Copy(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath, targetCopyPath, true);
+                    File.Copy(onnxPath, targetCopyPath, true);
                 }
 
-                configText.AppendLine(string.Create(ENGLISH_CULTURE, @$"chain_1_model_{i + 1}_resize_height_before_upscale={CurrentWorkflow.UpscaleSettings[i].ResizeHeightBeforeUpscale}
-chain_1_model_{i + 1}_resize_factor_before_upscale={CurrentWorkflow.UpscaleSettings[i].ResizeFactorBeforeUpscale}
-chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.UpscaleSettings[i].OnnxModelPath)}"));
+                configText.AppendLine(string.Create(ENGLISH_CULTURE, @$"chain_1_model_{n}_resize_height_before_upscale={resizeHeight}
+chain_1_model_{n}_resize_factor_before_upscale={resizeFactor}
+chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
 
+                if (temporalSceneThreshold is decimal threshold)
+                {
+                    configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_model_{n}_temporal_scene_threshold={threshold}"));
+                }
+            }
+
+            for (var i = 0; CurrentWorkflow.EnableUpscale && i < CurrentWorkflow.UpscaleSettings.Count; i++)
+            {
                 // Temporal models: the window size comes from the onnx itself; only the scene-change
                 // threshold is a setting (written only when it carries something, like the Manager).
                 var model = CurrentWorkflow.UpscaleSettings[i];
-                if (model.IsTemporal || model.TemporalSceneThreshold != UpscaleModel.DefaultTemporalSceneThreshold)
-                {
-                    configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_model_{i + 1}_temporal_scene_threshold={model.TemporalSceneThreshold}"));
-                }
+                AppendModel(model.OnnxModelPath, model.ResizeHeightBeforeUpscale, model.ResizeFactorBeforeUpscale,
+                            model.IsTemporal || model.TemporalSceneThreshold != UpscaleModel.DefaultTemporalSceneThreshold
+                                ? model.TemporalSceneThreshold : null);
+            }
+
+            // Temporal fix runs last, at the upscaled resolution: the engine stacks it after a temporal
+            // upscaling model.
+            if (CurrentWorkflow.EnableTemporalFix && TemporalFixModelPath(CurrentWorkflow.TemporalFixStrength ?? 2) is string temporalFix)
+            {
+                AppendModel(temporalFix, 0, 100M, CurrentWorkflow.TemporalFixSceneThreshold);
             }
 
             var rife = CurrentWorkflow.EnableRife ? "yes" : "no";
@@ -2017,6 +2051,48 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             }
         }
 
+        // vs_temporalfix, appended to the chain after the upscaling models (or on its own, at the source
+        // resolution, when upscaling is off). Strength picks one of the bundled models.
+        private bool _enableTemporalFix = false;
+        [DataMember]
+        public bool EnableTemporalFix
+        {
+            get => _enableTemporalFix;
+            set
+            {
+                var changed = value != _enableTemporalFix;
+                this.RaiseAndSetIfChanged(ref _enableTemporalFix, value);
+                if (changed && Vm != null)
+                {
+                    TemporalFixSectionExpanded = value;
+                }
+                Validate();
+            }
+        }
+
+        // 0 would be a pass-through (vs_temporalfix's own strength 0 returns the clip untouched).
+        public static List<int> TemporalFixStrengths { get; } = [1, 2, 3];
+
+        private int? _temporalFixStrength = 2;
+        [DataMember]
+        public int? TemporalFixStrength
+        {
+            get => _temporalFixStrength ?? 2;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _temporalFixStrength, value ?? 2);
+                Validate();
+            }
+        }
+
+        private decimal? _temporalFixSceneThreshold = UpscaleModel.DefaultTemporalSceneThreshold;
+        [DataMember]
+        public decimal? TemporalFixSceneThreshold
+        {
+            get => _temporalFixSceneThreshold ?? UpscaleModel.DefaultTemporalSceneThreshold;
+            set => this.RaiseAndSetIfChanged(ref _temporalFixSceneThreshold, value ?? UpscaleModel.DefaultTemporalSceneThreshold);
+        }
+
         private bool _enableRife = false;
         [DataMember]
         public bool EnableRife
@@ -2058,12 +2134,28 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             set => this.RaiseAndSetIfChanged(ref _upscaleSectionExpanded, value);
         }
 
+        private bool _temporalFixSectionExpanded = false;
+        [DataMember]
+        public bool TemporalFixSectionExpanded
+        {
+            get => _temporalFixSectionExpanded;
+            set => this.RaiseAndSetIfChanged(ref _temporalFixSectionExpanded, value);
+        }
+
         private bool _interpolationSectionExpanded = false;
         [DataMember]
         public bool InterpolationSectionExpanded
         {
             get => _interpolationSectionExpanded;
             set => this.RaiseAndSetIfChanged(ref _interpolationSectionExpanded, value);
+        }
+
+        private bool _postProcessingSectionExpanded = false;
+        [DataMember]
+        public bool PostProcessingSectionExpanded
+        {
+            get => _postProcessingSectionExpanded;
+            set => this.RaiseAndSetIfChanged(ref _postProcessingSectionExpanded, value);
         }
 
         private bool _outputSectionExpanded = true;
@@ -2101,6 +2193,10 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
             ? Off
             : string.Join(" → ", UpscaleSettings.Select(m => Path.GetFileNameWithoutExtension(m.OnnxModelPath ?? string.Empty)));
 
+        public string TemporalFixSummary => !EnableTemporalFix
+            ? Off
+            : string.Format(CultureInfo.CurrentCulture, VideoJaNai.Lang.Resources.TemporalFixSummaryText, TemporalFixStrength);
+
         public string InterpolationSummary => !EnableRife
             ? Off
             : RifeFactorDenominator == 1
@@ -2123,18 +2219,23 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                         _ => "10-bit 4:2:0",
                     },
                 };
-                if (FinalResizeHeight is int h && h > 0) parts.Add($"{h}p");
-                else if (FinalResizeFactor is int f && f > 0 && f != 100) parts.Add($"{f}%");
                 return string.Join(" · ", parts);
             }
         }
+
+        public string PostProcessingSummary =>
+            FinalResizeHeight is int h && h > 0 ? $"{h}p"
+            : FinalResizeFactor is int f && f > 0 && f != 100 ? $"{f}%"
+            : Off;
 
         private void RaiseSummaries()
         {
             this.RaisePropertyChanged(nameof(InputSummary));
             this.RaisePropertyChanged(nameof(SourceSummary));
             this.RaisePropertyChanged(nameof(UpscaleSummary));
+            this.RaisePropertyChanged(nameof(TemporalFixSummary));
             this.RaisePropertyChanged(nameof(InterpolationSummary));
+            this.RaisePropertyChanged(nameof(PostProcessingSummary));
             this.RaisePropertyChanged(nameof(OutputSummary));
         }
 
@@ -2303,6 +2404,12 @@ chain_1_model_{i + 1}_name={Path.GetFileNameWithoutExtension(CurrentWorkflow.Ups
                     valid = false;
                     validationText.Add("ONNX Model Path is required.");
                 }
+            }
+
+            if (EnableTemporalFix && Vm != null && Vm.TemporalFixModelPath(TemporalFixStrength ?? 2) == null)
+            {
+                valid = false;
+                validationText.Add(VideoJaNai.Lang.Resources.TemporalFixModelMissingText);
             }
 
             if (OutputIs444 && FfmpegHevcNvencSelected)
