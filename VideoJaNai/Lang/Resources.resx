@@ -388,7 +388,7 @@
     <value>Interpolate before upscaling</value>
   </data>
   <data name="RifeBeforeUpscaleDescription" xml:space="preserve">
-    <value>Run RIFE at the source resolution before upscaling (faster, recommended). Uncheck to interpolate the upscaled frames instead (slower). With a temporal upscaling model, interpolation always runs after upscaling.</value>
+    <value>Run RIFE at the source resolution before upscaling (faster, recommended). Uncheck to interpolate the upscaled frames instead (slower). With a temporal upscaling model or temporal fix, interpolation always runs after upscaling.</value>
   </data>
   <data name="DeinterlaceLabel" xml:space="preserve">
     <value>Deinterlace</value>
@@ -457,7 +457,7 @@
     <value>Select an input video first.</value>
   </data>
   <data name="SourceSettingsHeader" xml:space="preserve">
-    <value>Source</value>
+    <value>Pre-processing</value>
   </data>
   <data name="SquarePixelsLabel" xml:space="preserve">
     <value>Square Pixels</value>
@@ -497,5 +497,29 @@
   </data>
   <data name="EnableUpscalingDescription" xml:space="preserve">
     <value>Whether or not to run the upscaling models. When off, the models stay in the list but are not run, e.g. to only interpolate.</value>
+  </data>
+  <data name="StabilizationHeader" xml:space="preserve">
+    <value>Stabilization</value>
+  </data>
+  <data name="EnableTemporalFixDescription" xml:space="preserve">
+    <value>Whether or not to run vs_temporalfix after upscaling. It averages each frame with its neighbors to remove flicker and shimmer (fizzle, wiggly lines) that upscaling models add, especially on DVD and other SD sources. It runs at the upscaled resolution, so it is much slower at 4K output than at DVD-upscale resolutions.</value>
+  </data>
+  <data name="TemporalFixStrengthLabel" xml:space="preserve">
+    <value>Strength</value>
+  </data>
+  <data name="TemporalFixStrengthDescription" xml:space="preserve">
+    <value>How aggressively temporal inconsistencies are suppressed. Higher resolutions tend to need a higher strength; too high may smooth out small movements. 2 is the default.</value>
+  </data>
+  <data name="TemporalFixSceneThresholdDescription" xml:space="preserve">
+    <value>Neighboring frames across a scene change (an average frame difference above this threshold) are replaced by the nearest frame from the same scene. Set to 0 to disable scene detection.</value>
+  </data>
+  <data name="TemporalFixSummaryText" xml:space="preserve">
+    <value>Temporal fix · strength {0}</value>
+  </data>
+  <data name="TemporalFixModelMissingText" xml:space="preserve">
+    <value>The temporal fix model for this strength is missing from the models folder. Update or reinstall VideoJaNai.</value>
+  </data>
+  <data name="PostProcessingHeader" xml:space="preserve">
+    <value>Post-processing</value>
   </data>
 </root>
