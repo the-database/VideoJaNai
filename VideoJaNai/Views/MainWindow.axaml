@@ -88,6 +88,9 @@
       <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
+    <Style Selector="GridSplitter:pointerover, GridSplitter:pressed">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+    </Style>
     <Style Selector="StackPanel.row">
       <Setter Property="Orientation" Value="Horizontal"/>
     </Style>
@@ -110,12 +113,17 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
   <Grid>
-    <Grid ColumnDefinitions="300,*" RowDefinitions="*" IsVisible="{Binding !IsExtractingBackend}">
+    <Grid x:Name="MainGrid" RowDefinitions="*" IsVisible="{Binding !IsExtractingBackend}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="220" MinWidth="180" MaxWidth="400" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
 
       <DockPanel Grid.Column="0" Background="#33000000">
 
         <StackPanel DockPanel.Dock="Bottom">
-          <Button FontSize="13" Padding="10" Classes.active="{Binding ShowAppSettings}" Width="300" HorizontalContentAlignment="Left" Command="{Binding HandleAppSettingsSelected}">
+          <Button FontSize="13" Padding="10" Classes.active="{Binding ShowAppSettings}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Command="{Binding HandleAppSettingsSelected}">
             <StackPanel Orientation="Horizontal">
               <materialIcons:MaterialIcon Kind="Gear" VerticalAlignment="Center" />
               <TextBlock Margin="5,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.AppSettingsButtonText}" />
@@ -133,15 +141,15 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:UpscaleWorkflow">
                 <StackPanel>
-                  <Button FontSize="13" Padding="10" Width="300" HorizontalContentAlignment="Left"
+                  <Button FontSize="13" Padding="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                           ClickMode="Press"
                           Classes.active="{Binding ActiveWorkflow}"
                           Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).HandleWorkflowSelected}"
                           CommandParameter="{Binding WorkflowIndex}">
-                    <StackPanel Orientation="Horizontal">
+                    <DockPanel>
                       <materialIcons:MaterialIcon Kind="{Binding WorkflowIcon}" VerticalAlignment="Center" />
-                      <TextBlock Margin="5,0,5,0" VerticalAlignment="Center" Text="{Binding WorkflowName}" />
-                    </StackPanel>
+                      <TextBlock Margin="5,0,5,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Text="{Binding WorkflowName}" />
+                    </DockPanel>
                   </Button>
                 </StackPanel>
               </DataTemplate>
@@ -151,8 +159,11 @@
 
       </DockPanel>
 
+      <!-- drag to resize the sidebar; the width is remembered -->
+      <GridSplitter Grid.Column="1" Width="5" Background="Transparent" ResizeDirection="Columns" DragCompleted="SidebarSplitterDragCompleted" />
+
       <!-- Main Form -->
-      <DockPanel Grid.Column="1" IsVisible="{Binding ShowMainForm}">
+      <DockPanel Grid.Column="2" IsVisible="{Binding ShowMainForm}">
         <!--Bottom Status Panel -->
         <StackPanel DockPanel.Dock="Bottom">
 
@@ -557,7 +568,7 @@
       </DockPanel>
 
       <!-- Settings Overlay -->
-      <ScrollViewer IsVisible="{Binding ShowAppSettings}" HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0,0,0,30" Grid.Column="1">
+      <ScrollViewer IsVisible="{Binding ShowAppSettings}" HorizontalScrollBarVisibility="Disabled" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0,0,0,30" Grid.Column="2">
         <StackPanel>
         <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="20">
           <DockPanel>
