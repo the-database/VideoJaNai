@@ -132,6 +132,15 @@ namespace VideoJaNai.ViewModels
             set => this.RaiseAndSetIfChanged(ref _updateStatusText, value);
         }
 
+        // the workflow sidebar's width, dragged with its splitter
+        private double _sidebarWidth = 220;
+        [DataMember]
+        public double SidebarWidth
+        {
+            get => _sidebarWidth;
+            set => this.RaiseAndSetIfChanged(ref _sidebarWidth, value);
+        }
+
         private bool _autoUpdate = true;
         [DataMember]
         public bool AutoUpdateEnabled

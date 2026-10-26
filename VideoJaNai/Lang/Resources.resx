@@ -492,4 +492,10 @@
   <data name="WorkflowResetText" xml:space="preserve">
     <value>Reset</value>
   </data>
+  <data name="DeinterlaceOffDescription" xml:space="preserve">
+    <value>for progressive sources, left as they are.</value>
+  </data>
+  <data name="EnableUpscalingDescription" xml:space="preserve">
+    <value>Whether or not to run the upscaling models. When off, the models stay in the list but are not run, e.g. to only interpolate.</value>
+  </data>
 </root>
