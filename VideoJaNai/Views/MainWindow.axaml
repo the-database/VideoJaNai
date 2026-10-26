@@ -73,10 +73,12 @@
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
     </Style>
     <Style Selector="TextBlock.sectionTitle">
+      <Setter Property="FontSize" Value="16"/>
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
     <Style Selector="CheckBox.sectionTitle">
+      <Setter Property="FontSize" Value="16"/>
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
@@ -319,7 +321,16 @@
             </Expander.Header>
             <StackPanel Spacing="12">
               <StackPanel Classes="row">
-                <TextBlock Classes="label" Text="{x:Static lang:Resources.DeinterlaceLabel}" />
+                <TextBlock Classes="label" Margin="0,0,5,0" Text="{x:Static lang:Resources.DeinterlaceLabel}" />
+                <materialIcons:MaterialIcon Classes="hint">
+                  <ToolTip.Tip>
+                    <StackPanel Spacing="6">
+                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold><Run Text="{x:Static lang:Resources.DeinterlaceOffText}" /></Bold>: <Run Text="{x:Static lang:Resources.DeinterlaceOffDescription}" /></TextBlock>
+                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>IVTC</Bold>: <Run Text="{x:Static lang:Resources.DeinterlaceIvtcDescription}" /></TextBlock>
+                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold><Run Text="{x:Static lang:Resources.DeinterlaceBwdifText}" /></Bold>: <Run Text="{x:Static lang:Resources.DeinterlaceBwdifDescription}" /></TextBlock>
+                    </StackPanel>
+                  </ToolTip.Tip>
+                </materialIcons:MaterialIcon>
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.DeinterlaceOffSelected}" Content="{x:Static lang:Resources.DeinterlaceOffText}" Command="{Binding CurrentWorkflow.SetDeinterlaceOff}" />
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.DeinterlaceIvtcSelected}" Content="IVTC" Command="{Binding CurrentWorkflow.SetDeinterlaceIvtc}"
                               ToolTip.Tip="{x:Static lang:Resources.DeinterlaceIvtcDescription}" />
@@ -327,11 +338,11 @@
                               ToolTip.Tip="{x:Static lang:Resources.DeinterlaceBwdifDescription}" />
               </StackPanel>
               <StackPanel Classes="row">
-                <TextBlock Classes="label" Text="{x:Static lang:Resources.SquarePixelsLabel}" />
+                <TextBlock Classes="label" Margin="0,0,5,0" Text="{x:Static lang:Resources.SquarePixelsLabel}" />
+                <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{x:Static lang:Resources.SquarePixelsDescription}" />
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.SquarePixelsOffSelected}" Content="{x:Static lang:Resources.DeinterlaceOffText}" Command="{Binding CurrentWorkflow.SetSquarePixelsOff}" />
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.SquarePixelsBeforeSelected}" Content="{x:Static lang:Resources.SquarePixelsBeforeText}" Command="{Binding CurrentWorkflow.SetSquarePixelsBefore}" />
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.SquarePixelsAfterSelected}" Content="{x:Static lang:Resources.SquarePixelsAfterText}" Command="{Binding CurrentWorkflow.SetSquarePixelsAfter}" />
-                <materialIcons:MaterialIcon Classes="hint" Margin="8,0,0,0" ToolTip.Tip="{x:Static lang:Resources.SquarePixelsDescription}" />
               </StackPanel>
             </StackPanel>
           </Expander>
@@ -341,7 +352,7 @@
             <Expander.Header>
               <Grid ColumnDefinitions="170,*">
                 <CheckBox Classes="sectionTitle" IsChecked="{Binding CurrentWorkflow.EnableUpscale}" Content="{x:Static lang:Resources.UpscaleSettingsHeader}"
-                          ToolTip.Tip="{x:Static lang:Resources.EnableUpscalingLabel}" />
+                          ToolTip.Tip="{x:Static lang:Resources.EnableUpscalingDescription}" />
                 <TextBlock Grid.Column="1" Classes="summary" Text="{Binding CurrentWorkflow.UpscaleSummary}" />
               </Grid>
             </Expander.Header>
@@ -362,19 +373,19 @@
                             <Button Grid.Column="3" Content="{x:Static lang:Resources.SelectFileButtonText}" Click="OpenOnnxFileButtonClick" />
                           </Grid>
                           <StackPanel Classes="row" IsVisible="{Binding IsTemporal}">
-                            <TextBlock Classes="label" Text="{x:Static lang:Resources.TemporalSceneThresholdLabel}" />
+                            <TextBlock Classes="label" Margin="0,0,5,0" Text="{x:Static lang:Resources.TemporalSceneThresholdLabel}" />
+                            <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{Binding TemporalDescription}" />
                             <NumericUpDown Value="{Binding TemporalSceneThreshold}" Minimum="0" FormatString="0.000" Maximum="1" Increment="0.01" />
-                            <materialIcons:MaterialIcon Classes="hint" Margin="8,0,0,0" ToolTip.Tip="{Binding TemporalDescription}" />
                           </StackPanel>
                           <StackPanel Classes="row" IsVisible="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).CurrentWorkflow.ShowAdvancedSettings}">
-                            <TextBlock Classes="label" Text="{x:Static lang:Resources.ResizeHeightBeforeUpscaleLabel}" />
+                            <TextBlock Classes="label" Margin="0,0,5,0" Text="{x:Static lang:Resources.ResizeHeightBeforeUpscaleLabel}" />
+                            <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{x:Static lang:Resources.ResizeHeightBeforeUpscaleDescription}" />
                             <NumericUpDown Value="{Binding ResizeHeightBeforeUpscale}" Minimum="0" AllowSpin="False" ShowButtonSpinner="False" />
-                            <TextBlock Margin="5,0,0,0">px</TextBlock>
-                            <materialIcons:MaterialIcon Classes="hint" Margin="8,0,25,0" ToolTip.Tip="{x:Static lang:Resources.ResizeHeightBeforeUpscaleDescription}" />
-                            <TextBlock Classes="label" Text="{x:Static lang:Resources.ResizeFactorBeforeUpscaleLabel}" />
+                            <TextBlock Margin="5,0,25,0">px</TextBlock>
+                            <TextBlock Classes="label" Margin="0,0,5,0" Text="{x:Static lang:Resources.ResizeFactorBeforeUpscaleLabel}" />
+                            <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{x:Static lang:Resources.ResizeFactorBeforeUpscaleDescription}" />
                             <NumericUpDown Value="{Binding ResizeFactorBeforeUpscale}" Minimum="0" AllowSpin="False" ShowButtonSpinner="False" IsEnabled="{Binding EnableResizeFactor}" />
                             <TextBlock Margin="5,0,0,0">%</TextBlock>
-                            <materialIcons:MaterialIcon Classes="hint" Margin="8,0,0,0" ToolTip.Tip="{x:Static lang:Resources.ResizeFactorBeforeUpscaleDescription}" />
                           </StackPanel>
                         </StackPanel>
                         <Button Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Top"
@@ -400,15 +411,21 @@
                 <TextBlock Margin="0,0,0,5" Text="TensorRT Engine Settings" />
                 <Border Classes="border">
                   <StackPanel Margin="10">
-                    <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,5">
-                      <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Engine Type</TextBlock>
-                        <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtStaticOnnxSelected}" Content="Static ONNX" Command="{Binding CurrentWorkflow.SetTrtStaticOnnx}" />
-                        <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtStaticSelected}" Content="Static" Command="{Binding CurrentWorkflow.SetTrtStatic}" />
-                        <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtDynamicSelected}" Content="Dynamic" Command="{Binding CurrentWorkflow.SetTrtDynamic}" />
-                      </StackPanel>
-                      <TextBlock Grid.Column="1" Foreground="Gray" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="20,0,0,0" xml:space="preserve"><Bold>Static</Bold> (default): fastest; rebuilds per resolution. <Bold>Dynamic</Bold>: one engine for all sizes, slower. <Bold>Static ONNX</Bold>: model's shape.</TextBlock>
-                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Engine Type</TextBlock>
+                      <materialIcons:MaterialIcon Classes="hint">
+                        <ToolTip.Tip>
+                          <StackPanel Spacing="6">
+                            <TextBlock TextWrapping="Wrap"><Bold>Static</Bold> (default): fastest; rebuilds per resolution.</TextBlock>
+                            <TextBlock TextWrapping="Wrap"><Bold>Dynamic</Bold>: one engine for all sizes, slower.</TextBlock>
+                            <TextBlock TextWrapping="Wrap"><Bold>Static ONNX</Bold>: uses the model's own fixed input shape.</TextBlock>
+                          </StackPanel>
+                        </ToolTip.Tip>
+                      </materialIcons:MaterialIcon>
+                      <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtStaticOnnxSelected}" Content="Static ONNX" Command="{Binding CurrentWorkflow.SetTrtStaticOnnx}" />
+                      <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtStaticSelected}" Content="Static" Command="{Binding CurrentWorkflow.SetTrtStatic}" />
+                      <ToggleButton IsChecked="{Binding CurrentWorkflow.TrtDynamicSelected}" Content="Dynamic" Command="{Binding CurrentWorkflow.SetTrtDynamic}" />
+                    </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,5" IsVisible="{Binding CurrentWorkflow.TrtDynamicSelected}">
                       <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Min Resolution</TextBlock>
@@ -419,13 +436,11 @@
                       <ui:FAComboBox IsEditable="True" Width="120" MaxDropDownHeight="600" Text="{Binding CurrentWorkflow.TrtDynamicMaxResolution, Mode=TwoWay}" ItemsSource="{Binding CommonResolutions}" />
                     </StackPanel>
 
-                    <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,5">
-                      <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Builder Optimization Level</TextBlock>
-                        <ui:FAComboBox IsEditable="True" Width="120" MaxDropDownHeight="600" Text="{Binding CurrentWorkflow.TrtBuilderOptimizationLevel, Mode=TwoWay}" ItemsSource="{Binding BuilderOptimizationLevels}" />
-                      </StackPanel>
-                      <TextBlock Grid.Column="1" Foreground="Gray" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="20,0,0,0">Higher levels (0-5) take longer to build the engine but can produce a faster engine. Default is 5.</TextBlock>
-                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                      <TextBlock Margin="0,0,5,0" VerticalAlignment="Center">Builder Optimization Level</TextBlock>
+                      <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="Higher levels (0-5) take longer to build the engine but can produce a faster engine. Default is 5." />
+                      <ui:FAComboBox IsEditable="True" Width="120" MaxDropDownHeight="600" Text="{Binding CurrentWorkflow.TrtBuilderOptimizationLevel, Mode=TwoWay}" ItemsSource="{Binding BuilderOptimizationLevels}" />
+                    </StackPanel>
 
                     <TextBox Text="{Binding CurrentWorkflow.TrtEngineSettings}" HorizontalAlignment="Stretch" TextWrapping="Wrap" AcceptsReturn="False" MinHeight="70" VerticalContentAlignment="Top" />
                   </StackPanel>
@@ -445,19 +460,19 @@
             </Expander.Header>
             <StackPanel Spacing="12" IsEnabled="{Binding CurrentWorkflow.EnableRife}">
               <StackPanel Classes="row">
-                <TextBlock Classes="label" Text="{x:Static lang:Resources.InterpolationModelLabel}" />
-                <ComboBox VerticalAlignment="Center" SelectedValue="{Binding CurrentWorkflow.RifeModel}" ItemsSource="{Binding CurrentWorkflow.RifeModelList}" />
-                <materialIcons:MaterialIcon Classes="hint" Margin="8,0,25,0" ToolTip.Tip="{x:Static lang:Resources.InterpolationModelDescription}" />
-                <TextBlock Classes="label" Text="{x:Static lang:Resources.InterpolationFactorLabel}" />
+                <TextBlock Classes="label" Margin="0,0,5,0" Text="{x:Static lang:Resources.InterpolationModelLabel}" />
+                <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{x:Static lang:Resources.InterpolationModelDescription}" />
+                <ComboBox Margin="0,0,25,0" VerticalAlignment="Center" SelectedValue="{Binding CurrentWorkflow.RifeModel}" ItemsSource="{Binding CurrentWorkflow.RifeModelList}" />
+                <TextBlock Classes="label" Margin="0,0,5,0" Text="{x:Static lang:Resources.InterpolationFactorLabel}" />
+                <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{x:Static lang:Resources.InterpolationFactorDescription}" />
                 <NumericUpDown Value="{Binding CurrentWorkflow.RifeFactorNumerator}" Minimum="{Binding CurrentWorkflow.RifeFactorDenominator}" FormatString="0" />
                 <TextBlock xml:space="preserve"> / </TextBlock>
                 <NumericUpDown Value="{Binding CurrentWorkflow.RifeFactorDenominator}" Minimum="1" Maximum="{Binding CurrentWorkflow.RifeFactorNumerator}" FormatString="0" />
-                <materialIcons:MaterialIcon Classes="hint" Margin="8,0,0,0" ToolTip.Tip="{x:Static lang:Resources.InterpolationFactorDescription}" />
               </StackPanel>
               <StackPanel Classes="row">
-                <TextBlock Classes="label" Text="{x:Static lang:Resources.SceneDetectionThresholdLabel}" />
+                <TextBlock Classes="label" Margin="0,0,5,0" Text="{x:Static lang:Resources.SceneDetectionThresholdLabel}" />
+                <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{x:Static lang:Resources.SceneDetectionThresholdDescription}" />
                 <NumericUpDown Value="{Binding CurrentWorkflow.RifeSceneDetectThreshold}" Minimum="0" FormatString="0.000" Maximum="1" Increment="0.05" />
-                <materialIcons:MaterialIcon Classes="hint" Margin="8,0,0,0" ToolTip.Tip="{x:Static lang:Resources.SceneDetectionThresholdDescription}" />
               </StackPanel>
               <StackPanel Classes="row">
                 <CheckBox IsChecked="{Binding CurrentWorkflow.RifeBeforeUpscale}" Content="{x:Static lang:Resources.RifeBeforeUpscaleLabel}" />
@@ -493,7 +508,17 @@
                 </StackPanel>
               </Grid>
               <StackPanel Classes="row">
-                <TextBlock Classes="label" Text="{x:Static lang:Resources.FfmpegPresetsLabel}" />
+                <TextBlock Classes="label" Margin="0,0,5,0" Text="{x:Static lang:Resources.FfmpegPresetsLabel}" />
+                <materialIcons:MaterialIcon Classes="hint">
+                  <ToolTip.Tip>
+                    <StackPanel Spacing="6">
+                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>NVENC HEVC</Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionNvencHevc}" /></TextBlock>
+                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>x265 (CPU)</Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionX265}" /></TextBlock>
+                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>x264 (CPU)</Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionX264}" /></TextBlock>
+                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>Lossless (CPU)</Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionLossless}" /></TextBlock>
+                    </StackPanel>
+                  </ToolTip.Tip>
+                </materialIcons:MaterialIcon>
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegHevcNvencSelected}" Content="NVENC HEVC" Command="{Binding CurrentWorkflow.SetFfmpegHevcNvenc}"
                               ToolTip.Tip="{x:Static lang:Resources.FfmpegPresetsDescriptionNvencHevc}" />
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegX265Selected}" Content="x265 (CPU)" Command="{Binding CurrentWorkflow.SetFfmpegX265}"
@@ -503,11 +528,11 @@
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegLosslessSelected}" Content="Lossless (CPU)" Command="{Binding CurrentWorkflow.SetFfmpegLossless}"
                               ToolTip.Tip="{x:Static lang:Resources.FfmpegPresetsDescriptionLossless}" />
                 <TextBlock Classes="label" Margin="25,0,5,0" Text="Output format" />
+                <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="10-bit reduces banding (default, matches the old pipeline). 4:4:4 preserves full chroma but needs a CPU encoder (x265/x264/Lossless) and produces larger files." />
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt420P8Selected}" Content="8-bit 4:2:0" Command="{Binding CurrentWorkflow.SetOutputPixFmt420P8}" />
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt420P10Selected}" Content="10-bit 4:2:0" Command="{Binding CurrentWorkflow.SetOutputPixFmt420P10}" />
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt444P8Selected}" Content="8-bit 4:4:4" Command="{Binding CurrentWorkflow.SetOutputPixFmt444P8}" />
                 <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt444P10Selected}" Content="10-bit 4:4:4" Command="{Binding CurrentWorkflow.SetOutputPixFmt444P10}" />
-                <materialIcons:MaterialIcon Classes="hint" Margin="8,0,0,0" ToolTip.Tip="10-bit reduces banding (default, matches the old pipeline). 4:4:4 preserves full chroma but needs a CPU encoder (x265/x264/Lossless) and produces larger files." />
               </StackPanel>
               <Grid ColumnDefinitions="Auto,Auto,*">
                 <TextBlock Grid.Column="0" Margin="0,0,5,0" Text="{x:Static lang:Resources.FfmpegOutputSettingsLabel}" />
@@ -515,14 +540,14 @@
                 <TextBox Grid.Column="2" Text="{Binding CurrentWorkflow.FfmpegVideoSettings}" HorizontalAlignment="Stretch" />
               </Grid>
               <StackPanel Classes="row">
-                <TextBlock Classes="label" Text="{x:Static lang:Resources.FinalResizeHeightLabel}" />
+                <TextBlock Classes="label" Margin="0,0,5,0" Text="{x:Static lang:Resources.FinalResizeHeightLabel}" />
+                <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{x:Static lang:Resources.FinalResizeHeightDescription}" />
                 <NumericUpDown Value="{Binding CurrentWorkflow.FinalResizeHeight}" Minimum="0" AllowSpin="False" ShowButtonSpinner="False" Classes="clearButton" />
-                <TextBlock Margin="5,0,0,0">px</TextBlock>
-                <materialIcons:MaterialIcon Classes="hint" Margin="8,0,25,0" ToolTip.Tip="{x:Static lang:Resources.FinalResizeHeightDescription}" />
-                <TextBlock Classes="label" Text="{x:Static lang:Resources.FinalResizeFactorLabel}" />
+                <TextBlock Margin="5,0,25,0">px</TextBlock>
+                <TextBlock Classes="label" Margin="0,0,5,0" Text="{x:Static lang:Resources.FinalResizeFactorLabel}" />
+                <materialIcons:MaterialIcon Classes="hint" ToolTip.Tip="{x:Static lang:Resources.FinalResizeFactorDescription}" />
                 <NumericUpDown Value="{Binding CurrentWorkflow.FinalResizeFactor}" IsEnabled="{Binding CurrentWorkflow.EnableFinalResizeFactor}" />
                 <TextBlock Margin="5,0,0,0">%</TextBlock>
-                <materialIcons:MaterialIcon Classes="hint" Margin="8,0,0,0" ToolTip.Tip="{x:Static lang:Resources.FinalResizeFactorDescription}" />
               </StackPanel>
             </StackPanel>
           </Expander>
