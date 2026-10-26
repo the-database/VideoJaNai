@@ -67,8 +67,9 @@ var trtDebSha256 = new Dictionary<string, string>
 // source timestamps (VFR), handles legacy/odd-format inputs, builds engines atomically (a killed build
 // no longer leaves an empty engine behind), and opts out of Windows power throttling. v0.14.0:
 // --deinterlace (IVTC / bwdif), --preview (the live upscale preview) and --preview-session (the
-// preview window). v0.15.0: --square-pixels, and the final resize working with NVENC again.
-const string AjiVersion        = "v0.15.0";
+// preview window). v0.15.0: --square-pixels, and the final resize working with NVENC again. v0.16.0:
+// several temporal models in one chain (a temporal upscaler followed by temporal fix).
+const string AjiVersion        = "v0.16.0";
 const string SevenZipVersion   = "2602";                  // 7-zip "extra" (Windows) / linux-x64 standalone console
 const string RifeModelsVersion = "models-rife-fp16-1";    // animejanai-inference rife fp16 release
 // gyan.dev ffmpeg shared build (Windows; the DLLs aji_encode links). Must match the ffmpeg major the
@@ -487,7 +488,8 @@ async Task InstallRife()
     File.Delete(targetPath);
 }
 
-// ONNX models are version-controlled in this project (onnx/, ~6 MB) rather than downloaded — they
+// ONNX models are version-controlled in this project (onnx/, ~10 MB, including pifroggi's
+// vs_temporalfix models for the temporal fix option) rather than downloaded — they
 // are small, and this keeps the shipped set in lockstep with the repo (matches mpv-AnimeJaNai's
 // committed model set). The csproj copies onnx/ next to the built exe.
 void InstallModels()
@@ -503,6 +505,11 @@ void InstallModels()
     foreach (var onnx in Directory.GetFiles(modelsSource, "*.onnx", SearchOption.AllDirectories))
     {
         File.Copy(onnx, Path.Combine(onnxPath, Path.GetFileName(onnx)), true);
+    }
+    // Licenses that travel with third-party models (vs_temporalfix, Apache-2.0).
+    foreach (var license in Directory.GetFiles(modelsSource, "*_LICENSE.txt"))
+    {
+        File.Copy(license, Path.Combine(onnxPath, Path.GetFileName(license)), true);
     }
 }
 

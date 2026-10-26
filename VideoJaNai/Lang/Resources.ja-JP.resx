@@ -412,7 +412,7 @@
     <value>先に入力動画を選択してください。</value>
   </data>
   <data name="SourceSettingsHeader" xml:space="preserve">
-    <value>ソース</value>
+    <value>前処理</value>
   </data>
   <data name="SquarePixelsLabel" xml:space="preserve">
     <value>正方形ピクセル</value>
@@ -452,5 +452,8 @@
   </data>
   <data name="EnableUpscalingDescription" xml:space="preserve">
     <value>アップスケールモデルを実行するかどうか。オフにすると、モデルはリストに残りますが実行されません（補間のみの場合など）。</value>
+  </data>
+  <data name="PostProcessingHeader" xml:space="preserve">
+    <value>後処理</value>
   </data>
 </root>

@@ -24,3 +24,4 @@ Download either the AppImage or the `linux-x64.tar.zst` from the [latest release
 ## Acknowledgments 
 - [MPV_lazy](https://github.com/hooke007/MPV_lazy) 
 - [vs-mlrt](https://github.com/AmusementClub/vs-mlrt)
+- [vs_temporalfix](https://github.com/pifroggi/vs_temporalfix): the temporal fix models (Apache-2.0)
