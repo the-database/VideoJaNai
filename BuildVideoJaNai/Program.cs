@@ -68,8 +68,9 @@ var trtDebSha256 = new Dictionary<string, string>
 // no longer leaves an empty engine behind), and opts out of Windows power throttling. v0.14.0:
 // --deinterlace (IVTC / bwdif), --preview (the live upscale preview) and --preview-session (the
 // preview window). v0.15.0: --square-pixels, and the final resize working with NVENC again. v0.16.0:
-// several temporal models in one chain (a temporal upscaler followed by temporal fix).
-const string AjiVersion        = "v0.16.0";
+// several temporal models in one chain (a temporal upscaler followed by temporal fix). v0.16.1:
+// keeps track dispositions (default/forced subtitles and audio) in the output.
+const string AjiVersion        = "v0.16.1";
 const string SevenZipVersion   = "2602";                  // 7-zip "extra" (Windows) / linux-x64 standalone console
 const string RifeModelsVersion = "models-rife-fp16-1";    // animejanai-inference rife fp16 release
 // gyan.dev ffmpeg shared build (Windows; the DLLs aji_encode links). Must match the ffmpeg major the
