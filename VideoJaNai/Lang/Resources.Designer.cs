@@ -160,6 +160,15 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Collapse All Sections.
+        /// </summary>
+        public static string CollapseAllSectionsText {
+            get {
+                return ResourceManager.GetString("CollapseAllSectionsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Console.
         /// </summary>
         public static string ConsoleButtonText {
@@ -219,6 +228,15 @@ namespace VideoJaNai.Lang {
         public static string EnsembleLabel {
             get {
                 return ResourceManager.GetString("EnsembleLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Expand All Sections.
+        /// </summary>
+        public static string ExpandAllSectionsText {
+            get {
+                return ResourceManager.GetString("ExpandAllSectionsText", resourceCulture);
             }
         }
         

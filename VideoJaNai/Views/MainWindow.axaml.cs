@@ -383,24 +383,17 @@ namespace VideoJaNai.Views
                         };
 
 
-                        td.Closing += async (s, e) =>
+                        // Swaps the bound workflow, so it must run on the UI thread.
+                        td.Closing += (s, e) =>
                         {
                             if ((FATaskDialogStandardResult)e.Result == FATaskDialogStandardResult.OK)
                             {
-                                var deferral = e.GetDeferral();
-
-                                td.ShowProgressBar = true;
-
-                                await Task.Run(() =>
-                                {
-                                    vm.ReadWorkflowFileToCurrentWorkflow(inPath);
-                                });
-
-                                deferral.Complete();
+                                vm.ReadWorkflowFileToCurrentWorkflow(inPath);
                             }
                         };
 
-                        td.XamlRoot = VisualRoot as Visual;
+                        // The window itself: in Avalonia 12 VisualRoot is an internal host, which FATaskDialog crashes on.
+                        td.XamlRoot = this;
                         _ = await td.ShowAsync();
                     }
                 }
@@ -425,24 +418,17 @@ namespace VideoJaNai.Views
                 };
 
 
-                td.Closing += async (s, e) =>
+                // Swaps the bound workflow, so it must run on the UI thread.
+                td.Closing += (s, e) =>
                 {
                     if ((FATaskDialogStandardResult)e.Result == FATaskDialogStandardResult.OK)
                     {
-                        var deferral = e.GetDeferral();
-
-                        td.ShowProgressBar = true;
-
-                        await Task.Run(() =>
-                        {
-                            vm.ResetCurrentWorkflow();
-                        });
-
-                        deferral.Complete();
+                        vm.ResetCurrentWorkflow();
                     }
                 };
 
-                td.XamlRoot = VisualRoot as Visual;
+                // The window itself: in Avalonia 12 VisualRoot is an internal host, which FATaskDialog crashes on.
+                td.XamlRoot = this;
                 _ = await td.ShowAsync();
 
             }
