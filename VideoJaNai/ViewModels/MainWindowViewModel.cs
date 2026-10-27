@@ -34,6 +34,15 @@ namespace VideoJaNai.ViewModels
         private static readonly CultureInfo ENGLISH_CULTURE = CultureInfo.GetCultureInfo("en-US");
 
         private string? _availableUpdateVersion;
+        // Auto update: the version unpacked in update-staging/ (installs when the app closes), the
+        // background download in progress, and the last error to show.
+        private string? _readyUpdateVersion;
+        private CancellationTokenSource? _updateDownloadCts;
+        private string? _updateDownloadProgress;
+        private string? _installError;
+        private string? _downloadError;
+        private bool _updateChecksStarted;
+        private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(6);
 
         private readonly IPythonService _pythonService;
         private readonly IUpdateManagerService _updateManagerService;
@@ -60,8 +69,6 @@ namespace VideoJaNai.ViewModels
                     await RefreshComponents();
                 }
             });
-
-            CheckForUpdates();
         }
 
         private CancellationTokenSource? _cancellationTokenSource;
@@ -1410,6 +1417,45 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             await RefreshComponents();
         }
 
+        // Called once for the app's state (not every view model instance): check now, then
+        // periodically, downloading in the background while Auto Update is on.
+        public void StartUpdateChecks()
+        {
+            if (_updateChecksStarted || !_updateManagerService.IsInstalled)
+            {
+                return;
+            }
+            _updateChecksStarted = true;
+            if (_updateManagerService.TakeLastUpdateError() is string error)
+            {
+                _installError = $"The last update failed to install: {error}";
+            }
+            bool autoUpdate = AutoUpdateEnabled;
+            this.WhenAnyValue(x => x.AutoUpdateEnabled).Subscribe(on =>
+            {
+                if (on == autoUpdate)
+                {
+                    return; // the current value, delivered on subscribe
+                }
+                autoUpdate = on;
+                if (on)
+                {
+                    StartUpdateDownload();
+                }
+                else
+                {
+                    CancelUpdateDownload();
+                }
+                UpdateStatus();
+            });
+            DispatcherTimer.Run(() =>
+            {
+                _ = CheckForUpdates();
+                return true;
+            }, UpdateCheckInterval);
+            _ = CheckForUpdates();
+        }
+
         public async Task CheckForUpdates()
         {
             try
@@ -1417,7 +1463,12 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                 if (_updateManagerService.IsInstalled)
                 {
                     _availableUpdateVersion = await _updateManagerService.CheckForUpdateAsync().ConfigureAwait(true);
+                    if (_readyUpdateVersion != _availableUpdateVersion)
+                    {
+                        _readyUpdateVersion = null; // a newer release replaced the staged one
+                    }
                     UpdateStatus();
+                    StartUpdateDownload();
                 }
             }
             catch (Exception ex)
@@ -1426,30 +1477,120 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             }
         }
 
-        // The bundled updater downloads + applies (overlay-vs-full) in one step, then relaunches,
-        // so there's no separate in-app download. Launch it and exit so it can replace files.
+        private void StartUpdateDownload()
+        {
+            if (!AutoUpdateEnabled || _availableUpdateVersion is null || _readyUpdateVersion == _availableUpdateVersion ||
+                _updateDownloadCts != null)
+            {
+                return;
+            }
+            var cts = _updateDownloadCts = new CancellationTokenSource();
+            _updateDownloadProgress = "";
+            UpdateStatus();
+            _ = Task.Run(async () =>
+            {
+                string? ready = null;
+                string? failure = null;
+                string lastLine = "";
+                try
+                {
+                    ready = await _updateManagerService.DownloadUpdateAsync(line =>
+                    {
+                        lastLine = line;
+                        var percent = Regex.Match(line, @"(\d+)%$");
+                        var progress = percent.Success ? $"{percent.Groups[1].Value}%"
+                            : line.StartsWith("Extracting") ? "unpacking" : null;
+                        if (progress != null)
+                        {
+                            Dispatcher.UIThread.Post(() =>
+                            {
+                                _updateDownloadProgress = progress;
+                                UpdateStatus();
+                            });
+                        }
+                    }, cts.Token);
+                    if (ready is null)
+                    {
+                        failure = lastLine;
+                    }
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    failure = ex.Message;
+                }
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (_updateDownloadCts == cts)
+                    {
+                        _updateDownloadCts = null;
+                    }
+                    cts.Dispose();
+                    if (ready != null)
+                    {
+                        _readyUpdateVersion = ready;
+                        _downloadError = null;
+                    }
+                    else if (failure != null)
+                    {
+                        _downloadError = $"Downloading the update failed: {failure}";
+                    }
+                    UpdateStatus();
+                });
+            });
+        }
+
+        private void CancelUpdateDownload()
+        {
+            _updateDownloadCts?.Cancel();
+            _updateDownloadCts = null;
+        }
+
+        // The bundled updater downloads (unless already staged) + applies in one step, then relaunches.
+        // Launch it and exit so it can replace files.
         public void ApplyUpdate()
         {
+            CancelUpdateDownload();
             ShowApplyButton = false;
             UpdateStatusText = "Updating and restarting...";
             _updateManagerService.ApplyUpdateAndRestart();
             Environment.Exit(0);
         }
 
+        // On close: install an update the background download has staged.
+        public void OnAppExit()
+        {
+            CancelUpdateDownload();
+            if (AutoUpdateEnabled && _readyUpdateVersion != null)
+            {
+                _updateManagerService.ApplyUpdateOnExit();
+            }
+        }
+
         private void UpdateStatus()
         {
-            if (!string.IsNullOrEmpty(_availableUpdateVersion))
+            string status;
+            if (string.IsNullOrEmpty(_availableUpdateVersion))
             {
-                UpdateStatusText = $"Update available: {_availableUpdateVersion}";
-                ShowApplyButton = true;
-                ShowCheckUpdateButton = false;
+                status = "No updates found";
+            }
+            else if (_updateDownloadCts != null)
+            {
+                status = string.IsNullOrEmpty(_updateDownloadProgress)
+                    ? $"Downloading update {_availableUpdateVersion}..."
+                    : $"Downloading update {_availableUpdateVersion} ({_updateDownloadProgress})...";
+            }
+            else if (_readyUpdateVersion == _availableUpdateVersion && AutoUpdateEnabled)
+            {
+                status = $"Version {_availableUpdateVersion} is ready and will install when you close VideoJaNai.";
             }
             else
             {
-                UpdateStatusText = "No updates found";
-                ShowApplyButton = false;
-                ShowCheckUpdateButton = true;
+                status = $"Update available: {_availableUpdateVersion}";
             }
+            UpdateStatusText = string.Join("\n", new[] { _installError, _downloadError, status }.Where(x => x != null));
+            ShowApplyButton = !string.IsNullOrEmpty(_availableUpdateVersion);
+            ShowCheckUpdateButton = !ShowApplyButton;
         }
     }
 

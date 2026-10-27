@@ -89,6 +89,7 @@ namespace VideoJaNai
 
             state.MigrateBackend();
             state.CurrentWorkflow?.Validate();
+            state.StartUpdateChecks();
 
             new MainWindow { DataContext = state }.Show();
             NewtonsoftJsonSuspensionDriver.StartupComplete = true;
