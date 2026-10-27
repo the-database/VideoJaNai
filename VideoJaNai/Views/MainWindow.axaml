@@ -627,23 +627,25 @@
           <!-- App Settings -->
           <Border Classes="border">
             <StackPanel>
-              <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10" IsVisible="{x:Static vm:UpscaleWorkflow.DirectMlAvailable}">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                  <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.UpscalingBackendLabel}" />
-                  <ToggleButton IsChecked="{Binding TensorRtBackendSelected}" Content="TensorRT" Command="{Binding SetBackendTensorRt}" />
-                  <ToggleButton IsChecked="{Binding DirectMlBackendSelected}" Content="DirectML" Command="{Binding SetBackendDirectMl}" />
-                </StackPanel>
-                <StackPanel Grid.Column="1" Margin="40,0,0,0">
-                  <TextBlock Classes="help" xml:space="preserve"><Bold>TensorRT</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" /></TextBlock>
-                  <TextBlock Classes="help" xml:space="preserve"><Bold>DirectML</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" /></TextBlock>
-                </StackPanel>
-              </Grid>
+              <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{x:Static vm:UpscaleWorkflow.DirectMlAvailable}">
+                <ContentControl Classes="hint" Content="{x:Static lang:Resources.UpscalingBackendLabel}">
+                  <ToolTip.Tip>
+                    <StackPanel Spacing="6">
+                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>TensorRT</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" /></TextBlock>
+                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>DirectML</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" /></TextBlock>
+                    </StackPanel>
+                  </ToolTip.Tip>
+                </ContentControl>
+                <ToggleButton IsChecked="{Binding TensorRtBackendSelected}" Content="TensorRT" Command="{Binding SetBackendTensorRt}"
+                              ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" />
+                <ToggleButton IsChecked="{Binding DirectMlBackendSelected}" Content="DirectML" Command="{Binding SetBackendDirectMl}"
+                              ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" />
+              </StackPanel>
               <StackPanel IsVisible="{Binding IsInstalled}">
                 <StackPanel>
-                  <Grid ColumnDefinitions="Auto,*" Margin="10,10,0,10">
-                    <CheckBox Grid.Column="0" IsChecked="{Binding AutoUpdateEnabled}" Content="{x:Static lang:Resources.AutoUpdateLabel}" />
-                    <TextBlock Grid.Column="1" Classes="help" Text="{x:Static lang:Resources.AutoUpdateDescription}" />
-                  </Grid>
+                  <ContentControl Classes="hint" HorizontalAlignment="Left" Margin="10,10,0,10" ToolTip.Tip="{x:Static lang:Resources.AutoUpdateDescription}">
+                    <CheckBox IsChecked="{Binding AutoUpdateEnabled}" Content="{x:Static lang:Resources.AutoUpdateLabel}" />
+                  </ContentControl>
 
                   <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
                     <TextBlock Text="{x:Static lang:Resources.CurrentVersionLabel}" VerticalAlignment="Center" />
@@ -651,9 +653,7 @@
                     <hypertext:Hyperlink VerticalAlignment="Center" Margin="20,0,0,0" Url="https://github.com/the-database/VideoJaNai/releases" />
                   </StackPanel>
 
-                  <StackPanel Orientation="Horizontal" Margin="10,10,0,10">
-                    <TextBlock VerticalAlignment="Center" Text="{Binding UpdateStatusText}" Margin="0,0,0,0" />
-                  </StackPanel>
+                  <TextBlock Margin="10,10,10,10" TextWrapping="Wrap" Text="{Binding UpdateStatusText}" />
 
                   <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding ShowCheckUpdateButton}">
                     <Button Command="{Binding CheckForUpdates}" Content="{x:Static lang:Resources.CheckForUpdatesNowButtonText}" />
@@ -687,9 +687,11 @@
               <ItemsControl x:Name="ComponentsList" Margin="10,10,0,0" ItemsSource="{Binding Components}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:ComponentItem">
-                    <StackPanel Margin="0,4,0,8">
+                    <StackPanel Margin="0,4,0,4">
                       <StackPanel Orientation="Horizontal">
-                        <TextBlock VerticalAlignment="Center" Width="320" Text="{Binding Title}" />
+                        <Panel Width="400">
+                          <ContentControl Classes="hint" HorizontalAlignment="Left" Content="{Binding Title}" ToolTip.Tip="{Binding Description}" />
+                        </Panel>
                         <TextBlock VerticalAlignment="Center" Width="80" Foreground="Gray" Text="{Binding SizeText}" />
                         <TextBlock VerticalAlignment="Center" Width="100" Foreground="Gray" Text="{Binding StateText}" />
                         <Button Content="Install" IsVisible="{Binding CanInstall}"
@@ -699,7 +701,6 @@
                                 Command="{Binding #ComponentsList.((vm:MainWindowViewModel)DataContext).RemoveComponent}"
                                 CommandParameter="{Binding}" />
                       </StackPanel>
-                      <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap" Margin="0,2,10,0" Text="{Binding Description}" />
                     </StackPanel>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>

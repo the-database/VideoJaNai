@@ -3,7 +3,9 @@
 // Ships at the install root next to VideoJaNai.exe.
 //
 //   VideoJaNaiUpdater.exe --check        prints UPDATE_AVAILABLE <ver> | UP_TO_DATE <ver>
-//   VideoJaNaiUpdater.exe --apply        waits for VideoJaNai to close, downloads + applies, relaunches
+//   VideoJaNaiUpdater.exe --download     downloads + unpacks the update into update-staging/, prints UPDATE_READY <ver>
+//   VideoJaNaiUpdater.exe --apply        waits for VideoJaNai to close, applies (staged or freshly downloaded), relaunches
+//                         [--no-relaunch] the app's install-on-close: no relaunch; failures go to update-error.txt
 //   VideoJaNaiUpdater.exe --components   detect GPU, list installed/available packs + recommendation
 //   VideoJaNaiUpdater.exe --install X    download + install component pack X
 //   VideoJaNaiUpdater.exe --remove X     delete component pack X's files
@@ -54,6 +56,13 @@ if (!OperatingSystem.IsWindows())
 
 string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "--check";
 
+// A background --download unpacks the update here (inside the install, so each install has its own),
+// and --apply installs from it without downloading again. ready.json marks it complete.
+string stagingRoot = Path.Combine(installDir, "update-staging");
+string stagingMarker = Path.Combine(stagingRoot, "ready.json");
+// An update that failed to install, for the app to show on its next start.
+string updateErrorFile = Path.Combine(installDir, "update-error.txt");
+
 try
 {
     switch (mode)
@@ -61,8 +70,10 @@ try
         case "--check":
             await CheckAsync();
             return 0;
+        case "--download":
+            return await DownloadAsync();
         case "--apply":
-            return await ApplyAsync();
+            return await ApplyAsync(args.Contains("--no-relaunch"));
         case "--components":
             await ComponentsAsync(null, args.Contains("--json"));
             return 0;
@@ -75,7 +86,7 @@ try
         case "--recommend":
             return await RecommendAsync();
         default:
-            Console.WriteLine("Usage: VideoJaNaiUpdater.exe [--check|--apply|--components|--install <pack>|--remove <pack>|--auto|--recommend]");
+            Console.WriteLine("Usage: VideoJaNaiUpdater.exe [--check|--download|--apply [--no-relaunch]|--components|--install <pack>|--remove <pack>|--auto|--recommend]");
             return 2;
     }
 }
@@ -155,54 +166,127 @@ void CleanupLegacy()
     catch { /* cleanup must never break --check */ }
 }
 
-async Task<int> ApplyAsync()
+async Task<int> DownloadAsync()
 {
-    // The app quits right after starting us; wait for it to release file locks.
-    WaitForProcessExit(Path.GetFileNameWithoutExtension(playerExe), TimeSpan.FromSeconds(30));
-
     var release = await GetLatestReleaseAsync();
     string local = ReadLocalVersion();
     if (!IsNewer(release.Tag, local))
     {
-        Console.WriteLine($"Already up to date (v{local}). Relaunching VideoJaNai.");
-        RelaunchApp();
+        Console.WriteLine($"UP_TO_DATE {local}");
         return 0;
     }
+    if (ReadStaged(release.Tag) is null)
+    {
+        await StageAsync(release);
+    }
+    Console.WriteLine($"UPDATE_READY {release.Tag}");
+    return 0;
+}
 
-    Console.WriteLine($"Updating from v{local} to v{release.Tag}...");
-    string work = Path.Combine(Path.GetTempPath(), $"videojanai-update-{release.Tag}");
-    Directory.CreateDirectory(work);
-    string staging = Path.Combine(work, "staging");
+async Task<int> ApplyAsync(bool noRelaunch)
+{
+    // The app quits right after starting us; wait for it, and anything else running from the install
+    // (aji_encode from a preview or a stopped upscale, a background --download), to release file locks.
+    if (!WaitForInstallProcesses(TimeSpan.FromSeconds(60)))
+    {
+        if (noRelaunch)
+        {
+            // Another VideoJaNai window is still open; installing on its close covers it.
+            return 0;
+        }
+        Console.WriteLine("Close all VideoJaNai windows, then try again.");
+        return 1;
+    }
 
     try
     {
-        bool overlay = await IsOverlaySufficientAsync(release, work);
-        Console.WriteLine(overlay
-            ? "Heavy dependencies unchanged — downloading lightweight overlay update."
-            : "Dependencies changed — downloading full package (this is large).");
+        var release = await GetLatestReleaseAsync();
+        string local = ReadLocalVersion();
+        if (!IsNewer(release.Tag, local))
+        {
+            Console.WriteLine($"Already up to date (v{local}).");
+            TryDelete(() => Directory.Delete(stagingRoot, true));
+        }
+        else
+        {
+            Console.WriteLine($"Updating from v{local} to v{release.Tag}...");
+            var staged = ReadStaged(release.Tag) ?? await StageAsync(release);
 
-        string archiveEntry = overlay
-            ? await DownloadOverlayAsync(release, work)
-            : await DownloadFullAsync(release, work);
+            Console.WriteLine("Applying update (your animejanai.conf, settings and added models are kept)...");
+            ApplyOver(staged.Root, installDir, staged.Overlay);
 
-        Console.WriteLine("Extracting...");
-        Extract(archiveEntry, staging);
-
-        // For the full package the archive root is the versioned folder; the overlay is flat.
-        string sourceRoot = overlay ? staging : FindVersionedRoot(staging);
-
-        Console.WriteLine("Applying update (your animejanai.conf, settings and added models are kept)...");
-        ApplyOver(sourceRoot, installDir, overlay);
-
-        Console.WriteLine($"Update to v{release.Tag} complete.");
+            TryDelete(() => Directory.Delete(stagingRoot, true));
+            TryDelete(() => File.Delete(updateErrorFile));
+            Console.WriteLine($"Update to v{release.Tag} complete.");
+        }
     }
-    finally
+    catch (Exception ex)
     {
-        TryDelete(() => Directory.Delete(work, true));
+        // The staged files are kept, so the next attempt doesn't download again.
+        TryDelete(() => File.WriteAllText(updateErrorFile, ex.Message));
+        Console.WriteLine($"Updater error: {ex.Message}");
+        if (!noRelaunch)
+        {
+            RelaunchApp();
+        }
+        return 1;
     }
 
-    RelaunchApp();
+    if (!noRelaunch)
+    {
+        RelaunchApp();
+    }
     return 0;
+}
+
+// Downloads and unpacks the release into update-staging/, marking it complete only at the end.
+async Task<Staged> StageAsync(Release release)
+{
+    TryDelete(() => Directory.Delete(stagingRoot, true));
+    string work = Path.Combine(stagingRoot, "download");
+    string staging = Path.Combine(stagingRoot, "tree");
+    Directory.CreateDirectory(work);
+
+    bool overlay = await IsOverlaySufficientAsync(release, work);
+    Console.WriteLine(overlay
+        ? "Heavy dependencies unchanged — downloading lightweight overlay update."
+        : "Dependencies changed — downloading full package (this is large).");
+
+    string archiveEntry = overlay
+        ? await DownloadOverlayAsync(release, work)
+        : await DownloadFullAsync(release, work);
+
+    Console.WriteLine("Extracting...");
+    Extract(archiveEntry, staging);
+    TryDelete(() => Directory.Delete(work, true));
+
+    // For the full package the archive root is the versioned folder; the overlay is flat.
+    string sourceRoot = overlay ? staging : FindVersionedRoot(staging);
+    File.WriteAllText(stagingMarker, JsonSerializer.Serialize(new
+    {
+        tag = release.Tag,
+        overlay,
+        root = Path.GetRelativePath(stagingRoot, sourceRoot),
+    }));
+    return new Staged(sourceRoot, overlay);
+}
+
+// The staged update for this release, if one finished unpacking.
+Staged? ReadStaged(string tag)
+{
+    try
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(stagingMarker));
+        var r = doc.RootElement;
+        string root = Path.Combine(stagingRoot, r.GetProperty("root").GetString() ?? "");
+        return r.GetProperty("tag").GetString() == tag && Directory.Exists(root)
+            ? new Staged(root, r.GetProperty("overlay").GetBoolean())
+            : null;
+    }
+    catch
+    {
+        return null;
+    }
 }
 
 // ---- update decision -----------------------------------------------------------------------
@@ -366,6 +450,9 @@ void ApplyOver(string sourceRoot, string targetRoot, bool overlay)
     string ownExe = Environment.ProcessPath ?? "";
     string ownName = string.IsNullOrEmpty(ownExe) ? "" : Path.GetFileName(ownExe);
     string newUpdater = Path.Combine(sourceRoot, ownName);
+
+    EnsureReplaceable(sourceRoot, targetRoot, preserve, ownName);
+
     if (!string.IsNullOrEmpty(ownExe) && File.Exists(newUpdater) &&
         Path.GetFullPath(ownExe).Equals(Path.GetFullPath(Path.Combine(targetRoot, ownName)), StringComparison.OrdinalIgnoreCase))
     {
@@ -375,6 +462,30 @@ void ApplyOver(string sourceRoot, string targetRoot, bool overlay)
     }
 
     CopyTree(sourceRoot, targetRoot, sourceRoot, preserve);
+}
+
+// Fails before anything is changed when a file the update replaces is in use (another program has it
+// open), so a failed install leaves the old version intact instead of half-updated.
+static void EnsureReplaceable(string sourceRoot, string targetRoot, HashSet<string> preserve, string ownName)
+{
+    foreach (var file in Directory.EnumerateFiles(sourceRoot, "*", SearchOption.AllDirectories))
+    {
+        string rel = NormalizeRel(Path.GetRelativePath(sourceRoot, file));
+        string dst = Path.Combine(targetRoot, rel);
+        if (IsPreserved(rel, preserve) || rel.Equals(ownName, StringComparison.OrdinalIgnoreCase) || !File.Exists(dst))
+        {
+            continue;
+        }
+        try
+        {
+            using var _ = new FileStream(dst, FileMode.Open, FileAccess.ReadWrite,
+                FileShare.ReadWrite | FileShare.Delete);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            throw new IOException($"{rel} is in use by another program. Close it and try again.", e);
+        }
+    }
 }
 
 void CopyTree(string srcDir, string dstDir, string sourceRoot, HashSet<string> preserve)
@@ -514,11 +625,32 @@ void RelaunchApp()
     catch (Exception e) { Console.WriteLine($"Could not relaunch VideoJaNai: {e.Message}"); }
 }
 
-static void WaitForProcessExit(string name, TimeSpan timeout)
+// Waits until no other process runs from the install folder; false if some still do at the timeout.
+bool WaitForInstallProcesses(TimeSpan timeout)
 {
+    string root = Path.GetFullPath(installDir) + Path.DirectorySeparatorChar;
+    int self = Environment.ProcessId;
     var sw = Stopwatch.StartNew();
-    while (sw.Elapsed < timeout && Process.GetProcessesByName(name).Length > 0)
+    while (true)
     {
+        bool busy = Process.GetProcesses().Any(p =>
+        {
+            try
+            {
+                return p.Id != self && p.MainModule?.FileName is string f &&
+                       Path.GetFullPath(f).StartsWith(root, StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; } // exited, or not ours to inspect
+            finally { p.Dispose(); }
+        });
+        if (!busy)
+        {
+            return true;
+        }
+        if (sw.Elapsed >= timeout)
+        {
+            return false;
+        }
         Thread.Sleep(500);
     }
 }
@@ -1012,6 +1144,8 @@ static class Nvml
 }
 
 record Release(string Tag, List<Asset> Assets);
+// An unpacked update: the folder to copy over the install, and whether it is the overlay archive.
+record Staged(string Root, bool Overlay);
 record Asset(string Name, string Url);
 // Dep: the manifest deps key that governs the pack's content. InstalledBytes: the pack's total size
 // once extracted, to verify what is on disk really is this pack (0 for indexes that predate it).
