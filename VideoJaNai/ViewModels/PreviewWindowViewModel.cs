@@ -2,8 +2,11 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using ReactiveUI;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using VideoJaNai.Lang;
 
@@ -13,6 +16,11 @@ namespace VideoJaNai.ViewModels
     /// The preview window: a player over a --preview-session. Paused, the frame at the slider's
     /// position is shown at full size; playing streams frames at the window's size. Both carry
     /// their source frame, so Source / Upscaled switches instantly.
+    ///
+    /// Playing goes through a buffer: frames are shown at their own timestamps, not as they
+    /// arrive. A GPU that keeps up delivers them in real time (the session paces itself), so the
+    /// buffer stays small; a slower one would otherwise play in slow motion, so playback waits
+    /// for the buffer to fill and pauses to refill it, like a video site.
     /// </summary>
     public class PreviewWindowViewModel : ViewModelBase
     {
@@ -27,8 +35,20 @@ namespace VideoJaNai.ViewModels
         private double _stepPtsMs = -1;   // where frame steps have got to, ahead of the frames
         private double _frameMs = 1000.0 / 24;
         private int _outputWidth = 1920;
-        private int _playFrames;
-        private DateTime _playCountStart;
+
+        // playing: frames of the play request _playId, in arrival (= display) order
+        private const double StartBufferMs = 300;    // before the first frame is shown
+        private const double MaxBufferMs = 16000;    // the refill target stops growing here
+        private const double NearRealTime = 0.9;     // making frames at least this fast: no stalls
+        private readonly object _bufferLock = new();
+        private readonly List<PreviewFrame> _buffer = [];
+        private readonly SemaphoreSlim _arrived = new(0);
+        private long _playId = -1;
+        private bool _playEnded;
+        private CancellationTokenSource? _playCts;
+        private int _arrivals;
+        private long _arrivalCountStart;
+        private double _generateFps;
 
         public event Action? CloseRequested;
 
@@ -109,6 +129,14 @@ namespace VideoJaNai.ViewModels
             set => this.RaiseAndSetIfChanged(ref _playing, value);
         }
 
+        private double _bufferedMs;
+        /// <summary>How far the play buffer reaches (shown under the slider while playing).</summary>
+        public double BufferedMs
+        {
+            get => _bufferedMs;
+            set => this.RaiseAndSetIfChanged(ref _bufferedMs, value);
+        }
+
         private bool _showSource;
         public bool ShowSource
         {
@@ -133,7 +161,7 @@ namespace VideoJaNai.ViewModels
         public void Start()
         {
             IsReady = false;
-            Playing = false;
+            StopPlayback();
             StatusText = Resources.PreviewStartingText;
             var (session, error, title) = _startSession();
             if (session == null)
@@ -164,49 +192,50 @@ namespace VideoJaNai.ViewModels
             });
             session.LogLine += _log;
             session.FrameReceived += OnFrame;
-            session.Ended += id => Dispatcher.UIThread.Post(() =>
+            session.Ended += id =>
             {
-                if (_session != session || id != _requestId) return;
-                if (Playing)
+                if (id == Interlocked.Read(ref _playId))
                 {
-                    Playing = false;
-                    StatusText = Resources.PreviewEndText;
+                    // the play loop shows what is buffered, then stops
+                    lock (_bufferLock) _playEnded = true;
+                    _arrived.Release();
+                    return;
                 }
-                else
+                Dispatcher.UIThread.Post(() =>
                 {
+                    if (_session != session || id != _requestId) return;
                     StatusText = Resources.PreviewPastEndText;
-                }
-            });
+                });
+            };
             session.Exited += code => Dispatcher.UIThread.Post(() =>
             {
                 if (_session != session) return;   // replaced or closed on purpose
                 _session = null;
                 IsReady = false;
-                Playing = false;
+                StopPlayback();
                 StatusText = Resources.PreviewStoppedText;
             });
         }
 
-        // a frame arrives on the session's reader thread: decode there, show on the UI thread
+        // a frame arrives on the session's reader thread: a played one goes into the buffer;
+        // any other is decoded there and shown on the UI thread
         private void OnFrame(PreviewFrame f)
         {
-            Bitmap? src = null, output = null;
-            try
+            if (f.Id == Interlocked.Read(ref _playId))
             {
-                if (f.Source.Length > 0)
+                lock (_bufferLock)
                 {
-                    using var ms = new MemoryStream(f.Source);
-                    src = new Bitmap(ms);
+                    _buffer.Add(f);
+                    CountArrival();
                 }
-                using (var ms = new MemoryStream(f.Output))
-                {
-                    output = new Bitmap(ms);
-                }
+                _arrived.Release();
+                return;
             }
-            catch (Exception)
+
+            var (src, output) = Decode(f);
+            if (output == null)
             {
                 src?.Dispose();
-                output?.Dispose();
                 return;   // a bad frame only costs that frame
             }
 
@@ -216,45 +245,245 @@ namespace VideoJaNai.ViewModels
                 {
                     // from a request since replaced
                     src?.Dispose();
-                    output?.Dispose();
+                    output.Dispose();
                     return;
                 }
-                var oldSrc = _sourceImage;
-                var oldOut = _outputImage;
-                _sourceImage = src ?? oldSrc;
-                _outputImage = output;
-                this.RaisePropertyChanged(nameof(Image));
-                if (!ReferenceEquals(oldSrc, _sourceImage)) oldSrc?.Dispose();
-                oldOut?.Dispose();
-
-                _shownPtsMs = f.PtsMs;
+                SetImages(src, output, f.PtsMs);
                 _stepPtsMs = -1;
-                SetPositionQuietly(f.PtsMs);
-                if (Playing)
-                {
-                    CountPlayedFrame();
-                }
             });
         }
 
-        private void CountPlayedFrame()
+        private static (Bitmap? src, Bitmap? output) Decode(PreviewFrame f)
         {
-            var now = DateTime.UtcNow;
-            if (_playFrames == 0)
+            Bitmap? src = null;
+            try
             {
-                _playCountStart = now;
+                if (f.Source.Length > 0)
+                {
+                    using var ms = new MemoryStream(f.Source);
+                    src = new Bitmap(ms);
+                }
+                using var outMs = new MemoryStream(f.Output);
+                return (src, new Bitmap(outMs));
             }
-            _playFrames++;
-            var secs = (now - _playCountStart).TotalSeconds;
+            catch (Exception)
+            {
+                return (src, null);
+            }
+        }
+
+        // on the UI thread: shows a frame (the source frame stays if this one came without one)
+        private void SetImages(Bitmap? src, Bitmap output, long ptsMs)
+        {
+            var oldSrc = _sourceImage;
+            var oldOut = _outputImage;
+            _sourceImage = src ?? oldSrc;
+            _outputImage = output;
+            this.RaisePropertyChanged(nameof(Image));
+            if (!ReferenceEquals(oldSrc, _sourceImage)) oldSrc?.Dispose();
+            oldOut?.Dispose();
+            _shownPtsMs = ptsMs;
+            SetPositionQuietly(ptsMs);
+        }
+
+        // how fast frames are being made (under _bufferLock)
+        private void CountArrival()
+        {
+            var now = Stopwatch.GetTimestamp();
+            if (_arrivals == 0)
+            {
+                _arrivalCountStart = now;
+            }
+            _arrivals++;
+            var secs = Stopwatch.GetElapsedTime(_arrivalCountStart, now).TotalSeconds;
             if (secs >= 1)
             {
-                var fps = (_playFrames - 1) / secs;
-                var target = 1000.0 / _frameMs;
-                StatusText = fps < target * 0.95
-                    ? string.Create(Inv, $"{fps:0.0} / {target:0.###} fps - {Resources.PreviewSlowText}")
-                    : string.Create(Inv, $"{fps:0.0} / {target:0.###} fps");
-                _playFrames = 0;
+                _generateFps = (_arrivals - 1) / secs;
+                _arrivals = 0;
             }
+        }
+
+        // Plays request id from the buffer: each frame at its timestamp, on a clock that only runs
+        // while there is something to show. Buffering waits for `target` ms of frames ahead of the
+        // last one shown; running dry raises the target (2 s, then doubling up to MaxBufferMs).
+        private async Task PlayLoop(long id, double fromMs, CancellationToken ct)
+        {
+            var target = StartBufferMs;
+            var buffering = true;
+            var lastShownMs = fromMs;
+            double basePtsMs = 0;
+            long baseTicks = 0;
+            long lastStatus = 0;
+            PreviewFrame? next = null;
+            Bitmap? nextSrc = null, nextOut = null;
+            try
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    PreviewFrame? head;
+                    double bufferedEndMs;
+                    bool ended;
+                    lock (_bufferLock)
+                    {
+                        head = _buffer.Count > 0 ? _buffer[0] : null;
+                        bufferedEndMs = _buffer.Count > 0 ? _buffer[^1].PtsMs : lastShownMs;
+                        ended = _playEnded;
+                    }
+
+                    if (Stopwatch.GetElapsedTime(lastStatus).TotalMilliseconds >= 250)
+                    {
+                        lastStatus = Stopwatch.GetTimestamp();
+                        PostPlayStatus(id, buffering, bufferedEndMs - lastShownMs, target, bufferedEndMs);
+                    }
+
+                    if (head == null && ended)
+                    {
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            if (Interlocked.Read(ref _playId) != id) return;
+                            StopPlayback();
+                            StatusText = Resources.PreviewEndText;
+                        });
+                        return;
+                    }
+
+                    if (buffering)
+                    {
+                        if (head != null && (bufferedEndMs - lastShownMs >= target || ended))
+                        {
+                            buffering = false;
+                            basePtsMs = head.PtsMs;
+                            baseTicks = Stopwatch.GetTimestamp();
+                            lastStatus = 0;
+                        }
+                        else
+                        {
+                            await _arrived.WaitAsync(100, ct);
+                        }
+                        continue;
+                    }
+
+                    var clockMs = basePtsMs + Stopwatch.GetElapsedTime(baseTicks).TotalMilliseconds;
+                    if (head == null)
+                    {
+                        if (clockMs > lastShownMs + (2 * _frameMs))
+                        {
+                            buffering = true;
+                            double generate;
+                            lock (_bufferLock) generate = _generateFps;
+                            if (generate >= NearRealTime * (1000.0 / _frameMs))
+                            {
+                                // only just behind: carry on from the next frame (a few percent
+                                // slow) rather than stall for seconds to buffer
+                                target = 0;
+                            }
+                            else
+                            {
+                                // well behind: wait for more than last time
+                                target = Math.Min(Math.Max(target * 2, 2000), MaxBufferMs);
+                                lastStatus = 0;
+                            }
+                        }
+                        else
+                        {
+                            await _arrived.WaitAsync(10, ct);
+                        }
+                        continue;
+                    }
+
+                    // decode the next frame ahead of its time
+                    if (!ReferenceEquals(next, head))
+                    {
+                        nextSrc?.Dispose();
+                        nextOut?.Dispose();
+                        (nextSrc, nextOut) = Decode(head);
+                        next = head;
+                    }
+
+                    var dueInMs = head.PtsMs - clockMs;
+                    if (dueInMs > 1)
+                    {
+                        await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(dueInMs, 20)), ct);
+                        continue;
+                    }
+
+                    lock (_bufferLock)
+                    {
+                        if (_buffer.Count > 0 && ReferenceEquals(_buffer[0], head))
+                        {
+                            _buffer.RemoveAt(0);
+                        }
+                    }
+                    lastShownMs = head.PtsMs;
+                    var (src, output) = (nextSrc, nextOut);
+                    next = null;
+                    nextSrc = nextOut = null;
+                    if (output == null)
+                    {
+                        src?.Dispose();   // a bad frame only costs that frame
+                        continue;
+                    }
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (Interlocked.Read(ref _playId) != id)
+                        {
+                            src?.Dispose();
+                            output.Dispose();
+                            return;
+                        }
+                        SetImages(src, output, head.PtsMs);
+                    });
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            finally
+            {
+                nextSrc?.Dispose();
+                nextOut?.Dispose();
+            }
+        }
+
+        private void PostPlayStatus(long id, bool buffering, double aheadMs, double targetMs, double bufferedEndMs)
+        {
+            double generate;
+            lock (_bufferLock)
+            {
+                generate = _generateFps;
+            }
+            var fps = 1000.0 / _frameMs;
+            var speed = generate > 0 ? string.Create(Inv, $"{generate:0.0} / {fps:0.###} fps") : string.Empty;
+            var ahead = Math.Max(0, aheadMs) / 1000;
+            var text = buffering && targetMs > 0
+                ? string.Create(Inv, $"{Resources.PreviewBufferingText} {ahead:0.0} / {targetMs / 1000:0.0} s") +
+                  (speed.Length > 0 ? " - " + speed : string.Empty)
+                : generate > 0 && generate < fps * 0.95
+                    ? $"{speed} - {Resources.PreviewSlowText} - {string.Format(Inv, Resources.PreviewBufferedText, ahead)}"
+                    : speed;
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (Interlocked.Read(ref _playId) != id) return;
+                StatusText = text;
+                BufferedMs = bufferedEndMs;
+            });
+        }
+
+        // ends playing (if it was): the loop stops and the buffer is dropped
+        private void StopPlayback()
+        {
+            Interlocked.Exchange(ref _playId, -1);
+            _playCts?.Cancel();
+            _playCts = null;
+            lock (_bufferLock)
+            {
+                _buffer.Clear();
+                _playEnded = false;
+                _arrivals = 0;
+                _generateFps = 0;
+            }
+            Playing = false;
+            BufferedMs = 0;
         }
 
         private void SeekTo(double ms)
@@ -263,7 +492,7 @@ namespace VideoJaNai.ViewModels
             {
                 return;
             }
-            Playing = false;
+            StopPlayback();
             _session.RequestFrame(++_requestId, ms / 1000.0, 0);
         }
 
@@ -275,17 +504,23 @@ namespace VideoJaNai.ViewModels
             }
             if (Playing)
             {
-                Playing = false;
+                StopPlayback();
                 // show the frame it stopped on at full size
                 _session.RequestFrame(++_requestId, Math.Max(0, _shownPtsMs) / 1000.0, 0);
                 return;
             }
             var from = _positionMs >= _durationMs - _frameMs ? 0 : _positionMs;
+            StopPlayback();
+            var id = ++_requestId;
+            Interlocked.Exchange(ref _playId, id);
             Playing = true;
-            _playFrames = 0;
+            StatusText = Resources.PreviewBufferingText;
+            _playCts = new CancellationTokenSource();
+            var ct = _playCts.Token;
+            Task.Run(() => PlayLoop(id, from, ct));
             // never bigger than the output, and at most 1920: past that the JPEGs cost more than
             // a frame time on big screens (paused frames are full size anyway)
-            _session.Play(++_requestId, from / 1000.0, Math.Clamp(ViewWidth, 64, Math.Min(_outputWidth, 1920)));
+            _session.Play(id, from / 1000.0, Math.Clamp(ViewWidth, 64, Math.Min(_outputWidth, 1920)));
         }
 
         /// <summary>One frame back or forward (playing stops).</summary>
@@ -299,7 +534,7 @@ namespace VideoJaNai.ViewModels
             // the frames arrive
             var at = _stepPtsMs >= 0 ? _stepPtsMs : _shownPtsMs >= 0 ? _shownPtsMs : _positionMs;
             _stepPtsMs = Math.Clamp(at + (direction * _frameMs), 0, _durationMs);
-            Playing = false;
+            StopPlayback();
             SetPositionQuietly(_stepPtsMs);
             // the first frame at or after the position is shown: aim half a frame early
             _session.RequestFrame(++_requestId, Math.Max(0, _stepPtsMs - (0.5 * _frameMs)) / 1000.0, 0);
@@ -322,7 +557,7 @@ namespace VideoJaNai.ViewModels
             var s = _session;
             _session = null;
             IsReady = false;
-            Playing = false;
+            StopPlayback();
             if (s != null)
             {
                 Task.Run(s.Dispose);

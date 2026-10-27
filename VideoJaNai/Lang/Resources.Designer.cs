@@ -1087,6 +1087,24 @@ namespace VideoJaNai.Lang {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Buffering.
+        /// </summary>
+        public static string PreviewBufferingText {
+            get {
+                return ResourceManager.GetString("PreviewBufferingText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0:0.0} s buffered.
+        /// </summary>
+        public static string PreviewBufferedText {
+            get {
+                return ResourceManager.GetString("PreviewBufferedText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Select an input video first..
         /// </summary>
         public static string PreviewNoInputText {
