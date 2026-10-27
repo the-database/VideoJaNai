@@ -260,10 +260,16 @@
       
       <ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="20">
-          <!-- Workflow: name and import/export/reset (short labels, so they fit beside the
-               name at the minimum window width) -->
+          <!-- Workflow: name, expand/collapse all sections, and import/export/reset (short labels
+               and icon-only buttons, so they fit beside the name at the minimum window width) -->
           <DockPanel Margin="0,0,0,10">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0">
+              <Button Command="{Binding CurrentWorkflow.ExpandAllSections}" ToolTip.Tip="{x:Static lang:Resources.ExpandAllSectionsText}">
+                <materialIcons:MaterialIcon Kind="ExpandAll" VerticalAlignment="Center" />
+              </Button>
+              <Button Command="{Binding CurrentWorkflow.CollapseAllSections}" ToolTip.Tip="{x:Static lang:Resources.CollapseAllSectionsText}">
+                <materialIcons:MaterialIcon Kind="CollapseAll" VerticalAlignment="Center" />
+              </Button>
               <Button Click="ImportCurrentWorkflowButtonClick" ToolTip.Tip="{x:Static lang:Resources.ImportWorkflowButtonText}">
                 <StackPanel Orientation="Horizontal">
                   <materialIcons:MaterialIcon Kind="Import" VerticalAlignment="Center" />
