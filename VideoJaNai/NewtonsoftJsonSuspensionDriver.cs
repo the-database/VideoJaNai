@@ -36,13 +36,22 @@ namespace VideoJaNai
             }
         }
 
-        // ReactiveUI invalidates the state after any unhandled exception, so a crash would otherwise
-        // delete the user's saved workflows. Move it aside instead: the next launch starts fresh and
-        // the previous state stays recoverable as <file>.bak.
+        // Set once the main window is up: a crash after that isn't caused by the saved state.
+        public static bool StartupComplete { get; set; }
+
+        // ReactiveUI invalidates the state after any unhandled exception, which would otherwise
+        // delete the user's saved workflows. A crash during startup may come from the state itself,
+        // so move it aside (the next launch starts fresh, the old state stays as <file>.bak); any
+        // later crash keeps the state and only backs it up.
         public IObservable<RxVoid> InvalidateState()
         {
             if (File.Exists(_file))
-                File.Move(_file, _file + ".bak", overwrite: true);
+            {
+                if (StartupComplete)
+                    File.Copy(_file, _file + ".bak", overwrite: true);
+                else
+                    File.Move(_file, _file + ".bak", overwrite: true);
+            }
             return Signal.Return(RxVoid.Default);
         }
 

@@ -150,6 +150,9 @@
   <data name="CheckForUpdatesNowButtonText" xml:space="preserve">
     <value>Check for Updates Now</value>
   </data>
+  <data name="CollapseAllSectionsText" xml:space="preserve">
+    <value>Collapse All Sections</value>
+  </data>
   <data name="ConsoleButtonText" xml:space="preserve">
     <value>Console</value>
   </data>
@@ -170,6 +173,9 @@
   </data>
   <data name="EnsembleLabel" xml:space="preserve">
     <value>Ensemble</value>
+  </data>
+  <data name="ExpandAllSectionsText" xml:space="preserve">
+    <value>Expand All Sections</value>
   </data>
   <data name="ExportWorkflowButtonText" xml:space="preserve">
     <value>Export Workflow</value>

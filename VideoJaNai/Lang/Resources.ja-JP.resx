@@ -150,6 +150,9 @@
   <data name="CheckForUpdatesNowButtonText" xml:space="preserve">
     <value>更新を確認する</value>
   </data>
+  <data name="CollapseAllSectionsText" xml:space="preserve">
+    <value>すべてのセクションを折りたたむ</value>
+  </data>
   <data name="ConsoleButtonText" xml:space="preserve">
     <value>コンソール</value>
   </data>
@@ -170,6 +173,9 @@
   </data>
   <data name="EnsembleLabel" xml:space="preserve">
     <value>Ensemble</value>
+  </data>
+  <data name="ExpandAllSectionsText" xml:space="preserve">
+    <value>すべてのセクションを展開</value>
   </data>
   <data name="ExportWorkflowButtonText" xml:space="preserve">
     <value>Export Workflow</value>

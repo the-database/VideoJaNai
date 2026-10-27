@@ -1227,26 +1227,29 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
 
         public void ResetCurrentWorkflow()
         {
-            if (CurrentWorkflow != null)
+            if (CurrentWorkflow is UpscaleWorkflow old)
             {
-                var lines = JsonConvert.SerializeObject(Workflows[0], NewtonsoftJsonSuspensionDriver.Settings);
-                var workflow = JsonConvert.DeserializeObject<UpscaleWorkflow>(lines, NewtonsoftJsonSuspensionDriver.Settings);
-                var workflowIndex = CurrentWorkflow.WorkflowIndex;
-                var workflowName = $"Workflow {workflowIndex + 1}";
-
-                if (workflow != null)
+                var workflowIndex = old.WorkflowIndex;
+                ReplaceCurrentWorkflow(new UpscaleWorkflow
                 {
-                    var defaultWorkflow = new UpscaleWorkflow
-                    {
-                        Vm = this,
-                        WorkflowIndex = workflowIndex,
-                        WorkflowName = workflowName,
-                        UpscaleSettings = [new()],
-                    };
-
-                    CurrentWorkflow = defaultWorkflow;
-                }
+                    Vm = this,
+                    WorkflowIndex = workflowIndex,
+                    WorkflowName = $"Workflow {workflowIndex + 1}",
+                    UpscaleSettings = [new()],
+                });
             }
+        }
+
+        // Detach the replaced workflow so its subscription on this view model is disposed.
+        private void ReplaceCurrentWorkflow(UpscaleWorkflow workflow)
+        {
+            var old = CurrentWorkflow;
+            CurrentWorkflow = workflow;
+            if (old != null)
+            {
+                old.Vm = null;
+            }
+            workflow.Validate();
         }
 
         public void ReadWorkflowFileToCurrentWorkflow(string fullPath)
@@ -1261,8 +1264,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             if (workflow != null && CurrentWorkflow != null)
             {
                 workflow.WorkflowIndex = CurrentWorkflow.WorkflowIndex;
-                workflow.Vm = CurrentWorkflow.Vm;
-                CurrentWorkflow = workflow;
+                workflow.Vm = this;
+                ReplaceCurrentWorkflow(workflow);
             }
         }
 
@@ -2110,6 +2113,20 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         }
 
         // The settings page's sections, open or collapsed to their summary line (per workflow).
+        public void ExpandAllSections() => SetAllSectionsExpanded(true);
+        public void CollapseAllSections() => SetAllSectionsExpanded(false);
+
+        private void SetAllSectionsExpanded(bool expanded)
+        {
+            InputSectionExpanded = expanded;
+            SourceSectionExpanded = expanded;
+            UpscaleSectionExpanded = expanded;
+            TemporalFixSectionExpanded = expanded;
+            InterpolationSectionExpanded = expanded;
+            PostProcessingSectionExpanded = expanded;
+            OutputSectionExpanded = expanded;
+        }
+
         private bool _inputSectionExpanded = true;
         [DataMember]
         public bool InputSectionExpanded
