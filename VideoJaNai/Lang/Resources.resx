@@ -459,6 +459,12 @@
   <data name="PreviewSlowText" xml:space="preserve">
     <value>slower than real time</value>
   </data>
+  <data name="PreviewBufferingText" xml:space="preserve">
+    <value>Buffering</value>
+  </data>
+  <data name="PreviewBufferedText" xml:space="preserve">
+    <value>{0:0.0} s buffered</value>
+  </data>
   <data name="PreviewNoInputText" xml:space="preserve">
     <value>Select an input video first.</value>
   </data>

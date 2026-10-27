@@ -16,6 +16,9 @@
     <StackPanel DockPanel.Dock="Bottom" Background="#1E1E1E">
       <Slider x:Name="PositionSlider" Margin="15,0,15,0" Minimum="0" Maximum="{Binding DurationMs}"
               Value="{Binding PositionMs}" IsEnabled="{Binding IsReady}" Focusable="False" />
+      <!-- how far ahead playback is buffered (the slider's track is inset by the thumb) -->
+      <ProgressBar Margin="25,-10,25,6" Height="3" MinHeight="3" Minimum="0" Maximum="{Binding DurationMs}"
+                   Value="{Binding BufferedMs}" IsVisible="{Binding Playing}" Opacity="0.6" />
 
       <DockPanel Margin="10,0,10,8">
         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8">
