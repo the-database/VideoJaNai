@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VideoJaNaiUpdater", "VideoJ
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildVideoJaNai", "BuildVideoJaNai\BuildVideoJaNai.csproj", "{4782E322-42D1-4A45-A855-5A81E69C9D02}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VideoJaNai.Tests", "VideoJaNai.Tests\VideoJaNai.Tests.csproj", "{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{4782E322-42D1-4A45-A855-5A81E69C9D02}.Release|x64.Build.0 = Release|Any CPU
 		{4782E322-42D1-4A45-A855-5A81E69C9D02}.Release|x86.ActiveCfg = Release|Any CPU
 		{4782E322-42D1-4A45-A855-5A81E69C9D02}.Release|x86.Build.0 = Release|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Debug|x64.Build.0 = Debug|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Debug|x86.Build.0 = Debug|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Release|x64.ActiveCfg = Release|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Release|x64.Build.0 = Release|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Release|x86.ActiveCfg = Release|Any CPU
+		{0CE5E6B8-A7F6-40B1-9A6A-21E0EF9AB169}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
