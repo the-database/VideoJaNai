@@ -27,6 +27,7 @@ namespace VideoJaNai.Views
             AvaloniaXamlLoader.Load(this);
             Resized += MainWindow_Resized;
             Closing += MainWindow_Closing;
+            Closed += (_, _) => (DataContext as MainWindowViewModel)?.OnAppExit();
             Opened += MainWindow_Opened;
 
             var inputFileNameTextBox = this.FindControl<TextBox>("InputFileNameTextBox");

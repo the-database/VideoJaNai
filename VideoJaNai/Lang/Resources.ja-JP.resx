@@ -136,7 +136,7 @@
     <value>設定</value>
   </data>
   <data name="AutoUpdateDescription" xml:space="preserve">
-    <value>Whether to automatically check for and install app updates.</value>
+    <value>更新をバックグラウンドでダウンロードし、VideoJaNai の終了時にインストールします。更新の確認と表示は常に行われます。</value>
   </data>
   <data name="AutoUpdateLabel" xml:space="preserve">
     <value>自動更新</value>
