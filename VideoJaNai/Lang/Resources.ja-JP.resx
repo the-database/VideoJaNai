@@ -414,6 +414,12 @@
   <data name="PreviewSlowText" xml:space="preserve">
     <value>リアルタイムより遅い</value>
   </data>
+  <data name="PreviewBufferingText" xml:space="preserve">
+    <value>バッファ中</value>
+  </data>
+  <data name="PreviewBufferedText" xml:space="preserve">
+    <value>{0:0.0}秒バッファ済み</value>
+  </data>
   <data name="PreviewNoInputText" xml:space="preserve">
     <value>先に入力動画を選択してください。</value>
   </data>
