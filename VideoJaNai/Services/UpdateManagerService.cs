@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AnimeJaNaiConverterGui.Services
@@ -66,12 +67,67 @@ namespace AnimeJaNaiConverterGui.Services
             });
         }
 
+        public async Task<string?> DownloadUpdateAsync(Action<string>? onLine, CancellationToken ct)
+        {
+            string? ready = null;
+            const string marker = "UPDATE_READY ";
+            int rc = await RunUpdaterStreamingAsync("--download", line =>
+            {
+                var trimmed = line.Trim();
+                if (trimmed.StartsWith(marker, StringComparison.Ordinal))
+                {
+                    ready = trimmed.Substring(marker.Length).Trim();
+                }
+                else
+                {
+                    onLine?.Invoke(trimmed);
+                }
+            }, ct);
+            return rc == 0 ? ready : null;
+        }
+
+        public void ApplyUpdateOnExit()
+        {
+            if (!IsInstalled)
+            {
+                return;
+            }
+            // No window: the user has closed the app, and the next launch shows any failure.
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = UpdaterPath,
+                Arguments = "--apply --no-relaunch",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = InstallDir,
+            });
+        }
+
+        public string? TakeLastUpdateError()
+        {
+            var path = Path.Combine(InstallDir, "update-error.txt");
+            try
+            {
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+                var error = File.ReadAllText(path).Trim();
+                File.Delete(path);
+                return error;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public async Task<string> GetComponentsJsonAsync()
         {
             return IsInstalled ? await RunUpdaterAsync("--components --json") : "";
         }
 
-        public async Task<int> RunUpdaterStreamingAsync(string arguments, Action<string>? onLine)
+        public async Task<int> RunUpdaterStreamingAsync(string arguments, Action<string>? onLine, CancellationToken ct = default)
         {
             if (!IsInstalled)
             {
@@ -95,7 +151,15 @@ namespace AnimeJaNaiConverterGui.Services
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-            await process.WaitForExitAsync();
+            try
+            {
+                await process.WaitForExitAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                try { process.Kill(true); } catch { /* already exited */ }
+                throw;
+            }
             return process.ExitCode;
         }
 

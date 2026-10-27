@@ -1,6 +1,7 @@
 using AnimeJaNaiConverterGui.Services;
 using Avalonia.Collections;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace VideoJaNai.Tests
@@ -33,7 +34,10 @@ namespace VideoJaNai.Tests
         public string UpdaterPath => "";
         public Task<string?> CheckForUpdateAsync() => Task.FromResult<string?>(null);
         public void ApplyUpdateAndRestart() { }
+        public Task<string?> DownloadUpdateAsync(Action<string>? onLine, CancellationToken ct) => Task.FromResult<string?>(null);
+        public void ApplyUpdateOnExit() { }
+        public string? TakeLastUpdateError() => null;
         public Task<string> GetComponentsJsonAsync() => Task.FromResult("[]");
-        public Task<int> RunUpdaterStreamingAsync(string arguments, Action<string>? onLine) => Task.FromResult(0);
+        public Task<int> RunUpdaterStreamingAsync(string arguments, Action<string>? onLine, CancellationToken ct = default) => Task.FromResult(0);
     }
 }

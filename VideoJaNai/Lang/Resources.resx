@@ -136,7 +136,7 @@
     <value>App Settings</value>
   </data>
   <data name="AutoUpdateDescription" xml:space="preserve">
-    <value>Whether to automatically check for and install app updates.</value>
+    <value>Download updates in the background and install them when VideoJaNai is closed. Updates are always checked for and shown here.</value>
   </data>
   <data name="AutoUpdateLabel" xml:space="preserve">
     <value>Auto Update</value>

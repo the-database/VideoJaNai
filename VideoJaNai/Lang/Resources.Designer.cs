@@ -115,7 +115,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Whether to automatically check for and install app updates..
+        ///   Looks up a localized string similar to Download updates in the background and install them when VideoJaNai is closed. Updates are always checked for and shown here..
         /// </summary>
         public static string AutoUpdateDescription {
             get {
