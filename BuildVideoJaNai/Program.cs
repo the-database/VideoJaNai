@@ -69,8 +69,10 @@ var trtDebSha256 = new Dictionary<string, string>
 // --deinterlace (IVTC / bwdif), --preview (the live upscale preview) and --preview-session (the
 // preview window). v0.15.0: --square-pixels, and the final resize working with NVENC again. v0.16.0:
 // several temporal models in one chain (a temporal upscaler followed by temporal fix). v0.16.1:
-// keeps track dispositions (default/forced subtitles and audio) in the output.
-const string AjiVersion        = "v0.16.1";
+// keeps track dispositions (default/forced subtitles and audio) in the output. v0.17.x: the
+// chain_N_upscale / temporal_fix_* conf keys the Manager writes (VJN still lists temporal fix as a
+// model), so both apps ship the same engine.
+const string AjiVersion        = "v0.17.1";
 const string SevenZipVersion   = "2602";                  // 7-zip "extra" (Windows) / linux-x64 standalone console
 const string RifeModelsVersion = "models-rife-fp16-1";    // animejanai-inference rife fp16 release
 // gyan.dev ffmpeg shared build (Windows; the DLLs aji_encode links). Must match the ffmpeg major the
