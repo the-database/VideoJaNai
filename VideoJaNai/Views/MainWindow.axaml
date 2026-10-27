@@ -91,6 +91,24 @@
     <Style Selector="GridSplitter:pointerover, GridSplitter:pressed">
       <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
     </Style>
+    <!-- Dragged narrow, the sidebar shows only icons; the names move to tooltips. -->
+    <Style Selector="DockPanel.compact TextBlock.sidebarLabel">
+      <Setter Property="IsVisible" Value="False"/>
+    </Style>
+    <Style Selector="Button.sidebarItem">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <!-- beside the button, never under the pointer where it would eat the click -->
+      <Setter Property="ToolTip.Placement" Value="Right"/>
+    </Style>
+    <Style Selector="DockPanel.compact Button.sidebarItem">
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="DockPanel.compact StackPanel.sidebarHeader">
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="DockPanel:not(.compact) Button.sidebarItem">
+      <Setter Property="ToolTip.ServiceEnabled" Value="False"/>
+    </Style>
     <Style Selector="StackPanel.row">
       <Setter Property="Orientation" Value="Horizontal"/>
     </Style>
@@ -120,25 +138,26 @@
   <Grid>
     <Grid x:Name="MainGrid" RowDefinitions="*" IsVisible="{Binding !IsExtractingBackend}">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="220" MinWidth="180" MaxWidth="400" />
+        <ColumnDefinition Width="220" MinWidth="36" MaxWidth="400" />
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
 
-      <DockPanel Grid.Column="0" Background="#33000000">
+      <DockPanel x:Name="Sidebar" Grid.Column="0" Background="#33000000" SizeChanged="SidebarSizeChanged">
 
         <StackPanel DockPanel.Dock="Bottom">
-          <Button FontSize="13" Padding="10" Classes.active="{Binding ShowAppSettings}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Command="{Binding HandleAppSettingsSelected}">
+          <Button Classes="sidebarItem" FontSize="13" Padding="10" Classes.active="{Binding ShowAppSettings}"
+                  ToolTip.Tip="{x:Static lang:Resources.AppSettingsButtonText}" HorizontalAlignment="Stretch" Command="{Binding HandleAppSettingsSelected}">
             <StackPanel Orientation="Horizontal">
               <materialIcons:MaterialIcon Kind="Gear" VerticalAlignment="Center" />
-              <TextBlock Margin="5,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.AppSettingsButtonText}" />
+              <TextBlock Classes="sidebarLabel" Margin="5,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.AppSettingsButtonText}" />
             </StackPanel>
           </Button>
         </StackPanel>
 
         <StackPanel>
-          <StackPanel Orientation="Horizontal" Margin="10" ToolTip.Tip="{x:Static lang:Resources.WorkflowsTooltip}" ToolTip.ShowDelay="200">
-            <TextBlock Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.WorkflowsLabel}" />
+          <StackPanel Classes="sidebarHeader" Orientation="Horizontal" Margin="10" ToolTip.Tip="{x:Static lang:Resources.WorkflowsTooltip}" ToolTip.ShowDelay="200">
+            <TextBlock Classes="sidebarLabel" Margin="0,0,5,0" VerticalAlignment="Center" Text="{x:Static lang:Resources.WorkflowsLabel}" />
             <materialIcons:MaterialIcon Kind="QuestionMarkCircle" VerticalAlignment="Center" Opacity="0.5" />
           </StackPanel>
 
@@ -146,14 +165,14 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:UpscaleWorkflow">
                 <StackPanel>
-                  <Button FontSize="13" Padding="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                          ClickMode="Press"
+                  <Button Classes="sidebarItem" FontSize="13" Padding="10" HorizontalAlignment="Stretch"
+                          ClickMode="Press" ToolTip.Tip="{Binding WorkflowName}"
                           Classes.active="{Binding ActiveWorkflow}"
                           Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).HandleWorkflowSelected}"
                           CommandParameter="{Binding WorkflowIndex}">
                     <DockPanel>
                       <materialIcons:MaterialIcon Kind="{Binding WorkflowIcon}" VerticalAlignment="Center" />
-                      <TextBlock Margin="5,0,5,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Text="{Binding WorkflowName}" />
+                      <TextBlock Classes="sidebarLabel" Margin="5,0,5,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Text="{Binding WorkflowName}" />
                     </DockPanel>
                   </Button>
                 </StackPanel>
