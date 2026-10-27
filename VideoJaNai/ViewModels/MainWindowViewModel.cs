@@ -798,6 +798,16 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                 }
             }
 
+            // Temporal fix runs after the upscaling models at the upscaled resolution (highest quality:
+            // it also steadies shimmer the upscaler adds; the engine stacks it after a temporal
+            // upscaling model), or first, at the source resolution (2-3x faster).
+            var temporalFix = CurrentWorkflow.EnableTemporalFix ? TemporalFixModelPath(CurrentWorkflow.TemporalFixStrength ?? 2) : null;
+            var temporalFixFirst = temporalFix != null && CurrentWorkflow.TemporalFixBeforeUpscale;
+            if (temporalFixFirst)
+            {
+                AppendModel(temporalFix!, 0, 100M, CurrentWorkflow.TemporalFixSceneThreshold);
+            }
+
             for (var i = 0; CurrentWorkflow.EnableUpscale && i < CurrentWorkflow.UpscaleSettings.Count; i++)
             {
                 // Temporal models: the window size comes from the onnx itself; only the scene-change
@@ -808,9 +818,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                                 ? model.TemporalSceneThreshold : null);
             }
 
-            // Temporal fix runs last, at the upscaled resolution: the engine stacks it after a temporal
-            // upscaling model.
-            if (CurrentWorkflow.EnableTemporalFix && TemporalFixModelPath(CurrentWorkflow.TemporalFixStrength ?? 2) is string temporalFix)
+            if (temporalFix != null && !temporalFixFirst)
             {
                 AppendModel(temporalFix, 0, 100M, CurrentWorkflow.TemporalFixSceneThreshold);
             }
@@ -2212,7 +2220,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
 
         public string TemporalFixSummary => !EnableTemporalFix
             ? Off
-            : string.Format(CultureInfo.CurrentCulture, VideoJaNai.Lang.Resources.TemporalFixSummaryText, TemporalFixStrength);
+            : string.Format(CultureInfo.CurrentCulture, VideoJaNai.Lang.Resources.TemporalFixSummaryText, TemporalFixStrength)
+              + (EnableUpscale && TemporalFixBeforeUpscale ? " · " + VideoJaNai.Lang.Resources.TemporalFixBeforeUpscaleSummaryText : "");
 
         public string InterpolationSummary => !EnableRife
             ? Off
@@ -2307,6 +2316,16 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         {
             get => _rifeBeforeUpscale;
             set => this.RaiseAndSetIfChanged(ref _rifeBeforeUpscale, value);
+        }
+
+        // Run temporal fix at the source resolution before upscaling (2-3x faster) instead of on the
+        // upscaled frames (highest quality, the default: an encode has no realtime budget).
+        private bool _temporalFixBeforeUpscale = false;
+        [DataMember]
+        public bool TemporalFixBeforeUpscale
+        {
+            get => _temporalFixBeforeUpscale;
+            set => this.RaiseAndSetIfChanged(ref _temporalFixBeforeUpscale, value);
         }
 
         private bool _showAdvancedSettings = false;

@@ -497,6 +497,9 @@
                 <ContentControl Classes="hint" Content="{x:Static lang:Resources.TemporalSceneThresholdLabel}" ToolTip.Tip="{x:Static lang:Resources.TemporalFixSceneThresholdDescription}" />
                 <NumericUpDown Value="{Binding CurrentWorkflow.TemporalFixSceneThreshold}" Minimum="0" FormatString="0.000" Maximum="1" Increment="0.01" />
               </StackPanel>
+              <ContentControl Classes="hint" HorizontalAlignment="Left" IsEnabled="{Binding CurrentWorkflow.EnableUpscale}" ToolTip.Tip="{x:Static lang:Resources.TemporalFixBeforeUpscaleDescription}">
+                <CheckBox IsChecked="{Binding CurrentWorkflow.TemporalFixBeforeUpscale}" Content="{x:Static lang:Resources.TemporalFixBeforeUpscaleLabel}" />
+              </ContentControl>
             </StackPanel>
           </Expander>
 

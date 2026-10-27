@@ -1264,6 +1264,33 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Fix before upscaling.
+        /// </summary>
+        public static string TemporalFixBeforeUpscaleLabel {
+            get {
+                return ResourceManager.GetString("TemporalFixBeforeUpscaleLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Run temporal fix at the source resolution before upscaling. It is 2-3x faster. Leave unchecked for the highest quality: temporal fix then runs on the upscaled frames and also steadies shimmer added by the upscaler.
+        /// </summary>
+        public static string TemporalFixBeforeUpscaleDescription {
+            get {
+                return ResourceManager.GetString("TemporalFixBeforeUpscaleDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to before upscaling.
+        /// </summary>
+        public static string TemporalFixBeforeUpscaleSummaryText {
+            get {
+                return ResourceManager.GetString("TemporalFixBeforeUpscaleSummaryText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Temporal fix · strength {0}.
         /// </summary>
         public static string TemporalFixSummaryText {
