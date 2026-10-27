@@ -85,6 +85,15 @@ namespace VideoJaNai.Views
             }
         }
 
+        // too narrow for names: icons only
+        private void SidebarSizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            if (sender is Control sidebar)
+            {
+                sidebar.Classes.Set("compact", e.NewSize.Width < 120);
+            }
+        }
+
         private async void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
         {
             if (DataContext is MainWindowViewModel vm)
