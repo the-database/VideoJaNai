@@ -522,6 +522,15 @@
   <data name="TemporalFixSummaryText" xml:space="preserve">
     <value>Temporal fix · strength {0}</value>
   </data>
+  <data name="TemporalFixBeforeUpscaleLabel" xml:space="preserve">
+    <value>Fix before upscaling</value>
+  </data>
+  <data name="TemporalFixBeforeUpscaleDescription" xml:space="preserve">
+    <value>Run temporal fix at the source resolution before upscaling. It is 2-3x faster. Leave unchecked for the highest quality: temporal fix then runs on the upscaled frames and also steadies shimmer added by the upscaler.</value>
+  </data>
+  <data name="TemporalFixBeforeUpscaleSummaryText" xml:space="preserve">
+    <value>before upscaling</value>
+  </data>
   <data name="TemporalFixModelMissingText" xml:space="preserve">
     <value>The temporal fix model for this strength is missing from the models folder. Update or reinstall VideoJaNai.</value>
   </data>
