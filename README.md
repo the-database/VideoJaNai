@@ -9,7 +9,8 @@ Download either the AppImage or the `linux-x64.tar.zst` from the [latest release
 - **AppImage**: make it executable and run it. Run it once with `--install` to add a menu entry. The TensorRT kernels for your GPU and the RIFE models download on first launch into `~/.local/share/VideoJaNai`.
 - **Tarball**: extract it anywhere and run `./install.sh` from inside the extracted folder. This adds a menu entry and installs the components for your GPU. The folder stays in place and updates itself in-app.
 
-![image](https://github.com/the-database/VideoJaNai/assets/25811902/83cc315b-8a5a-4c39-b114-5057edab5c9c)
+<img width="1908" height="1019" alt="image" src="https://github.com/user-attachments/assets/5592bbed-b0af-4624-9d87-1f4081458ad7" />
+
 
 
 
