@@ -1517,6 +1517,19 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             set => this.RaiseAndSetIfChanged(ref _lastRunVersion, value);
         }
 
+        // Whether a saved state was on disk at startup (App sets it before loading): false on a
+        // fresh install, whose state comes from the bundled defaults.
+        [IgnoreDataMember]
+        public bool HadSavedState { get; set; }
+
+        // An update, so time to refresh the component packs: the version changed since the last run.
+        // States saved by 2.8.1 and older have no LastRunVersion, but a saved state means the app ran
+        // before, so that's an update too (otherwise nobody updating from them would get the
+        // trt-rtx pack or a refreshed one). A fresh install has no saved state and keeps the packs its
+        // installer's component page picked.
+        public static bool IsFirstLaunchAfterUpdate(string? lastRunVersion, string version, bool hadSavedState) =>
+            string.IsNullOrEmpty(lastRunVersion) ? hadSavedState : lastRunVersion != version;
+
         public async Task CheckAndExtractBackend()
         {
             // Components are installed by the Inno setup's component page. On launch, verify the
@@ -1528,7 +1541,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             // packs newly recommended for this GPU (trt-rtx on RTX 20 / GTX 16-series and newer). A
             // failed refresh keeps the components already installed, so it doesn't block the app.
             var version = _updateManagerService.AppVersion;
-            var updated = !string.IsNullOrEmpty(LastRunVersion) && LastRunVersion != version;
+            var updated = IsFirstLaunchAfterUpdate(LastRunVersion, version, HadSavedState);
             LastRunVersion = version;
             var missing = !_pythonService.IsInferenceInstalled();
             if (!_updateManagerService.IsInstalled || (!missing && !updated))
