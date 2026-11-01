@@ -915,9 +915,12 @@ List<string> RecommendedPacks(PackIndex index, bool hasNvidia, string sm)
 
 // Whether TensorRT-RTX is the default backend for a GPU, by its "sm<major><minor>" compute
 // capability (the CUDA minor is one digit: sm86 = 8.6, sm120 = 12.0). TensorRT-RTX 1.7's support
-// matrix lists 7.5, 8.6, 8.9, 12.0 and 12.1, so: sm86 (RTX 30-series), sm89 (RTX 40) and sm120 and
-// newer (RTX 50 and later). Not Turing (sm75: supported, but without FP32 GEMMs and 3D
-// convolutions), and not the data-center parts it doesn't list (sm80 A100, sm90 H100, sm100 B200).
+// matrix lists 7.5, 8.6, 8.9, 12.0 and 12.1, so: sm75 (GTX 16 / RTX 20-series), sm86 (RTX 30),
+// sm89 (RTX 40) and sm120 and newer (RTX 50 and later); not the data-center parts it doesn't list
+// (sm80 A100, sm90 H100, sm100/sm103 B200/B300, sm110 Thor). Turing is included although
+// TensorRT-RTX supports neither FP32 GEMMs nor 3D convolutions there: VideoJaNai's models (the
+// AnimeJaNai SPAN models, temporalfix, RIFE) use neither, and libaji falls back to TensorRT for a
+// model that does.
 static bool TensorRtRtxDefaultGpu(string sm)
 {
     var digits = sm.Trim();
@@ -930,7 +933,7 @@ static bool TensorRtRtxDefaultGpu(string sm)
         return false;
     }
     int minor = digits[^1] - '0';
-    return (major == 8 && (minor == 6 || minor == 9)) || major >= 12;
+    return (major == 7 && minor == 5) || (major == 8 && (minor == 6 || minor == 9)) || major >= 12;
 }
 
 bool ComponentsNeverManaged() => !File.Exists(Path.Combine(installDir, "components.json"));
