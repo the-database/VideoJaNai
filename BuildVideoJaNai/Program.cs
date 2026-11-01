@@ -3,9 +3,9 @@
 //
 // Assembles the redistributable install tree (the VideoJaNai app + VideoJaNaiUpdater + the libaji
 // inference dir + ONNX models) and, under --packs, carves the heavy hardware-specific pieces
-// (TensorRT runtime, per-GPU-generation builder resources, RIFE models) into component-*.7z +
-// packs.json release assets, then slims them out of the core. End users only ever download the
-// small core + their GPU's component packs.
+// (TensorRT runtime, per-GPU-generation builder resources, RIFE models, the opt-in TensorRT-RTX
+// backend) into component-*.7z + packs.json release assets, then slims them out of the core. End
+// users only ever download the small core + their GPU's component packs.
 //
 //   BuildVideoJaNai <version> [--target win-x64|linux-x64] [--app-dir <dir>] [--updater <exe>] [--packs [--offline]]
 //   BuildVideoJaNai <version> --packs-only [dir]   (emit packs from an existing tree)
@@ -21,9 +21,12 @@
 //   TRT_LINUX_ROOT         -> an existing TensorRT install root holding lib/x86_64-linux-gnu + bin (Linux)
 //   CUDA_LINUX_LIB         -> a directory holding libcudart.so* (Linux)
 //   VIDEOJANAI_FFMPEG_DIR  -> a local extracted gyan ffmpeg shared dir (with bin/) (Windows)
-//   AJI_LOCAL_ZIP          -> a locally built aji-windows-x64.zip (Windows)
+//   AJI_LOCAL_ZIP          -> a locally built aji-windows-x64.zip (Windows; the main aji asset only)
+//   AJI_LOCAL_TRTRTX_ZIP   -> a locally built aji-trtrtx-windows-x64.zip (Windows; the TensorRT-RTX
+//                             asset). Local zips skip the SHA-256 check the downloads get.
 //   AJI_LOCAL_DIR          -> a directory of aji files copied flat into animejanai/inference (both;
-//                             on Linux: libaji.so, libaji_trt.so, aji_encode + its libav libs)
+//                             on Linux: libaji.so, libaji_trt.so, aji_encode + its libav libs;
+//                             on Windows, include the TensorRT-RTX files to get the trt-rtx pack)
 using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.Zip;
 using SevenZipExtractor;
@@ -71,10 +74,22 @@ var trtDebSha256 = new Dictionary<string, string>
 // several temporal models in one chain (a temporal upscaler followed by temporal fix). v0.16.1:
 // keeps track dispositions (default/forced subtitles and audio) in the output. v0.17.x: the
 // chain_N_upscale / temporal_fix_* conf keys the Manager writes (VJN still lists temporal fix as a
-// model), so both apps ship the same engine.
-const string AjiVersion        = "v0.17.1";
+// model), so both apps ship the same engine. v0.18.x: the still-image ABI (aji_image.h) and its
+// DirectML device ids; nothing VJN uses, the video path is unchanged. v0.19.0: DirectML ~35-40%
+// faster (each session's input dims pinned) and the optional TensorRT-RTX backend (aji_trtrtx.dll),
+// published as its own Windows asset, aji-trtrtx-windows-x64.zip, which ships as the trt-rtx pack.
+const string AjiVersion        = "v0.19.0";
+// The aji release publishes no checksums; recorded from the release assets.
+var ajiSha256Win = new Dictionary<string, string>
+{
+    ["aji-windows-x64.zip"]        = "adab29cab85efa3471a9422f6ea82a69e925064acec9b1a0bd341db89a36c419",
+    ["aji-trtrtx-windows-x64.zip"] = "03f7874141fb046fe2cee340f0de9047eb6eacc07a8c95cf4331654017b17906",
+};
 const string SevenZipVersion   = "2602";                  // 7-zip "extra" (Windows) / linux-x64 standalone console
-const string RifeModelsVersion = "models-rife-fp16-1";    // animejanai-inference rife fp16 release
+// animejanai-inference RIFE fp16 release. Set 2 only names the inputs' H/W dims (DirectML pins them);
+// outputs are bit-identical to set 1 and TensorRT engines carry over (cached by file name).
+const string RifeModelsVersion = "models-rife-fp16-2";
+const string RifeModelsAsset   = "rife-fp16-2.7z";
 // gyan.dev ffmpeg shared build (Windows; the DLLs aji_encode links). Must match the ffmpeg major the
 // aji release's aji_encode.exe was built against (aji v0.12.0: 9.0.2 -> avcodec-63.dll).
 const string FfmpegVersion     = "9.0.2";
@@ -360,14 +375,19 @@ async Task InstallAji()
         return;
     }
 
-    var localZip = Environment.GetEnvironmentVariable("AJI_LOCAL_ZIP");
+    // Windows: each asset has its own local override (the TensorRT-RTX zip extracts over the main one).
+    var localZips = new Dictionary<string, string?>
+    {
+        ["aji-windows-x64.zip"]        = Environment.GetEnvironmentVariable("AJI_LOCAL_ZIP"),
+        ["aji-trtrtx-windows-x64.zip"] = Environment.GetEnvironmentVariable("AJI_LOCAL_TRTRTX_ZIP"),
+    };
     foreach (var asset in plat.AjiAssets)
     {
         string targetPath;
         bool temp = false;
-        if (plat.IsWindows && !string.IsNullOrEmpty(localZip))
+        if (plat.IsWindows && localZips.GetValueOrDefault(asset) is { Length: > 0 } localZip)
         {
-            Console.WriteLine($"Using local aji build: {localZip}");
+            Console.WriteLine($"Using local aji build for {asset}: {localZip}");
             targetPath = localZip;
         }
         else
@@ -377,6 +397,10 @@ async Task InstallAji()
             targetPath = Path.GetFullPath(asset);
             temp = true;
             await DownloadFileAsync(downloadUrl, targetPath, p => Console.WriteLine($"Downloading {asset} ({p}%)..."));
+            if (plat.IsWindows)
+            {
+                VerifySha256(targetPath, ajiSha256Win[asset]);
+            }
         }
 
         if (plat.IsWindows)
@@ -473,7 +497,7 @@ async Task InstallOrtDml()
 async Task InstallRife()
 {
     Console.WriteLine("Downloading RIFE fp16 models...");
-    var downloadUrl = $"https://github.com/the-database/animejanai-inference/releases/download/{RifeModelsVersion}/rife-fp16-1.7z";
+    var downloadUrl = $"https://github.com/the-database/animejanai-inference/releases/download/{RifeModelsVersion}/{RifeModelsAsset}";
     var targetPath = Path.GetFullPath("rife-fp16.7z");
     await DownloadFileAsync(downloadUrl, targetPath, p => Console.WriteLine($"Downloading RIFE fp16 models ({p}%)..."));
 
@@ -543,8 +567,16 @@ void WriteThirdPartyNotices()
           "DirectML Redistributable Package under the Microsoft Software License Terms\n" +
           "shipped alongside it as DirectML_LICENSE.txt (use on Windows and Xbox only).\n\n"
         : "";
+    // Windows: the optional trt-rtx component, from the aji release's TensorRT-RTX asset.
+    var trtRtx = plat.IsWindows
+        ? "NVIDIA TensorRT for RTX runtime (tensorrt_rtx_*.dll, tensorrt_onnxparser_rtx_*.dll;\n" +
+          "the optional trt-rtx component), redistributed under the NVIDIA TensorRT for RTX\n" +
+          "Software License Agreement; see TensorRT-RTX-NOTICE.txt, with NVIDIA's own\n" +
+          "acknowledgements in TensorRT-RTX-Acknowledgements.txt. Both ship with the files\n" +
+          "they cover.\n\n"
+        : "";
     var ajiNames = plat.IsWindows
-        ? "aji.dll / aji_trt.dll / aji_dml.dll / aji_encode.exe / aji_harness*.exe /\naji_kernel_test.exe"
+        ? "aji.dll / aji_trt.dll / aji_trtrtx.dll / aji_dml.dll / aji_encode.exe /\naji_harness*.exe / aji_kernel_test.exe"
         : "libaji.so / libaji_trt.so / aji_encode / aji_harness / aji_kernel_test";
     var notice =
         "Third-party components in this directory\n" +
@@ -557,6 +589,7 @@ void WriteThirdPartyNotices()
         "TensorRT_Acknowledgements.txt.\n\n" +
         $"{ffmpeg}\n\n" +
         dml +
+        trtRtx +
         $"{ajiNames}:\n" +
         "https://github.com/the-database/animejanai-inference\n";
     File.WriteAllText(Path.Combine(inferencePath, "THIRD_PARTY_NOTICES.txt"), notice);
@@ -751,8 +784,9 @@ async Task Main()
     Console.WriteLine($"Built {installDirectory}");
 }
 
-// The released full-package is the slim core: TensorRT runtime, per-GPU builder resources, and RIFE
-// models ship only as component packs, installed on demand. Keeps the base download small.
+// The released full-package is the slim core: TensorRT runtime, per-GPU builder resources, RIFE
+// models and TensorRT-RTX ship only as component packs, installed on demand. Keeps the base download
+// small.
 void SlimInstallTree(List<string> packFiles)
 {
     Console.WriteLine("Slimming install tree (component packs ship separately)...");
@@ -865,6 +899,20 @@ async Task<List<string>> EmitComponentPacks()
             })
             .Select(f => Path.GetRelativePath(installDirectory, f)).ToArray()),
         ("rife", "rife", new[] { Path.GetRelativePath(installDirectory, rifePath) }),
+        // TensorRT-RTX (Windows, opt-in, experimental): the aji release's aji-trtrtx asset. Governed
+        // by the aji dep, not inference_runtime: aji_trtrtx.dll has to match the core's aji.dll, so
+        // the pack reinstalls whenever aji moves. Needs trt-runtime too (cudart; and the TensorRT
+        // fallback), which the app checks.
+        ("trt-rtx", "aji", Directory.GetFiles(inferencePath)
+            .Where(f =>
+            {
+                var n = Path.GetFileName(f);
+                return n.Equals("aji_trtrtx.dll", StringComparison.OrdinalIgnoreCase) ||
+                       n.StartsWith("tensorrt_rtx_", StringComparison.OrdinalIgnoreCase) ||
+                       n.StartsWith("tensorrt_onnxparser_rtx_", StringComparison.OrdinalIgnoreCase) ||
+                       n.StartsWith("TensorRT-RTX-", StringComparison.OrdinalIgnoreCase);
+            })
+            .Select(f => Path.GetRelativePath(installDirectory, f)).ToArray()),
     };
     foreach (var f in Directory.GetFiles(inferencePath, "*builder_resource_*"))
     {
@@ -981,7 +1029,8 @@ record Platform(
         Os: TargetOs.Windows,
         Rid: "win-x64",
         ArchiveTool: "7za.exe",
-        AjiAssets: new[] { "aji-windows-x64.zip" },
+        // the TensorRT-RTX asset extracts over the main one; EmitComponentPacks carves it into trt-rtx
+        AjiAssets: new[] { "aji-windows-x64.zip", "aji-trtrtx-windows-x64.zip" },
         InferenceRuntimeFiles: new[] { "nvinfer_11.dll", "nvinfer_plugin_11.dll", "nvonnxparser_11.dll", "trtexec.exe" },
         InferenceRuntimePrefixes: new[] { "cudart64_", "nvinfer_builder_resource_" });
 
