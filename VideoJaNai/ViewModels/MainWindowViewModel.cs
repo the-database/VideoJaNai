@@ -172,12 +172,13 @@ namespace VideoJaNai.ViewModels
 
         // The NVIDIA backend when DirectML isn't selected (TensorRT-RTX is Windows only): true for
         // TensorRT-RTX, false for TensorRT, null while the user hasn't picked one, which means
-        // TensorRT-RTX whenever its component is installed (the updater installs it on RTX 30-series
-        // and newer, where it's the default) and TensorRT otherwise. States saved by versions without
-        // the field load as null, so they get the same default. A flag next to UseDirectMl rather
-        // than a backend enum: an older VideoJaNai reading a newer state sees UseDirectMl=false and
-        // runs TensorRT, which is what TensorRT-RTX falls back to anyway. Null is never written, so
-        // a version that has the field as a plain bool still loads a state saved here.
+        // TensorRT-RTX whenever its component is installed (the updater installs it on RTX 20 /
+        // GTX 16-series and newer, where it's the default) and TensorRT otherwise. States saved by
+        // versions without the field load as null, so they get the same default. A flag next to
+        // UseDirectMl rather than a backend enum: an older VideoJaNai reading a newer state sees
+        // UseDirectMl=false and runs TensorRT, which is what TensorRT-RTX falls back to anyway. Null
+        // is never written, so a version that has the field as a plain bool still loads a state
+        // saved here.
         private bool? _useTensorRtRtx;
         [DataMember]
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
@@ -1401,8 +1402,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             // The first launch after an update runs --auto too: an app update replaces the core but
             // not the component packs, and a pack whose dep moved (a TensorRT, RIFE or aji bump; the
             // trt-rtx pack must match aji.dll) is stale until --auto reinstalls it, and it installs
-            // packs newly recommended for this GPU (trt-rtx on RTX 30-series and newer). A failed
-            // refresh keeps the components already installed, so it doesn't block the app.
+            // packs newly recommended for this GPU (trt-rtx on RTX 20 / GTX 16-series and newer). A
+            // failed refresh keeps the components already installed, so it doesn't block the app.
             var version = _updateManagerService.AppVersion;
             var updated = !string.IsNullOrEmpty(LastRunVersion) && LastRunVersion != version;
             LastRunVersion = version;
@@ -1489,8 +1490,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                     // has (installed, so it can be removed), is offered by default (preselect), or RIFE
                     // (always a user choice). Per-SM kernel packs for other GPU generations and the
                     // TensorRT stack on non-NVIDIA boxes are hidden — the updater CLI still lists them all.
-                    // TensorRT-RTX is recommended only on the GPUs where it's the default (RTX 30-series
-                    // and newer), so it is offered here to every NVIDIA GPU on Windows.
+                    // TensorRT-RTX is recommended only on the GPUs where it's the default (RTX 20 /
+                    // GTX 16-series and newer), so it is offered here to every NVIDIA GPU on Windows.
                     bool optIn = name == "trt-rtx" && nvidia && UpscaleWorkflow.TensorRtRtxAvailable;
                     if (!installed && !recommended && !preselect && name != "rife" && !optIn)
                     {
@@ -1758,7 +1759,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         public string Description => Name switch
         {
             "trt-runtime" => "The fastest upscaling engine, for NVIDIA GPUs. Without it, upscaling falls back to the slower DirectML engine.",
-            "trt-rtx" => "TensorRT-RTX backend: builds engines in seconds instead of minutes, without trtexec. The default on GeForce RTX 30 series and newer, where it's installed automatically. Needs the TensorRT runtime too, which it falls back to.",
+            "trt-rtx" => "TensorRT-RTX backend: builds engines in seconds instead of minutes, without trtexec. The default on GeForce RTX 20 / GTX 16 series and newer, where it's installed automatically. Needs the TensorRT runtime too, which it falls back to.",
             "rife" => "Frame interpolation (e.g. 24 → 48 fps). Not needed if you only upscale.",
             "trt-ptx" => "Fallback kernels for NVIDIA GPUs without a dedicated kernel pack. The first engine build is slower.",
             _ when Name.StartsWith("trt-sm") => "Engine-builder kernels matched to your GPU generation.",

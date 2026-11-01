@@ -900,10 +900,10 @@ async Task<List<string>> EmitComponentPacks()
             })
             .Select(f => Path.GetRelativePath(installDirectory, f)).ToArray()),
         ("rife", "rife", new[] { Path.GetRelativePath(installDirectory, rifePath) }),
-        // TensorRT-RTX (Windows; recommended on RTX 30-series and newer): the aji release's
-        // aji-trtrtx asset. Governed by the aji dep, not inference_runtime: aji_trtrtx.dll has to
-        // match the core's aji.dll, so the pack reinstalls whenever aji moves. Needs trt-runtime too (cudart; and the TensorRT
-        // fallback), which the app checks.
+        // TensorRT-RTX (Windows; recommended on RTX 20 / GTX 16-series and newer): the aji
+        // release's aji-trtrtx asset. Governed by the aji dep, not inference_runtime: aji_trtrtx.dll
+        // has to match the core's aji.dll, so the pack reinstalls whenever aji moves. Needs
+        // trt-runtime too (cudart; and the TensorRT fallback), which the app checks.
         ("trt-rtx", "aji", Directory.GetFiles(inferencePath)
             .Where(f =>
             {

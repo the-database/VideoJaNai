@@ -72,7 +72,7 @@ var
   GpuName: String;
   HasNvidia: Boolean;
   TrtPacks: String;   // comma-separated, detected at wizard start (best-effort); includes trt-rtx
-                      // (TensorRT-RTX, installed next to TensorRT) on RTX 30-series and newer
+                      // (TensorRT-RTX, installed next to TensorRT) on RTX 20 / GTX 16-series and newer
   RifePack: String;
 
 // Run VideoJaNaiUpdater.exe --recommend (from the given exe path), capturing its KEY=value lines

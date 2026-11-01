@@ -817,7 +817,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to NVIDIA only. The default on GeForce RTX 30 series and newer GPUs, where its component is installed a....
+        ///   Looks up a localized string similar to NVIDIA only. The default on GeForce RTX 20 / GTX 16 series and newer GPUs, where its component is in....
         /// </summary>
         public static string UpscalingBackendDescriptionTensorRtRtx {
             get {
