@@ -405,6 +405,9 @@
   <data name="PreviewBuildingEngineText" xml:space="preserve">
     <value>TensorRTエンジンを構築中です。この設定を初めて使うときだけ必要で、数分かかることがあります。</value>
   </data>
+  <data name="BackendFallbackStatusText" xml:space="preserve">
+    <value>TensorRT-RTXが失敗したため、TensorRTを使用しています</value>
+  </data>
   <data name="PreviewBuildingEngineTextTensorRtRtx" xml:space="preserve">
     <value>TensorRT-RTXエンジンを構築中です。この設定を初めて使うときだけ必要で、数秒で終わります。</value>
   </data>

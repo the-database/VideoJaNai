@@ -489,6 +489,21 @@ namespace VideoJaNai.ViewModels
             }
         }
 
+        // libaji's last TensorRT-RTX -> TensorRT fallback this run (see BackendFallback): a warning in
+        // the status bar, with the full message as its tooltip, until the next run starts.
+        private string _backendFallbackText = string.Empty;
+        public string BackendFallbackText
+        {
+            get => _backendFallbackText;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _backendFallbackText, value);
+                this.RaisePropertyChanged(nameof(ShowBackendFallback));
+            }
+        }
+
+        public bool ShowBackendFallback => !string.IsNullOrEmpty(BackendFallbackText);
+
         public string LeftStatus => !CurrentWorkflow.Valid ? ValidationText.Replace("\n", " ") : $"{InputStatusText} selected for upscaling.";
 
         private bool _componentsBusy = false;
@@ -929,6 +944,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             //{
             ct.ThrowIfCancellationRequested();
             ConsoleQueueClear();
+            BackendFallbackText = string.Empty;
             _preview?.RequestClose();
             Upscaling = true;
             SetupAnimeJaNaiConfSlot1();
@@ -1158,6 +1174,10 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                         {
                             outputFile.WriteLine(e.Data); // Write the output to the log file
                             ConsoleQueueEnqueue(e.Data);
+                            if (BackendFallback.FromAjiLog(e.Data) is string fallback)
+                            {
+                                BackendFallbackText = fallback;
+                            }
                         }
                     };
 

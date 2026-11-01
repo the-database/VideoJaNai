@@ -85,6 +85,20 @@ namespace VideoJaNai.ViewModels
             set => this.RaiseAndSetIfChanged(ref _statusText, value);
         }
 
+        // This session's TensorRT-RTX -> TensorRT fallback (see BackendFallback), shown as a warning.
+        private string _backendFallbackText = string.Empty;
+        public string BackendFallbackText
+        {
+            get => _backendFallbackText;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _backendFallbackText, value);
+                this.RaisePropertyChanged(nameof(ShowBackendFallback));
+            }
+        }
+
+        public bool ShowBackendFallback => !string.IsNullOrEmpty(BackendFallbackText);
+
         private double _durationMs = 1;
         public double DurationMs
         {
@@ -166,6 +180,7 @@ namespace VideoJaNai.ViewModels
             IsReady = false;
             StopPlayback();
             StatusText = Resources.PreviewStartingText;
+            BackendFallbackText = string.Empty;
             var (session, error, title) = _startSession();
             if (session == null)
             {
@@ -194,6 +209,16 @@ namespace VideoJaNai.ViewModels
                 }
             });
             session.LogLine += _log;
+            session.LogLine += line =>
+            {
+                if (BackendFallback.FromAjiLog(line) is string fallback)
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (_session == session) BackendFallbackText = fallback;
+                    });
+                }
+            };
             session.FrameReceived += OnFrame;
             session.Ended += id =>
             {
