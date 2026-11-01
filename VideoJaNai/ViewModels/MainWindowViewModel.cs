@@ -166,20 +166,50 @@ namespace VideoJaNai.ViewModels
             set
             {
                 this.RaiseAndSetIfChanged(ref _useDirectMl, value);
-                this.RaisePropertyChanged(nameof(TensorRtBackendSelected));
-                this.RaisePropertyChanged(nameof(DirectMlBackendSelected));
-                foreach (var wf in Workflows ?? [])
-                {
-                    wf.BackendChanged();
-                }
+                BackendChanged();
+            }
+        }
+
+        // TensorRT-RTX (opt-in, experimental, Windows only) when DirectML isn't selected. A flag next
+        // to UseDirectMl rather than a backend enum: a state saved before it existed loads unchanged
+        // (missing = false), and an older VideoJaNai reading a newer state sees UseDirectMl=false and
+        // runs TensorRT, which is what TensorRT-RTX falls back to anyway.
+        private bool _useTensorRtRtx;
+        [DataMember]
+        public bool UseTensorRtRtx
+        {
+            get => _useTensorRtRtx;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _useTensorRtRtx, value);
+                BackendChanged();
+            }
+        }
+
+        private void BackendChanged()
+        {
+            this.RaisePropertyChanged(nameof(TensorRtBackendSelected));
+            this.RaisePropertyChanged(nameof(TensorRtRtxBackendSelected));
+            this.RaisePropertyChanged(nameof(DirectMlBackendSelected));
+            foreach (var wf in Workflows ?? [])
+            {
+                wf.BackendChanged();
             }
         }
 
         public bool DirectMlBackendSelected => UseDirectMl == true && UpscaleWorkflow.DirectMlAvailable;
-        public bool TensorRtBackendSelected => !DirectMlBackendSelected;
+        public bool TensorRtRtxBackendSelected => !DirectMlBackendSelected && UseTensorRtRtx && UpscaleWorkflow.TensorRtRtxAvailable;
+        public bool TensorRtBackendSelected => !DirectMlBackendSelected && !TensorRtRtxBackendSelected;
 
-        public void SetBackendTensorRt() => UseDirectMl = false;
-        public void SetBackendDirectMl() => UseDirectMl = true;
+        public void SetBackendTensorRt() => SetBackend(directMl: false, tensorRtRtx: false);
+        public void SetBackendTensorRtRtx() => SetBackend(directMl: false, tensorRtRtx: true);
+        public void SetBackendDirectMl() => SetBackend(directMl: true, tensorRtRtx: false);
+
+        private void SetBackend(bool directMl, bool tensorRtRtx)
+        {
+            UseTensorRtRtx = tensorRtRtx;
+            UseDirectMl = directMl;
+        }
 
         // Settings saved before the backend became app-wide: keep what the selected workflow used.
         public void MigrateBackend()
@@ -254,6 +284,24 @@ namespace VideoJaNai.ViewModels
         }
 
         public bool TensorRtInstalled => _pythonService.IsTensorRtInstalled();
+        public bool TensorRtRtxInstalled => _pythonService.IsTensorRtRtxInstalled();
+
+        // TensorRT-RTX needs its own component (aji_trtrtx.dll + the TensorRT-RTX runtime) and the
+        // TensorRT runtime one (cudart, and TensorRT to fall back to). Null when both are installed.
+        public string? TensorRtRtxComponentsMissingText()
+        {
+            var missing = new List<string>();
+            if (!TensorRtRtxInstalled)
+            {
+                missing.Add(ComponentItem.TitleFor("trt-rtx"));
+            }
+            if (!TensorRtInstalled)
+            {
+                missing.Add(ComponentItem.TitleFor("trt-runtime"));
+            }
+            return missing.Count == 0 ? null
+                : string.Format(CultureInfo.CurrentCulture, Resources.TensorRtRtxComponentsMissingText, string.Join(", ", missing));
+        }
 
         public static readonly string _ffmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\" -max_interleave_delta 0";
         public static readonly string _ffmpegX264 = "libx264 -crf 13 -preset slow -max_interleave_delta 0";
@@ -381,6 +429,10 @@ namespace VideoJaNai.ViewModels
             {
                 return (null, Resources.TemporalFixModelMissingText, null);
             }
+            if (CurrentWorkflow.TensorRtRtxSelected && TensorRtRtxComponentsMissingText() is string rtxMissing)
+            {
+                return (null, rtxMissing, null);
+            }
             if (CurrentWorkflow.TensorRtSelected && !TensorRtInstalled)
             {
                 return (null, "TensorRT is not installed. Install it, or select DirectML, in App Settings.", null);
@@ -390,6 +442,13 @@ namespace VideoJaNai.ViewModels
             {
                 SetupAnimeJaNaiConfSlot1();
                 var args = BuildAjiEncodeArgs(input, null, AjiMode.Preview);
+                if (_preview != null)
+                {
+                    // TensorRT-RTX builds in about a second; TensorRT can take minutes
+                    _preview.BuildingEngineText = CurrentWorkflow.TensorRtRtxSelected
+                        ? Resources.PreviewBuildingEngineTextTensorRtRtx
+                        : Resources.PreviewBuildingEngineText;
+                }
                 ConsoleQueueEnqueue($"Previewing with command: {_pythonService.AjiEncodePath} {args}");
                 var session = PreviewSession.Start(_pythonService.AjiEncodePath, args,
                                                    _pythonService.InferenceDirectory, AjiEnvironment());
@@ -755,7 +814,9 @@ namespace VideoJaNai.ViewModels
             // Emits the canonical config_version=2 schema consumed by the libaji engine
             // (see AnimeJaNaiConfEditor). There is no backend_path, no per-chain
             // final_resize, and no per-chain tensorrt settings.
-            var backend = CurrentWorkflow.DirectMlSelected ? "DirectML" : "TensorRT";
+            var backend = CurrentWorkflow.DirectMlSelected ? "DirectML"
+                        : CurrentWorkflow.TensorRtRtxSelected ? "TensorRT-RTX"
+                        : "TensorRT";
 
             var configText = new StringBuilder();
             configText.AppendLine("[global]");
@@ -763,7 +824,9 @@ namespace VideoJaNai.ViewModels
             configText.AppendLine("logging=yes");
             configText.AppendLine($"backend={backend}");
 
-            // trt_engine_settings (TensorRT only): precision is model-driven (stronglyTyped); these
+            // trt_engine_settings (TensorRT, and TensorRT-RTX: it builds in-process but reads the
+            // shape / optimization-level / workspace flags, and its TensorRT fallback uses it all):
+            // precision is model-driven (stronglyTyped); these
             // trtexec args control build shapes + builder options. Written only when changed from the
             // engine default (Static), matching AnimeJaNaiConfEditor's write-minimal behavior — an
             // unchanged value lets libaji use its identical built-in default.
@@ -846,7 +909,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
 
         public async Task CheckEngines(string inputFilePath)
         {
-            // TensorRT builds/caches engines on first use; DirectML needs no prebuild.
+            // TensorRT and TensorRT-RTX build/cache engines on first use (TensorRT-RTX in about a
+            // second, so prebuilding it costs little); DirectML needs no prebuild.
             if (!CurrentWorkflow.TensorRtSelected)
             {
                 return;
@@ -960,7 +1024,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         public async Task GenerateEngine(string inputFilePath)
         {
             var args = BuildAjiEncodeArgs(inputFilePath, null, AjiMode.BuildOnly);
-            ConsoleQueueEnqueue($"Generating TensorRT engine with command: {_pythonService.AjiEncodePath} {args}");
+            var engine = CurrentWorkflow?.TensorRtRtxSelected == true ? "TensorRT-RTX" : "TensorRT";
+            ConsoleQueueEnqueue($"Generating {engine} engine with command: {_pythonService.AjiEncodePath} {args}");
             await RunAjiEncode(args, resetProgress: false);
         }
 
@@ -968,7 +1033,10 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
 
         private string BuildAjiEncodeArgs(string inputFilePath, string? outputFilePath, AjiMode mode)
         {
-            var backend = CurrentWorkflow.DirectMlSelected ? "directml" : "tensorrt";
+            // must agree with the conf's backend (SetupAnimeJaNaiConfSlot1)
+            var backend = CurrentWorkflow.DirectMlSelected ? "directml"
+                        : CurrentWorkflow.TensorRtRtxSelected ? "tensorrt-rtx"
+                        : "tensorrt";
 
             var sb = new StringBuilder();
             sb.Append(ENGLISH_CULTURE, $"--input \"{inputFilePath}\" ");
@@ -1369,7 +1437,10 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                     // has (installed, so it can be removed), is offered by default (preselect), or RIFE
                     // (always a user choice). Per-SM kernel packs for other GPU generations and the
                     // TensorRT stack on non-NVIDIA boxes are hidden — the updater CLI still lists them all.
-                    if (!installed && !recommended && !preselect && name != "rife")
+                    // TensorRT-RTX is never recommended (experimental, opt-in), so it is offered here
+                    // to every NVIDIA GPU on Windows.
+                    bool optIn = name == "trt-rtx" && nvidia && UpscaleWorkflow.TensorRtRtxAvailable;
+                    if (!installed && !recommended && !preselect && name != "rife" && !optIn)
                     {
                         continue;
                     }
@@ -1398,6 +1469,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             catch (Exception ex) { ComponentStatusText = ex.Message; }
             ComponentsBusy = false;
             await RefreshComponents();
+            // the selected backend's components may have arrived or gone: re-check what it needs
+            CurrentWorkflow?.Validate();
         }
 
         public async Task RemoveComponent(ComponentItem item)
@@ -1415,6 +1488,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             catch (Exception ex) { ComponentStatusText = ex.Message; }
             ComponentsBusy = false;
             await RefreshComponents();
+            // the selected backend's components may have arrived or gone: re-check what it needs
+            CurrentWorkflow?.Validate();
         }
 
         // Called once for the app's state (not every view model instance): check now, then
@@ -1614,18 +1689,22 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
 
         // User-facing label for the raw pack id (mirrors the AnimeJaNai Manager). Only the pack(s)
         // relevant to this machine reach the UI, so the SM family shown is the user's own GPU.
-        public string Title => Name switch
+        public string Title => TitleFor(Name);
+
+        public static string TitleFor(string name) => name switch
         {
             "trt-runtime" => "TensorRT runtime",
+            "trt-rtx" => "TensorRT-RTX (experimental)",
             "rife" => "RIFE interpolation models",
             "trt-ptx" => "TensorRT kernels: other NVIDIA GPUs",
-            _ when Name.StartsWith("trt-sm") => $"TensorRT kernels: {SmFamily(Name[6..])}",
-            _ => Name,
+            _ when name.StartsWith("trt-sm") => $"TensorRT kernels: {SmFamily(name[6..])}",
+            _ => name,
         };
 
         public string Description => Name switch
         {
             "trt-runtime" => "The fastest upscaling engine, for NVIDIA GPUs. Without it, upscaling falls back to the slower DirectML engine.",
+            "trt-rtx" => "Optional TensorRT-RTX backend: builds engines in about a second, without trtexec. Needs the TensorRT runtime too. Select it under Backend once installed.",
             "rife" => "Frame interpolation (e.g. 24 → 48 fps). Not needed if you only upscale.",
             "trt-ptx" => "Fallback kernels for NVIDIA GPUs without a dedicated kernel pack. The first engine build is slower.",
             _ when Name.StartsWith("trt-sm") => "Engine-builder kernels matched to your GPU generation.",
@@ -2056,6 +2135,11 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         // DirectML is Windows-only; elsewhere a workflow saved with DirectML runs on TensorRT.
         public static bool DirectMlAvailable => OperatingSystem.IsWindows();
 
+        // TensorRT-RTX (aji_trtrtx) ships for Windows only; elsewhere the setting runs on TensorRT.
+        public static bool TensorRtRtxAvailable => OperatingSystem.IsWindows();
+
+        // Either TensorRT backend, TensorRT or TensorRT-RTX: both build engines from the engine
+        // settings, and TensorRT-RTX falls back to TensorRT. TensorRtRtxSelected tells them apart.
         private bool _tensorRtSelected = true;
         [DataMember]
         public bool TensorRtSelected
@@ -2063,6 +2147,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             get => !DirectMlSelected;
             set => _tensorRtSelected = value;
         }
+
+        public bool TensorRtRtxSelected => Vm?.TensorRtRtxBackendSelected ?? false;
 
         private bool _directMlSelected = false;
         [DataMember]
@@ -2078,6 +2164,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         public void BackendChanged()
         {
             this.RaisePropertyChanged(nameof(TensorRtSelected));
+            this.RaisePropertyChanged(nameof(TensorRtRtxSelected));
             this.RaisePropertyChanged(nameof(DirectMlSelected));
             this.RaisePropertyChanged(nameof(ShowTrtEngineSettings));
             Validate();
@@ -2481,7 +2568,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             }
         }
 
-        // Engine-settings UI is TensorRT-only and lives under Advanced settings.
+        // Engine-settings UI is for the TensorRT backends (TensorRT-RTX too) and lives under Advanced
+        // settings.
         public bool ShowTrtEngineSettings => ShowAdvancedSettings && TensorRtSelected;
 
         public void AddModel()
@@ -2595,7 +2683,12 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                 validationText.Add("4:4:4 output requires a software encoder (x265 / x264 / Lossless); NVENC HEVC does not support 4:4:4.");
             }
 
-            if (TensorRtSelected && Vm != null && !Vm.TensorRtInstalled)
+            if (TensorRtRtxSelected && Vm?.TensorRtRtxComponentsMissingText() is string rtxMissing)
+            {
+                valid = false;
+                validationText.Add(rtxMissing);
+            }
+            else if (TensorRtSelected && Vm != null && !Vm.TensorRtInstalled)
             {
                 valid = false;
                 validationText.Add(DirectMlAvailable

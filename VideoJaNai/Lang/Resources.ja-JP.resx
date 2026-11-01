@@ -336,6 +336,9 @@
   <data name="UpscalingBackendDescriptionTensorRt" xml:space="preserve">
     <value>Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.</value>
   </data>
+  <data name="UpscalingBackendDescriptionTensorRtRtx" xml:space="preserve">
+    <value>試験的な機能で、NVIDIA専用です。trtexecを使わずに約1秒でエンジンを構築します。出力はTensorRTと同等ですが、ビット単位では一致しません。起動できない場合は自動的にTensorRTで処理します。設定の「Components」からTensorRT-RTXコンポーネントをインストールする必要があります。</value>
+  </data>
   <data name="UpscalingBackendLabel" xml:space="preserve">
     <value>バックエンド</value>
   </data>
@@ -402,6 +405,9 @@
   <data name="PreviewBuildingEngineText" xml:space="preserve">
     <value>TensorRTエンジンを構築中です。この設定を初めて使うときだけ必要で、数分かかることがあります。</value>
   </data>
+  <data name="PreviewBuildingEngineTextTensorRtRtx" xml:space="preserve">
+    <value>TensorRT-RTXエンジンを構築中です。この設定を初めて使うときだけ必要で、数秒で終わります。</value>
+  </data>
   <data name="PreviewEndText" xml:space="preserve">
     <value>動画の終わり</value>
   </data>
@@ -467,5 +473,8 @@
   </data>
   <data name="PostProcessingHeader" xml:space="preserve">
     <value>後処理</value>
+  </data>
+  <data name="TensorRtRtxComponentsMissingText" xml:space="preserve">
+    <value>TensorRT-RTXには次のコンポーネントが必要です: {0}。設定の「Components」からインストールするか、別のバックエンドを選択してください。</value>
   </data>
 </root>

@@ -52,6 +52,9 @@ namespace VideoJaNai.ViewModels
 
         public event Action? CloseRequested;
 
+        /// <summary>Shown while the session builds an engine (set per backend by the session's starter).</summary>
+        public string BuildingEngineText { get; set; } = Resources.PreviewBuildingEngineText;
+
         public PreviewWindowViewModel(Func<(PreviewSession? session, string? error, string? title)> startSession, Action<string> log)
         {
             _startSession = startSession;
@@ -187,7 +190,7 @@ namespace VideoJaNai.ViewModels
                 if (line.Contains("phase=build_engine", StringComparison.Ordinal) &&
                     !line.Contains("pct=100", StringComparison.Ordinal))
                 {
-                    StatusText = Resources.PreviewBuildingEngineText;
+                    StatusText = BuildingEngineText;
                 }
             });
             session.LogLine += _log;

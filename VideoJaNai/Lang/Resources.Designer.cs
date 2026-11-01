@@ -817,6 +817,15 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Experimental, NVIDIA only. Builds engines in about a second, without trtexec. Output is equivalent t....
+        /// </summary>
+        public static string UpscalingBackendDescriptionTensorRtRtx {
+            get {
+                return ResourceManager.GetString("UpscalingBackendDescriptionTensorRtRtx", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Backend.
         /// </summary>
         public static string UpscalingBackendLabel {
@@ -1047,6 +1056,15 @@ namespace VideoJaNai.Lang {
         public static string PreviewBuildingEngineText {
             get {
                 return ResourceManager.GetString("PreviewBuildingEngineText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Building the TensorRT-RTX engine. This is only needed the first time these settings are used and tak....
+        /// </summary>
+        public static string PreviewBuildingEngineTextTensorRtRtx {
+            get {
+                return ResourceManager.GetString("PreviewBuildingEngineTextTensorRtRtx", resourceCulture);
             }
         }
 
@@ -1332,6 +1350,15 @@ namespace VideoJaNai.Lang {
         public static string PostProcessingHeader {
             get {
                 return ResourceManager.GetString("PostProcessingHeader", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to TensorRT-RTX needs these components: {0}. Install them in App Settings &gt; Components, or select anoth....
+        /// </summary>
+        public static string TensorRtRtxComponentsMissingText {
+            get {
+                return ResourceManager.GetString("TensorRtRtxComponentsMissingText", resourceCulture);
             }
         }
     }
