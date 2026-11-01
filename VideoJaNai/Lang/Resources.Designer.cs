@@ -268,20 +268,110 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to FFV1 lossless compression, usually fastest to encode but extremely large filesize, and may be slower if bottlenecked by a slow storage drive..
+        ///   Looks up a localized string similar to FFV1 lossless compression on the CPU: keeps the upscaled frames exactly. Extremely large files, and it can be slowed down by a slow storage drive..
         /// </summary>
         public static string FfmpegPresetsDescriptionLossless {
             get {
                 return ResourceManager.GetString("FfmpegPresetsDescriptionLossless", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding..
+        ///   Looks up a localized string similar to HEVC on the GPU at about 50 Mbps: very fast, but lower quality for the file size than x265 on the CPU..
         /// </summary>
-        public static string FfmpegPresetsDescriptionNvencHevc {
+        public static string FfmpegPresetsDescriptionGpuHevc {
             get {
-                return ResourceManager.GetString("FfmpegPresetsDescriptionNvencHevc", resourceCulture);
+                return ResourceManager.GetString("FfmpegPresetsDescriptionGpuHevc", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to AV1 on the GPU at about 50 Mbps: as fast as HEVC, with better compression. Needs a player that supports AV1..
+        /// </summary>
+        public static string FfmpegPresetsDescriptionGpuAv1 {
+            get {
+                return ResourceManager.GetString("FfmpegPresetsDescriptionGpuAv1", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Lossless HEVC on the GPU: keeps the upscaled frames exactly, like FFV1, but encodes much faster..
+        /// </summary>
+        public static string FfmpegPresetsDescriptionNvencLossless {
+            get {
+                return ResourceManager.GetString("FfmpegPresetsDescriptionNvencLossless", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Encoder.
+        /// </summary>
+        public static string EncoderLabel {
+            get {
+                return ResourceManager.GetString("EncoderLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Where the video is encoded..
+        /// </summary>
+        public static string EncoderDescription {
+            get {
+                return ResourceManager.GetString("EncoderDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Codec.
+        /// </summary>
+        public static string CodecLabel {
+            get {
+                return ResourceManager.GetString("CodecLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to The video format..
+        /// </summary>
+        public static string CodecDescription {
+            get {
+                return ResourceManager.GetString("CodecDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Show other GPUs.
+        /// </summary>
+        public static string ShowOtherGpuEncodersLabel {
+            get {
+                return ResourceManager.GetString("ShowOtherGpuEncodersLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Also list the encoders of GPUs that don't do the upscale..
+        /// </summary>
+        public static string ShowOtherGpuEncodersDescription {
+            get {
+                return ResourceManager.GetString("ShowOtherGpuEncodersDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to This encoder can't encode 10-bit on this PC..
+        /// </summary>
+        public static string Output10BitDisabledDescription {
+            get {
+                return ResourceManager.GetString("Output10BitDisabledDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 4:4:4 needs a CPU encoder (x265, x264 or FFV1); GPU encoders encode 4:2:0 only..
+        /// </summary>
+        public static string Output444DisabledDescription {
+            get {
+                return ResourceManager.GetString("Output444DisabledDescription", resourceCulture);
             }
         }
         
@@ -300,15 +390,6 @@ namespace VideoJaNai.Lang {
         public static string FfmpegPresetsDescriptionX265 {
             get {
                 return ResourceManager.GetString("FfmpegPresetsDescriptionX265", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to FFmpeg Presets.
-        /// </summary>
-        public static string FfmpegPresetsLabel {
-            get {
-                return ResourceManager.GetString("FfmpegPresetsLabel", resourceCulture);
             }
         }
         
