@@ -79,12 +79,14 @@ var trtDebSha256 = new Dictionary<string, string>
 // faster (each session's input dims pinned) and the optional TensorRT-RTX backend (aji_trtrtx.dll),
 // published as its own Windows asset, aji-trtrtx-windows-x64.zip, which ships as the trt-rtx pack.
 // v0.19.1: TensorRT-RTX engine builds no longer free the builder before the objects it created.
-const string AjiVersion        = "v0.19.1";
+// v0.20.0: CPU encoders (FFV1, x265) use every core instead of one; AMD AMF / Intel QSV encoders;
+// --probe-encoders (the GPUs and which GPU encoders open), which the Output section's encoder rows use.
+const string AjiVersion        = "v0.20.0";
 // The aji release publishes no checksums; recorded from the release assets.
 var ajiSha256Win = new Dictionary<string, string>
 {
-    ["aji-windows-x64.zip"]        = "855fa197bc01a3621ee8265e0c19a9238024443cd9cd4a4692e5205c1716beee",
-    ["aji-trtrtx-windows-x64.zip"] = "87742617e83c3e55a990d9e0355b9342c31a4fb5c283506908f9fcb05263defe",
+    ["aji-windows-x64.zip"]        = "91baf9b7fa25f649b2117659b82e24eaca959e57a9a795f880fb4a94baf0302a",
+    ["aji-trtrtx-windows-x64.zip"] = "28607eeddb4bd3772731bce86642efe25711ecdddb494874f5e3df0b41a93805",
 };
 const string SevenZipVersion   = "2602";                  // 7-zip "extra" (Windows) / linux-x64 standalone console
 // animejanai-inference RIFE fp16 release. Set 2 only names the inputs' H/W dims (DirectML pins them);

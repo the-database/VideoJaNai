@@ -201,6 +201,7 @@ namespace VideoJaNai.ViewModels
             {
                 wf.BackendChanged();
             }
+            EncodersChanged();     // the upscaling GPU, so the listed encoders, follow the backend
         }
 
         public bool DirectMlBackendSelected => UseDirectMl == true && UpscaleWorkflow.DirectMlAvailable;
@@ -314,6 +315,128 @@ namespace VideoJaNai.ViewModels
         public static readonly string _ffmpegX264 = "libx264 -crf 13 -preset slow -max_interleave_delta 0";
         public static readonly string _ffmpegHevcNvenc = "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M -max_interleave_delta 0";
         public static readonly string _ffmpegLossless = "ffv1 -max_interleave_delta 0";
+
+        // ---- encoder detection ------------------------------------------------------------
+        // `aji_encode --probe-encoders` output from the last run, kept so the encoder rows are
+        // right at startup; RefreshEncoderProbeAsync re-runs it (~4 s, in the background) on every
+        // launch, so a new GPU or driver shows up by itself. Null: never probed, or an aji_encode
+        // without the probe, which leaves the encoders as they were before detection (NVENC + CPU).
+        private string? _encoderProbeOutput;
+        [DataMember]
+        public string? EncoderProbeOutput
+        {
+            get => _encoderProbeOutput;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _encoderProbeOutput, value);
+                _encoderProbe = EncoderProbe.Parse(value);
+                EncodersChanged();
+            }
+        }
+
+        private EncoderProbe? _encoderProbe;
+        public EncoderProbe? Probe => _encoderProbe;
+
+        // GPU encoders of the GPUs that don't do the upscale are hidden unless this is on: they
+        // work, but take every frame over PCIe to a usually weaker encoder, for nothing.
+        private bool _showOtherGpuEncoders;
+        [DataMember]
+        public bool ShowOtherGpuEncoders
+        {
+            get => _showOtherGpuEncoders;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _showOtherGpuEncoders, value);
+                EncodersChanged();
+            }
+        }
+
+        // The GPU that does the upscale: the NVIDIA card on TensorRT, DXGI adapter 0 on DirectML
+        // (null when the probe couldn't tell).
+        public EncoderGroup? InferenceGpuVendor =>
+            !DirectMlBackendSelected ? EncoderGroup.Nvidia : _encoderProbe?.DefaultGpuVendor;
+
+        // Works on this PC: CPU presets always; GPU ones when the probe opened their encoder.
+        // Without a probe only NVENC HEVC / Lossless are offered, as before detection existed.
+        public bool PresetAvailable(EncoderPreset p) =>
+            !p.IsGpu ? true
+            : _encoderProbe is EncoderProbe probe ? probe.Opens(p.Codec)
+            : p == EncoderPresets.NvencHevc || p == EncoderPresets.NvencLossless;
+
+        public bool GroupAvailable(EncoderGroup g) => EncoderPresets.For(g).Any(PresetAvailable);
+
+        // Listed in the encoder row: the CPU, and the upscaling GPU's encoders (every GPU's when
+        // that GPU is unknown or ShowOtherGpuEncoders is on). A workflow adds its own selection.
+        public bool GroupListed(EncoderGroup g) =>
+            g == EncoderGroup.Cpu ||
+            (GroupAvailable(g) && (ShowOtherGpuEncoders || InferenceGpuVendor is null || InferenceGpuVendor == g));
+
+        // the "Show other GPUs" checkbox only appears when it would show something
+        public bool HasOtherGpuEncoders =>
+            InferenceGpuVendor is EncoderGroup v &&
+            new[] { EncoderGroup.Nvidia, EncoderGroup.Amd, EncoderGroup.Intel }.Any(g => g != v && GroupAvailable(g));
+
+        // What a workflow nobody picked an encoder for uses: HEVC on the upscaling GPU, else x265.
+        public EncoderPreset DefaultEncoderPreset =>
+            InferenceGpuVendor is EncoderGroup v && EncoderPresets.For(v).FirstOrDefault() is EncoderPreset hevc && PresetAvailable(hevc)
+                ? hevc
+                : EncoderPresets.X265;
+
+        private void EncodersChanged()
+        {
+            this.RaisePropertyChanged(nameof(Probe));
+            this.RaisePropertyChanged(nameof(HasOtherGpuEncoders));
+            foreach (var wf in Workflows ?? [])
+            {
+                wf.EncodersChanged();
+            }
+        }
+
+        public async Task RefreshEncoderProbeAsync()
+        {
+            if (!File.Exists(_pythonService.AjiEncodePath))
+            {
+                return;
+            }
+            try
+            {
+                using var process = new Process();
+                process.StartInfo.FileName = _pythonService.AjiEncodePath;
+                process.StartInfo.Arguments = "--probe-encoders";
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.CreateNoWindow = true;
+                process.StartInfo.WorkingDirectory = _pythonService.InferenceDirectory;
+                foreach (var (k, v) in AjiEnvironment() ?? [])
+                {
+                    process.StartInfo.Environment[k] = v;
+                }
+                process.Start();
+                var stdout = process.StandardOutput.ReadToEndAsync();
+                _ = process.StandardError.ReadToEndAsync();
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                await process.WaitForExitAsync(timeout.Token);
+                var output = await stdout;
+                // an older aji_encode rejects the flag (exit 2, usage on stderr): keep what we had
+                if (process.ExitCode == 0 && EncoderProbe.Parse(output) != null)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() => EncoderProbeOutput = output);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"encoder probe failed: {ex.Message}");
+            }
+        }
+
+        // After the main window opens: components first (the probe needs aji_encode), then the
+        // encoder probe.
+        public async Task StartupChecks()
+        {
+            await CheckAndExtractBackend();
+            await RefreshEncoderProbeAsync();
+        }
 
         private bool _showConsole = false;
         public bool ShowConsole
@@ -1095,7 +1218,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                     sb.Append(ENGLISH_CULTURE, $"--output \"{outputFilePath}\" ");
                 }
 
-                var (vcodec, vquality) = MapFfmpegSettings(CurrentWorkflow.FfmpegVideoSettings);
+                var (vcodec, vquality) = MapFfmpegSettings(CurrentWorkflow.EffectiveFfmpegVideoSettings);
                 sb.Append(ENGLISH_CULTURE, $"--vcodec {vcodec} ");
                 if (mode == AjiMode.Encode && !string.IsNullOrWhiteSpace(vquality))
                 {
@@ -1929,25 +2052,127 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             }
         }
 
-        public bool FfmpegX265Selected => FfmpegVideoSettings == MainWindowViewModel._ffmpegX265;
-        public bool FfmpegX264Selected => FfmpegVideoSettings == MainWindowViewModel._ffmpegX264;
-        public bool FfmpegHevcNvencSelected => FfmpegVideoSettings == MainWindowViewModel._ffmpegHevcNvenc;
-
-
-        public bool FfmpegLosslessSelected => FfmpegVideoSettings == MainWindowViewModel._ffmpegLossless;
-
-        private string _ffmpegVideoSettings = MainWindowViewModel._ffmpegHevcNvenc;
+        // The encoder settings as saved: empty (or the old bundled default, LegacyDefaultSettings)
+        // until someone picks a preset or edits them, which means "this PC's default encoder"
+        // (MainWindowViewModel.DefaultEncoderPreset), so it follows the GPU that does the upscale.
+        // A pick is never changed for them: one that doesn't work here is reported by Validate.
+        private string _ffmpegVideoSettings = string.Empty;
         [DataMember]
         public string FfmpegVideoSettings
         {
             get => _ffmpegVideoSettings;
             set
             {
-                this.RaiseAndSetIfChanged(ref _ffmpegVideoSettings, value);
-                this.RaisePropertyChanged(nameof(FfmpegX265Selected));
-                this.RaisePropertyChanged(nameof(FfmpegX264Selected));
-                this.RaisePropertyChanged(nameof(FfmpegHevcNvencSelected));
-                this.RaisePropertyChanged(nameof(FfmpegLosslessSelected));
+                this.RaiseAndSetIfChanged(ref _ffmpegVideoSettings, value ?? string.Empty);
+                EncodersChanged();
+            }
+        }
+
+        public bool UsesDefaultEncoder =>
+            string.IsNullOrWhiteSpace(FfmpegVideoSettings) ||
+            FfmpegVideoSettings.Trim() == EncoderPresets.LegacyDefaultSettings;
+
+        // what aji_encode gets
+        public string EffectiveFfmpegVideoSettings =>
+            UsesDefaultEncoder ? (Vm?.DefaultEncoderPreset ?? EncoderPresets.NvencHevc).Settings : FfmpegVideoSettings;
+
+        // The settings box: shows the effective settings; typing in it makes them this workflow's own.
+        [IgnoreDataMember]
+        public string FfmpegVideoSettingsText
+        {
+            get => EffectiveFfmpegVideoSettings;
+            set
+            {
+                if (value != EffectiveFfmpegVideoSettings)
+                {
+                    FfmpegVideoSettings = value;
+                    Validate();
+                }
+            }
+        }
+
+        // null: custom settings
+        public EncoderPreset? SelectedPreset => EncoderPresets.Find(EffectiveFfmpegVideoSettings);
+
+        public string SelectedCodec => EncoderPresets.CodecOf(EffectiveFfmpegVideoSettings);
+
+        public EncoderGroup SelectedEncoderGroup => SelectedPreset?.Group ?? EncoderPresets.GroupOf(SelectedCodec);
+
+        private bool SelectedEncoderIsGpu => SelectedEncoderGroup != EncoderGroup.Cpu;
+
+        // Row 1: where it's encoded. Lists what Vm.GroupListed allows, plus the current selection
+        // so a choice that doesn't apply here (another PC's GPU, a switched backend) stays visible.
+        public IReadOnlyList<EncoderChoice> EncoderGroupChoices =>
+            new[] { EncoderGroup.Nvidia, EncoderGroup.Amd, EncoderGroup.Intel, EncoderGroup.Cpu }
+                .Where(g => g == SelectedEncoderGroup || (Vm?.GroupListed(g) ?? g is EncoderGroup.Nvidia or EncoderGroup.Cpu))
+                .Select(g => new EncoderChoice(EncoderPresets.GroupLabel(g), null, g == SelectedEncoderGroup, () => SelectEncoderGroup(g)))
+                .ToList();
+
+        // Row 2: the selected encoder's codecs that work here (plus the selected one).
+        public IReadOnlyList<EncoderChoice> CodecChoices =>
+            EncoderPresets.For(SelectedEncoderGroup)
+                .Where(p => p == SelectedPreset || (Vm?.PresetAvailable(p) ?? !p.IsGpu || p == EncoderPresets.NvencHevc))
+                .Select(p => new EncoderChoice(p.Label, p.Description(), p == SelectedPreset, () => SelectPreset(p)))
+                .ToList();
+
+        public bool ShowOtherGpuEncodersOption => Vm?.HasOtherGpuEncoders ?? false;
+
+        public void SelectPreset(EncoderPreset preset)
+        {
+            FfmpegVideoSettings = preset.Settings;
+            // Picking a GPU encoder moves a format it can't encode to the nearest one it can
+            // (only on this click, never on its own later).
+            if (preset.IsGpu && OutputIs444)
+            {
+                OutputPixFmt = OutputPixFmt == "yuv444p10" ? "yuv420p10" : "yuv420p";
+            }
+            if (preset.IsGpu && OutputPixFmt == "yuv420p10" && Vm?.Probe is EncoderProbe probe &&
+                !probe.Opens(preset.Codec, tenBit: true) && probe.Opens(preset.Codec, tenBit: false))
+            {
+                OutputPixFmt = "yuv420p";
+            }
+            Validate();
+        }
+
+        // Switch encoder, keeping the kind of codec (HEVC, AV1, lossless) when the new one has it.
+        public void SelectEncoderGroup(EncoderGroup group)
+        {
+            if (group == SelectedEncoderGroup && SelectedPreset != null)
+            {
+                return;
+            }
+            var family = SelectedPreset is EncoderPreset current ? EncoderPresets.Family(current) : "hevc";
+            var options = EncoderPresets.For(group).Where(p => Vm?.PresetAvailable(p) ?? true).ToList();
+            var pick = options.FirstOrDefault(p => EncoderPresets.Family(p) == family)
+                       ?? options.FirstOrDefault()
+                       ?? EncoderPresets.For(group).First();
+            SelectPreset(pick);
+        }
+
+        // Format buttons a GPU encoder can't use are disabled (Validate also reports a saved one).
+        public bool Output444Enabled => !SelectedEncoderIsGpu;
+        public bool Output10BitEnabled => Vm?.Probe is not EncoderProbe probe || probe.Opens(SelectedCodec, tenBit: true);
+        public bool Output444P10Enabled => Output444Enabled && Output10BitEnabled;
+
+        public void EncodersChanged()
+        {
+            this.RaisePropertyChanged(nameof(UsesDefaultEncoder));
+            this.RaisePropertyChanged(nameof(EffectiveFfmpegVideoSettings));
+            this.RaisePropertyChanged(nameof(FfmpegVideoSettingsText));
+            this.RaisePropertyChanged(nameof(SelectedPreset));
+            this.RaisePropertyChanged(nameof(SelectedCodec));
+            this.RaisePropertyChanged(nameof(SelectedEncoderGroup));
+            this.RaisePropertyChanged(nameof(EncoderGroupChoices));
+            this.RaisePropertyChanged(nameof(CodecChoices));
+            this.RaisePropertyChanged(nameof(ShowOtherGpuEncodersOption));
+            this.RaisePropertyChanged(nameof(Output444Enabled));
+            this.RaisePropertyChanged(nameof(Output10BitEnabled));
+            this.RaisePropertyChanged(nameof(Output444P10Enabled));
+            this.RaisePropertyChanged(nameof(OutputSummary));
+            // Validate writes the window's status text, so only the shown workflow's
+            if (Vm != null && Vm.CurrentWorkflow == this)
+            {
+                Validate();
             }
         }
 
@@ -2518,8 +2743,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             {
                 var parts = new List<string>
                 {
-                    FfmpegHevcNvencSelected ? "NVENC HEVC" : FfmpegX265Selected ? "x265" : FfmpegX264Selected ? "x264"
-                        : FfmpegLosslessSelected ? "Lossless" : VideoJaNai.Lang.Resources.CustomPresetText,
+                    SelectedPreset?.SummaryLabel ?? VideoJaNai.Lang.Resources.CustomPresetText,
                     OutputPixFmt switch
                     {
                         "yuv420p" => "8-bit 4:2:0",
@@ -2655,30 +2879,6 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             }
         }
 
-        public void SetFfmpegX265()
-        {
-            FfmpegVideoSettings = MainWindowViewModel._ffmpegX265;
-            Validate();
-        }
-
-        public void SetFfmpegX264()
-        {
-            FfmpegVideoSettings = MainWindowViewModel._ffmpegX264;
-            Validate();
-        }
-
-        public void SetFfmpegHevcNvenc()
-        {
-            FfmpegVideoSettings = MainWindowViewModel._ffmpegHevcNvenc;
-            Validate();
-        }
-
-        public void SetFfmpegLossless()
-        {
-            FfmpegVideoSettings = MainWindowViewModel._ffmpegLossless;
-            Validate();
-        }
-
         public void SetOutputPixFmt420P8() { OutputPixFmt = "yuv420p"; Validate(); }
         public void SetOutputPixFmt420P10() { OutputPixFmt = "yuv420p10"; Validate(); }
         public void SetOutputPixFmt444P8() { OutputPixFmt = "yuv444p"; Validate(); }
@@ -2732,10 +2932,24 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                 validationText.Add(VideoJaNai.Lang.Resources.TemporalFixModelMissingText);
             }
 
-            if (OutputIs444 && FfmpegHevcNvencSelected)
+            // The encoder: one the probe found unusable here (a workflow from another PC, a GPU
+            // that isn't installed), a bit depth it can't encode, or 4:4:4 on any GPU encoder.
+            var codec = SelectedCodec;
+            var encoderName = SelectedPreset?.SummaryLabel ?? codec;
+            if (Vm?.Probe is EncoderProbe probe && probe.Tested(codec) && !probe.Opens(codec))
             {
                 valid = false;
-                validationText.Add("4:4:4 output requires a software encoder (x265 / x264 / Lossless); NVENC HEVC does not support 4:4:4.");
+                validationText.Add($"{encoderName} isn't available on this PC (no supported GPU or driver). Choose another encoder.");
+            }
+            else if (Vm?.Probe is EncoderProbe probe10 && OutputPixFmt == "yuv420p10" && !probe10.Opens(codec, tenBit: true))
+            {
+                valid = false;
+                validationText.Add($"{encoderName} can't encode 10-bit on this PC. Choose 8-bit 4:2:0 or another encoder.");
+            }
+            if (OutputIs444 && SelectedEncoderIsGpu)
+            {
+                valid = false;
+                validationText.Add($"4:4:4 output needs a CPU encoder (x265 / x264 / FFV1); {encoderName} encodes 4:2:0 only.");
             }
 
             if (TensorRtRtxSelected && Vm?.TensorRtRtxComponentsMissingText() is string rtxMissing)
