@@ -16,7 +16,7 @@
 // manifest.json) only the small overlay archive is fetched; otherwise the full package.
 //
 // Component packs are subsets of the install (TensorRT runtime, per-GPU-generation builder
-// resources, RIFE models, the opt-in TensorRT-RTX backend on Windows), emitted by the package
+// resources, RIFE models, the TensorRT-RTX backend on Windows), emitted by the package
 // builder as component-<name>.7z + packs.json
 // release assets. Archives are rooted at the install dir, so extraction is installation;
 // packs.json carries each pack's file list, so removal is deletion. Installed state lives in
@@ -884,17 +884,20 @@ static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
 
 // Hardware-matched packs only. RIFE is a user choice, not a recommendation: it is preselected on
 // installs that have never managed components, and once the user has made any component decision
-// their choice stands. trt-rtx (TensorRT-RTX, experimental) is never recommended or preselected: the
-// user opts in from App Settings, and from then on it counts as installed, so --auto keeps it
-// current (its dep is aji: it is refreshed whenever the aji release changes).
+// their choice stands. trt-rtx (TensorRT-RTX, Windows only) is recommended when a GPU is one it is
+// the default for (TensorRtRtxDefaultGpu), next to the TensorRT packs: TensorRT stays installed, as
+// TensorRT-RTX's fallback and for cudart, which aji_trtrtx.dll needs. Other NVIDIA GPUs can still
+// install it from App Settings. Once installed it counts as installed, so --auto keeps it current
+// (its dep is aji: it is refreshed whenever the aji release changes).
 List<string> RecommendedPacks(PackIndex index, bool hasNvidia, string sm)
 {
     var rec = new List<string>();
     if (hasNvidia)
     {
         rec.Add("trt-runtime");
+        var sms = sm.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         // per GPU generation: the exact pack if published, else the PTX fallback pack
-        foreach (var s in sm.Split(", ", StringSplitOptions.RemoveEmptyEntries))
+        foreach (var s in sms)
         {
             var pack = index.Packs.Any(p => p.Name == $"trt-{s}") ? $"trt-{s}" : "trt-ptx";
             if (!rec.Contains(pack))
@@ -902,8 +905,32 @@ List<string> RecommendedPacks(PackIndex index, bool hasNvidia, string sm)
                 rec.Add(pack);
             }
         }
+        if (sms.Any(TensorRtRtxDefaultGpu) && index.Packs.Any(p => p.Name == "trt-rtx"))
+        {
+            rec.Add("trt-rtx");
+        }
     }
     return rec;
+}
+
+// Whether TensorRT-RTX is the default backend for a GPU, by its "sm<major><minor>" compute
+// capability (the CUDA minor is one digit: sm86 = 8.6, sm120 = 12.0). TensorRT-RTX 1.7's support
+// matrix lists 7.5, 8.6, 8.9, 12.0 and 12.1, so: sm86 (RTX 30-series), sm89 (RTX 40) and sm120 and
+// newer (RTX 50 and later). Not Turing (sm75: supported, but without FP32 GEMMs and 3D
+// convolutions), and not the data-center parts it doesn't list (sm80 A100, sm90 H100, sm100 B200).
+static bool TensorRtRtxDefaultGpu(string sm)
+{
+    var digits = sm.Trim();
+    if (digits.StartsWith("sm", StringComparison.OrdinalIgnoreCase))
+    {
+        digits = digits[2..];
+    }
+    if (digits.Length < 2 || !digits.All(char.IsAsciiDigit) || !int.TryParse(digits[..^1], out int major))
+    {
+        return false;
+    }
+    int minor = digits[^1] - '0';
+    return (major == 8 && (minor == 6 || minor == 9)) || major >= 12;
 }
 
 bool ComponentsNeverManaged() => !File.Exists(Path.Combine(installDir, "components.json"));
@@ -943,7 +970,7 @@ async Task ComponentsAsync(PackIndex? prefetched, bool json = false)
         Console.WriteLine();
     }
     Console.WriteLine(hasNvidia
-        ? $"GPU: {gpu} ({sm}) - TensorRT recommended"
+        ? $"GPU: {gpu} ({sm}) - {(rec.Contains("trt-rtx") ? "TensorRT-RTX recommended, with TensorRT as its fallback" : "TensorRT recommended")}"
         : "GPU: no NVIDIA device detected - using the built-in DirectML engine (no extra components needed)");
     Console.WriteLine($"Recommended packs: {string.Join(", ", rec)}");
     Console.WriteLine();

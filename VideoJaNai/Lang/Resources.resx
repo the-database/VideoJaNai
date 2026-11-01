@@ -370,7 +370,7 @@
     <value>Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.</value>
   </data>
   <data name="UpscalingBackendDescriptionTensorRtRtx" xml:space="preserve">
-    <value>Experimental, NVIDIA only. Builds engines in about a second, without trtexec. Output is equivalent to TensorRT's but not bit-identical. If it can't start, upscaling falls back to TensorRT automatically. Needs the TensorRT-RTX component from App Settings &gt; Components.</value>
+    <value>NVIDIA only. The default on GeForce RTX 30 series and newer GPUs, where its component is installed automatically. Builds engines in seconds instead of minutes, without trtexec. Output is equivalent to TensorRT's but not bit-identical. If it can't start or build an engine, upscaling falls back to TensorRT automatically. On other GPUs, install the TensorRT-RTX component from App Settings &gt; Components.</value>
   </data>
   <data name="UpscalingBackendLabel" xml:space="preserve">
     <value>Backend</value>

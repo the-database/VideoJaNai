@@ -71,7 +71,8 @@ var
   CompPage: TInputOptionWizardPage;
   GpuName: String;
   HasNvidia: Boolean;
-  TrtPacks: String;   // comma-separated, detected at wizard start (best-effort)
+  TrtPacks: String;   // comma-separated, detected at wizard start (best-effort); includes trt-rtx
+                      // (TensorRT-RTX, installed next to TensorRT) on RTX 30-series and newer
   RifePack: String;
 
 // Run VideoJaNaiUpdater.exe --recommend (from the given exe path), capturing its KEY=value lines
@@ -126,7 +127,9 @@ begin
     'from VideoJaNai''s App Settings.',
     False, False);
 
-  if HasNvidia then
+  if HasNvidia and (Pos('trt-rtx', TrtPacks) > 0) then
+    trtLabel := 'Upscaling (TensorRT-RTX, with TensorRT as its fallback) - for ' + GpuName
+  else if HasNvidia then
     trtLabel := 'Upscaling (TensorRT) - for ' + GpuName
   else
     trtLabel := 'Upscaling (TensorRT) - requires an NVIDIA GPU (your GPU uses the built-in DirectML engine)';

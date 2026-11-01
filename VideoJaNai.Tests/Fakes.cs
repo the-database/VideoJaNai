@@ -8,9 +8,24 @@ namespace VideoJaNai.Tests
 {
     class FakePythonService : IPythonService
     {
+        // Whether the trt-rtx component is installed, per test (the fake is one shared instance and
+        // test classes run in parallel): installed unless a test scopes it out with WithoutTensorRtRtx.
+        static readonly AsyncLocal<bool?> _tensorRtRtxInstalled = new();
+
+        public static IDisposable WithoutTensorRtRtx()
+        {
+            _tensorRtRtxInstalled.Value = false;
+            return new Restore();
+        }
+
+        sealed class Restore : IDisposable
+        {
+            public void Dispose() => _tensorRtRtxInstalled.Value = null;
+        }
+
         public bool IsInferenceInstalled() => true;
         public bool IsTensorRtInstalled() => true;
-        public bool IsTensorRtRtxInstalled() => true;
+        public bool IsTensorRtRtxInstalled() => _tensorRtRtxInstalled.Value ?? true;
         public bool AreModelsInstalled() => true;
         public bool IsFfmpegInstalled() => true;
         public string ModelsDirectory => "";
