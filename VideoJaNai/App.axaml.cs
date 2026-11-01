@@ -68,6 +68,9 @@ namespace VideoJaNai
 
             autofacResolver.SetLifetimeScope(container);
 
+            // Before anything can save it: tells an update (state from an earlier run) from a fresh install.
+            var hadSavedState = File.Exists(Program.AppStatePath);
+
             var suspension = new AutoSuspendHelper(ApplicationLifetime!);
             // Used when the saved state can't be loaded: start from the bundled defaults (an empty view
             // model has no workflows, which the code below can't run with).
@@ -78,6 +81,7 @@ namespace VideoJaNai
 
             // Load the saved view model state.
             var state = RxSuspension.SuspensionHost.GetAppState<MainWindowViewModel>();
+            state.HadSavedState = hadSavedState;
 
             foreach (var wf in state.Workflows)
             {
