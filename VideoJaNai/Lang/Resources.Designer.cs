@@ -1060,6 +1060,15 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to TensorRT-RTX failed; using TensorRT.
+        /// </summary>
+        public static string BackendFallbackStatusText {
+            get {
+                return ResourceManager.GetString("BackendFallbackStatusText", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Building the TensorRT-RTX engine. This is only needed the first time these settings are used and tak....
         /// </summary>
         public static string PreviewBuildingEngineTextTensorRtRtx {

@@ -450,6 +450,9 @@
   <data name="PreviewBuildingEngineText" xml:space="preserve">
     <value>Building the TensorRT engine. This is only needed the first time these settings are used and can take a few minutes.</value>
   </data>
+  <data name="BackendFallbackStatusText" xml:space="preserve">
+    <value>TensorRT-RTX failed; using TensorRT</value>
+  </data>
   <data name="PreviewBuildingEngineTextTensorRtRtx" xml:space="preserve">
     <value>Building the TensorRT-RTX engine. This is only needed the first time these settings are used and takes a few seconds.</value>
   </data>
