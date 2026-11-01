@@ -632,12 +632,15 @@
                   <ToolTip.Tip>
                     <StackPanel Spacing="6">
                       <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>TensorRT</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" /></TextBlock>
+                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>TensorRT-RTX</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRtRtx}" /></TextBlock>
                       <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>DirectML</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" /></TextBlock>
                     </StackPanel>
                   </ToolTip.Tip>
                 </ContentControl>
                 <ToggleButton IsChecked="{Binding TensorRtBackendSelected}" Content="TensorRT" Command="{Binding SetBackendTensorRt}"
                               ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" />
+                <ToggleButton IsChecked="{Binding TensorRtRtxBackendSelected}" Content="TensorRT-RTX" Command="{Binding SetBackendTensorRtRtx}"
+                              ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRtRtx}" />
                 <ToggleButton IsChecked="{Binding DirectMlBackendSelected}" Content="DirectML" Command="{Binding SetBackendDirectMl}"
                               ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" />
               </StackPanel>
