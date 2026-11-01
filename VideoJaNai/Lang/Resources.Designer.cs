@@ -817,7 +817,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Experimental, NVIDIA only. Builds engines in about a second, without trtexec. Output is equivalent t....
+        ///   Looks up a localized string similar to NVIDIA only. The default on GeForce RTX 20 / GTX 16 series and newer GPUs, where its component is in....
         /// </summary>
         public static string UpscalingBackendDescriptionTensorRtRtx {
             get {

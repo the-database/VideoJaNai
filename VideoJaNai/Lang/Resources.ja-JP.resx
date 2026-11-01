@@ -337,7 +337,7 @@
     <value>Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.</value>
   </data>
   <data name="UpscalingBackendDescriptionTensorRtRtx" xml:space="preserve">
-    <value>試験的な機能で、NVIDIA専用です。trtexecを使わずに約1秒でエンジンを構築します。出力はTensorRTと同等ですが、ビット単位では一致しません。起動できない場合は自動的にTensorRTで処理します。設定の「Components」からTensorRT-RTXコンポーネントをインストールする必要があります。</value>
+    <value>NVIDIA専用です。GeForce RTX 20 / GTX 16シリーズ以降のGPUでは標準のバックエンドで、コンポーネントも自動でインストールされます。trtexecを使わずに、数分ではなく数秒でエンジンを構築します。出力はTensorRTと同等ですが、ビット単位では一致しません。起動やエンジンの構築ができない場合は自動的にTensorRTで処理します。その他のGPUでは、設定の「Components」からTensorRT-RTXコンポーネントをインストールしてください。</value>
   </data>
   <data name="UpscalingBackendLabel" xml:space="preserve">
     <value>バックエンド</value>
