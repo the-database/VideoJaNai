@@ -16,7 +16,8 @@
 // manifest.json) only the small overlay archive is fetched; otherwise the full package.
 //
 // Component packs are subsets of the install (TensorRT runtime, per-GPU-generation builder
-// resources, RIFE models), emitted by the package builder as component-<name>.7z + packs.json
+// resources, RIFE models, the opt-in TensorRT-RTX backend on Windows), emitted by the package
+// builder as component-<name>.7z + packs.json
 // release assets. Archives are rooted at the install dir, so extraction is installation;
 // packs.json carries each pack's file list, so removal is deletion. Installed state lives in
 // components.json at the install root (inferred from disk for installs that predate it).
@@ -883,7 +884,9 @@ static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
 
 // Hardware-matched packs only. RIFE is a user choice, not a recommendation: it is preselected on
 // installs that have never managed components, and once the user has made any component decision
-// their choice stands.
+// their choice stands. trt-rtx (TensorRT-RTX, experimental) is never recommended or preselected: the
+// user opts in from App Settings, and from then on it counts as installed, so --auto keeps it
+// current (its dep is aji: it is refreshed whenever the aji release changes).
 List<string> RecommendedPacks(PackIndex index, bool hasNvidia, string sm)
 {
     var rec = new List<string>();

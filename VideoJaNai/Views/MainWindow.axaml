@@ -237,6 +237,13 @@
 
           <DockPanel Margin="0" Height="30" DockPanel.Dock="Bottom" HorizontalAlignment="Stretch">
 
+            <!-- TensorRT-RTX fell back to TensorRT this run -->
+            <StackPanel Margin="10,8,0,0" DockPanel.Dock="Left" Orientation="Horizontal" Spacing="4"
+                        IsVisible="{Binding ShowBackendFallback}" ToolTip.Tip="{Binding BackendFallbackText}">
+              <materialIcons:MaterialIcon Kind="Alert" Width="12" Height="12" Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+              <TextBlock FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                         Text="{x:Static lang:Resources.BackendFallbackStatusText}" />
+            </StackPanel>
             <TextBlock Margin="10,10,10,0" DockPanel.Dock="Left" FontSize="10" Text="{Binding LeftStatus}" />
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
               <ToggleButton IsChecked="{Binding ShowPreview}" FontSize="10" Margin="5,0,5,0">
@@ -632,12 +639,15 @@
                   <ToolTip.Tip>
                     <StackPanel Spacing="6">
                       <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>TensorRT</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" /></TextBlock>
+                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>TensorRT-RTX</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRtRtx}" /></TextBlock>
                       <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>DirectML</Bold>: <Run Text="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" /></TextBlock>
                     </StackPanel>
                   </ToolTip.Tip>
                 </ContentControl>
                 <ToggleButton IsChecked="{Binding TensorRtBackendSelected}" Content="TensorRT" Command="{Binding SetBackendTensorRt}"
                               ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRt}" />
+                <ToggleButton IsChecked="{Binding TensorRtRtxBackendSelected}" Content="TensorRT-RTX" Command="{Binding SetBackendTensorRtRtx}"
+                              ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionTensorRtRtx}" />
                 <ToggleButton IsChecked="{Binding DirectMlBackendSelected}" Content="DirectML" Command="{Binding SetBackendDirectMl}"
                               ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" />
               </StackPanel>

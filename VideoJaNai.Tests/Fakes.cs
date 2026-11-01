@@ -10,6 +10,7 @@ namespace VideoJaNai.Tests
     {
         public bool IsInferenceInstalled() => true;
         public bool IsTensorRtInstalled() => true;
+        public bool IsTensorRtRtxInstalled() => true;
         public bool AreModelsInstalled() => true;
         public bool IsFfmpegInstalled() => true;
         public string ModelsDirectory => "";
