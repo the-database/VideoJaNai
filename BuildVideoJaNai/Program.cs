@@ -78,12 +78,13 @@ var trtDebSha256 = new Dictionary<string, string>
 // DirectML device ids; nothing VJN uses, the video path is unchanged. v0.19.0: DirectML ~35-40%
 // faster (each session's input dims pinned) and the optional TensorRT-RTX backend (aji_trtrtx.dll),
 // published as its own Windows asset, aji-trtrtx-windows-x64.zip, which ships as the trt-rtx pack.
-const string AjiVersion        = "v0.19.0";
+// v0.19.1: TensorRT-RTX engine builds no longer free the builder before the objects it created.
+const string AjiVersion        = "v0.19.1";
 // The aji release publishes no checksums; recorded from the release assets.
 var ajiSha256Win = new Dictionary<string, string>
 {
-    ["aji-windows-x64.zip"]        = "adab29cab85efa3471a9422f6ea82a69e925064acec9b1a0bd341db89a36c419",
-    ["aji-trtrtx-windows-x64.zip"] = "03f7874141fb046fe2cee340f0de9047eb6eacc07a8c95cf4331654017b17906",
+    ["aji-windows-x64.zip"]        = "855fa197bc01a3621ee8265e0c19a9238024443cd9cd4a4692e5205c1716beee",
+    ["aji-trtrtx-windows-x64.zip"] = "87742617e83c3e55a990d9e0355b9342c31a4fb5c283506908f9fcb05263defe",
 };
 const string SevenZipVersion   = "2602";                  // 7-zip "extra" (Windows) / linux-x64 standalone console
 // animejanai-inference RIFE fp16 release. Set 2 only names the inputs' H/W dims (DirectML pins them);
