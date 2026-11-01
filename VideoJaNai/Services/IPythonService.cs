@@ -6,6 +6,7 @@ namespace AnimeJaNaiConverterGui.Services
     {
         bool IsInferenceInstalled();
         bool IsTensorRtInstalled();
+        bool IsTensorRtRtxInstalled();
         bool AreModelsInstalled();
         bool IsFfmpegInstalled();
         string ModelsDirectory { get; }

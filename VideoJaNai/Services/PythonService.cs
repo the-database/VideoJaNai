@@ -59,6 +59,8 @@ namespace AnimeJaNaiConverterGui.Services
             (IsTensorRtInstalled() || File.Exists(Path.Join(BackendDirectory, "components.json")));
 
         public bool IsTensorRtInstalled() => File.Exists(TrtexecPath);
+        // the opt-in trt-rtx component pack (Windows): aji_trtrtx.dll and the TensorRT-RTX runtime
+        public bool IsTensorRtRtxInstalled() => File.Exists(Path.Join(InferenceDirectory, "aji_trtrtx.dll"));
         public bool AreModelsInstalled() => Directory.Exists(ModelsDirectory) && Directory.GetFiles(ModelsDirectory).Length > 0;
         public bool IsFfmpegInstalled() => File.Exists(FfmpegPath);
 

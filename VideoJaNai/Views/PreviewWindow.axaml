@@ -48,6 +48,14 @@
           </Button>
         </StackPanel>
 
+        <!-- TensorRT-RTX fell back to TensorRT for this preview -->
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" Margin="0,0,12,0" VerticalAlignment="Center"
+                    IsVisible="{Binding ShowBackendFallback}" ToolTip.Tip="{Binding BackendFallbackText}">
+          <materialIcons:MaterialIcon Kind="Alert" Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+          <TextBlock FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                     Text="{x:Static lang:Resources.BackendFallbackStatusText}" />
+        </StackPanel>
+
         <TextBlock Text="{Binding StatusText}" Foreground="Gray" FontSize="12" Margin="20,0,20,0"
                    HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
       </DockPanel>

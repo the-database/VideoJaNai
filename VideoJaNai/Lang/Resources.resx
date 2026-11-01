@@ -369,6 +369,9 @@
   <data name="UpscalingBackendDescriptionTensorRt" xml:space="preserve">
     <value>Fastest option but NVIDIA only. Supports fp16 and fp32 ONNX models. fp16 models are recommended for faster performance and reduced VRAM usage without any loss in quality. The initial engine generation may require several minutes but only needs to be done once.</value>
   </data>
+  <data name="UpscalingBackendDescriptionTensorRtRtx" xml:space="preserve">
+    <value>Experimental, NVIDIA only. Builds engines in about a second, without trtexec. Output is equivalent to TensorRT's but not bit-identical. If it can't start, upscaling falls back to TensorRT automatically. Needs the TensorRT-RTX component from App Settings &gt; Components.</value>
+  </data>
   <data name="UpscalingBackendLabel" xml:space="preserve">
     <value>Backend</value>
   </data>
@@ -446,6 +449,12 @@
   </data>
   <data name="PreviewBuildingEngineText" xml:space="preserve">
     <value>Building the TensorRT engine. This is only needed the first time these settings are used and can take a few minutes.</value>
+  </data>
+  <data name="BackendFallbackStatusText" xml:space="preserve">
+    <value>TensorRT-RTX failed; using TensorRT</value>
+  </data>
+  <data name="PreviewBuildingEngineTextTensorRtRtx" xml:space="preserve">
+    <value>Building the TensorRT-RTX engine. This is only needed the first time these settings are used and takes a few seconds.</value>
   </data>
   <data name="PreviewEndText" xml:space="preserve">
     <value>End of video</value>
@@ -542,5 +551,8 @@
   </data>
   <data name="PostProcessingHeader" xml:space="preserve">
     <value>Post-processing</value>
+  </data>
+  <data name="TensorRtRtxComponentsMissingText" xml:space="preserve">
+    <value>TensorRT-RTX needs these components: {0}. Install them in App Settings &gt; Components, or select another backend.</value>
   </data>
 </root>

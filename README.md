@@ -4,6 +4,8 @@
 ## Overview
 VideoJaNai (previously called AnimeJaNaiConverterGui) provides a Windows and Linux GUI for upscaling videos with ONNX models, including temporal (multi-frame) models, and frame interpolation with RIFE. Upscaling runs entirely on the GPU, with NVIDIA TensorRT or, on Windows, DirectML for AMD and Intel GPUs, through the [AnimeJaNai inference engine](https://github.com/the-database/animejanai-inference), the same engine that powers [mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai).
 
+On Windows with an NVIDIA GPU, the optional **TensorRT-RTX** component (experimental, about 230 MB installed) adds a third backend that builds its engines in about a second instead of minutes. Install it from App Settings > Components, then pick it under Backend. Its output is equivalent to TensorRT's but not bit-identical, and if it can't start or can't build an engine, VideoJaNai falls back to TensorRT automatically and shows a warning in the status bar (and in the preview).
+
 ### Linux
 Download either the AppImage or the `linux-x64.tar.zst` from the [latest release](https://github.com/the-database/VideoJaNai/releases/latest). An NVIDIA GPU and driver are required.
 - **AppImage**: make it executable and run it. Run it once with `--install` to add a menu entry. The TensorRT kernels for your GPU and the RIFE models download on first launch into `~/.local/share/VideoJaNai`.

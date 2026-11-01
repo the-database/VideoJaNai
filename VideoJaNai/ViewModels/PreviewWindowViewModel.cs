@@ -52,6 +52,9 @@ namespace VideoJaNai.ViewModels
 
         public event Action? CloseRequested;
 
+        /// <summary>Shown while the session builds an engine (set per backend by the session's starter).</summary>
+        public string BuildingEngineText { get; set; } = Resources.PreviewBuildingEngineText;
+
         public PreviewWindowViewModel(Func<(PreviewSession? session, string? error, string? title)> startSession, Action<string> log)
         {
             _startSession = startSession;
@@ -81,6 +84,20 @@ namespace VideoJaNai.ViewModels
             get => _statusText;
             set => this.RaiseAndSetIfChanged(ref _statusText, value);
         }
+
+        // This session's TensorRT-RTX -> TensorRT fallback (see BackendFallback), shown as a warning.
+        private string _backendFallbackText = string.Empty;
+        public string BackendFallbackText
+        {
+            get => _backendFallbackText;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _backendFallbackText, value);
+                this.RaisePropertyChanged(nameof(ShowBackendFallback));
+            }
+        }
+
+        public bool ShowBackendFallback => !string.IsNullOrEmpty(BackendFallbackText);
 
         private double _durationMs = 1;
         public double DurationMs
@@ -163,6 +180,7 @@ namespace VideoJaNai.ViewModels
             IsReady = false;
             StopPlayback();
             StatusText = Resources.PreviewStartingText;
+            BackendFallbackText = string.Empty;
             var (session, error, title) = _startSession();
             if (session == null)
             {
@@ -187,10 +205,20 @@ namespace VideoJaNai.ViewModels
                 if (line.Contains("phase=build_engine", StringComparison.Ordinal) &&
                     !line.Contains("pct=100", StringComparison.Ordinal))
                 {
-                    StatusText = Resources.PreviewBuildingEngineText;
+                    StatusText = BuildingEngineText;
                 }
             });
             session.LogLine += _log;
+            session.LogLine += line =>
+            {
+                if (BackendFallback.FromAjiLog(line) is string fallback)
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (_session == session) BackendFallbackText = fallback;
+                    });
+                }
+            };
             session.FrameReceived += OnFrame;
             session.Ended += id =>
             {
