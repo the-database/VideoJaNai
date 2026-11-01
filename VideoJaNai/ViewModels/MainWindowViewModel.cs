@@ -1358,12 +1358,29 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             File.WriteAllText(fullPath, lines);
         }
 
+        // The version this state was last used with, so an update can refresh components once.
+        private string? _lastRunVersion;
+        [DataMember]
+        public string? LastRunVersion
+        {
+            get => _lastRunVersion;
+            set => this.RaiseAndSetIfChanged(ref _lastRunVersion, value);
+        }
+
         public async Task CheckAndExtractBackend()
         {
-            // Components are installed by the Inno setup's component page. On launch, just verify the
+            // Components are installed by the Inno setup's component page. On launch, verify the
             // engine is present; if not (skipped/offline at install) and we're installed, run the
             // updater's --auto to fetch the GPU-matched components, with progress on the setup overlay.
-            if (_pythonService.IsInferenceInstalled() || !_updateManagerService.IsInstalled)
+            // The first launch after an update runs --auto too: an app update replaces the core but
+            // not the component packs, and a pack whose dep moved (a TensorRT, RIFE or aji bump; the
+            // opt-in trt-rtx pack must match aji.dll) is stale until --auto reinstalls it. A failed
+            // refresh keeps the components already installed, so it doesn't block the app.
+            var version = _updateManagerService.AppVersion;
+            var updated = !string.IsNullOrEmpty(LastRunVersion) && LastRunVersion != version;
+            LastRunVersion = version;
+            var missing = !_pythonService.IsInferenceInstalled();
+            if (!_updateManagerService.IsInstalled || (!missing && !updated))
             {
                 return;
             }
@@ -1372,11 +1389,13 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             {
                 BackendSetupSubStatusQueueClear();
                 IsExtractingBackend = true;
-                BackendSetupMainStatus = "Installing components for your hardware...";
+                BackendSetupMainStatus = missing
+                    ? "Installing components for your hardware..."
+                    : "Updating components for your hardware...";
                 try
                 {
                     var rc = await _updateManagerService.RunUpdaterStreamingAsync("--auto", BackendSetupSubStatusQueueEnqueue);
-                    if (rc != 0)
+                    if (rc != 0 && missing)
                     {
                         ExtractingBackendFailed = true;
                         BackendSetupMainStatus = "Component setup failed. You can retry from App Settings.";
@@ -1386,9 +1405,12 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                 catch (Exception ex)
                 {
                     BackendSetupSubStatusQueueEnqueue(ex.Message);
-                    ExtractingBackendFailed = true;
-                    BackendSetupMainStatus = "Component setup failed. You can retry from App Settings.";
-                    return;
+                    if (missing)
+                    {
+                        ExtractingBackendFailed = true;
+                        BackendSetupMainStatus = "Component setup failed. You can retry from App Settings.";
+                        return;
+                    }
                 }
                 IsExtractingBackend = false;
             });
