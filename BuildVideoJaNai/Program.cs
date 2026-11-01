@@ -3,7 +3,7 @@
 //
 // Assembles the redistributable install tree (the VideoJaNai app + VideoJaNaiUpdater + the libaji
 // inference dir + ONNX models) and, under --packs, carves the heavy hardware-specific pieces
-// (TensorRT runtime, per-GPU-generation builder resources, RIFE models, the opt-in TensorRT-RTX
+// (TensorRT runtime, per-GPU-generation builder resources, RIFE models, the TensorRT-RTX
 // backend) into component-*.7z + packs.json release assets, then slims them out of the core. End
 // users only ever download the small core + their GPU's component packs.
 //
@@ -900,9 +900,9 @@ async Task<List<string>> EmitComponentPacks()
             })
             .Select(f => Path.GetRelativePath(installDirectory, f)).ToArray()),
         ("rife", "rife", new[] { Path.GetRelativePath(installDirectory, rifePath) }),
-        // TensorRT-RTX (Windows, opt-in, experimental): the aji release's aji-trtrtx asset. Governed
-        // by the aji dep, not inference_runtime: aji_trtrtx.dll has to match the core's aji.dll, so
-        // the pack reinstalls whenever aji moves. Needs trt-runtime too (cudart; and the TensorRT
+        // TensorRT-RTX (Windows; recommended on RTX 30-series and newer): the aji release's
+        // aji-trtrtx asset. Governed by the aji dep, not inference_runtime: aji_trtrtx.dll has to
+        // match the core's aji.dll, so the pack reinstalls whenever aji moves. Needs trt-runtime too (cudart; and the TensorRT
         // fallback), which the app checks.
         ("trt-rtx", "aji", Directory.GetFiles(inferencePath)
             .Where(f =>

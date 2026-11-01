@@ -170,13 +170,18 @@ namespace VideoJaNai.ViewModels
             }
         }
 
-        // TensorRT-RTX (opt-in, experimental, Windows only) when DirectML isn't selected. A flag next
-        // to UseDirectMl rather than a backend enum: a state saved before it existed loads unchanged
-        // (missing = false), and an older VideoJaNai reading a newer state sees UseDirectMl=false and
-        // runs TensorRT, which is what TensorRT-RTX falls back to anyway.
-        private bool _useTensorRtRtx;
+        // The NVIDIA backend when DirectML isn't selected (TensorRT-RTX is Windows only): true for
+        // TensorRT-RTX, false for TensorRT, null while the user hasn't picked one, which means
+        // TensorRT-RTX whenever its component is installed (the updater installs it on RTX 30-series
+        // and newer, where it's the default) and TensorRT otherwise. States saved by versions without
+        // the field load as null, so they get the same default. A flag next to UseDirectMl rather
+        // than a backend enum: an older VideoJaNai reading a newer state sees UseDirectMl=false and
+        // runs TensorRT, which is what TensorRT-RTX falls back to anyway. Null is never written, so
+        // a version that has the field as a plain bool still loads a state saved here.
+        private bool? _useTensorRtRtx;
         [DataMember]
-        public bool UseTensorRtRtx
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public bool? UseTensorRtRtx
         {
             get => _useTensorRtRtx;
             set
@@ -198,7 +203,8 @@ namespace VideoJaNai.ViewModels
         }
 
         public bool DirectMlBackendSelected => UseDirectMl == true && UpscaleWorkflow.DirectMlAvailable;
-        public bool TensorRtRtxBackendSelected => !DirectMlBackendSelected && UseTensorRtRtx && UpscaleWorkflow.TensorRtRtxAvailable;
+        public bool TensorRtRtxBackendSelected => !DirectMlBackendSelected && UpscaleWorkflow.TensorRtRtxAvailable &&
+                                                  (UseTensorRtRtx ?? TensorRtRtxInstalled);
         public bool TensorRtBackendSelected => !DirectMlBackendSelected && !TensorRtRtxBackendSelected;
 
         public void SetBackendTensorRt() => SetBackend(directMl: false, tensorRtRtx: false);
@@ -1394,7 +1400,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             // updater's --auto to fetch the GPU-matched components, with progress on the setup overlay.
             // The first launch after an update runs --auto too: an app update replaces the core but
             // not the component packs, and a pack whose dep moved (a TensorRT, RIFE or aji bump; the
-            // opt-in trt-rtx pack must match aji.dll) is stale until --auto reinstalls it. A failed
+            // trt-rtx pack must match aji.dll) is stale until --auto reinstalls it, and it installs
+            // packs newly recommended for this GPU (trt-rtx on RTX 30-series and newer). A failed
             // refresh keeps the components already installed, so it doesn't block the app.
             var version = _updateManagerService.AppVersion;
             var updated = !string.IsNullOrEmpty(LastRunVersion) && LastRunVersion != version;
@@ -1434,6 +1441,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                 }
                 IsExtractingBackend = false;
             });
+            // --auto may have installed or removed trt-rtx, which an unchosen backend follows
+            BackendChanged();
         }
 
         public async Task ReinstallBackend()
@@ -1448,6 +1457,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             catch (Exception ex) { ComponentStatusText = ex.Message; }
             ComponentsBusy = false;
             await RefreshComponents();
+            BackendChanged();
         }
 
         public async Task RefreshComponents()
@@ -1479,8 +1489,8 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                     // has (installed, so it can be removed), is offered by default (preselect), or RIFE
                     // (always a user choice). Per-SM kernel packs for other GPU generations and the
                     // TensorRT stack on non-NVIDIA boxes are hidden — the updater CLI still lists them all.
-                    // TensorRT-RTX is never recommended (experimental, opt-in), so it is offered here
-                    // to every NVIDIA GPU on Windows.
+                    // TensorRT-RTX is recommended only on the GPUs where it's the default (RTX 30-series
+                    // and newer), so it is offered here to every NVIDIA GPU on Windows.
                     bool optIn = name == "trt-rtx" && nvidia && UpscaleWorkflow.TensorRtRtxAvailable;
                     if (!installed && !recommended && !preselect && name != "rife" && !optIn)
                     {
@@ -1511,8 +1521,9 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             catch (Exception ex) { ComponentStatusText = ex.Message; }
             ComponentsBusy = false;
             await RefreshComponents();
-            // the selected backend's components may have arrived or gone: re-check what it needs
-            CurrentWorkflow?.Validate();
+            // the selected backend's components may have arrived or gone (and an unchosen NVIDIA
+            // backend follows whether trt-rtx is installed): re-check the selection and what it needs
+            BackendChanged();
         }
 
         public async Task RemoveComponent(ComponentItem item)
@@ -1530,8 +1541,9 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             catch (Exception ex) { ComponentStatusText = ex.Message; }
             ComponentsBusy = false;
             await RefreshComponents();
-            // the selected backend's components may have arrived or gone: re-check what it needs
-            CurrentWorkflow?.Validate();
+            // the selected backend's components may have arrived or gone (and an unchosen NVIDIA
+            // backend follows whether trt-rtx is installed): re-check the selection and what it needs
+            BackendChanged();
         }
 
         // Called once for the app's state (not every view model instance): check now, then
@@ -1736,7 +1748,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         public static string TitleFor(string name) => name switch
         {
             "trt-runtime" => "TensorRT runtime",
-            "trt-rtx" => "TensorRT-RTX (experimental)",
+            "trt-rtx" => "TensorRT-RTX",
             "rife" => "RIFE interpolation models",
             "trt-ptx" => "TensorRT kernels: other NVIDIA GPUs",
             _ when name.StartsWith("trt-sm") => $"TensorRT kernels: {SmFamily(name[6..])}",
@@ -1746,7 +1758,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         public string Description => Name switch
         {
             "trt-runtime" => "The fastest upscaling engine, for NVIDIA GPUs. Without it, upscaling falls back to the slower DirectML engine.",
-            "trt-rtx" => "Optional TensorRT-RTX backend: builds engines in about a second, without trtexec. Needs the TensorRT runtime too. Select it under Backend once installed.",
+            "trt-rtx" => "TensorRT-RTX backend: builds engines in seconds instead of minutes, without trtexec. The default on GeForce RTX 30 series and newer, where it's installed automatically. Needs the TensorRT runtime too, which it falls back to.",
             "rife" => "Frame interpolation (e.g. 24 → 48 fps). Not needed if you only upscale.",
             "trt-ptx" => "Fallback kernels for NVIDIA GPUs without a dedicated kernel pack. The first engine build is slower.",
             _ when Name.StartsWith("trt-sm") => "Engine-builder kernels matched to your GPU generation.",
