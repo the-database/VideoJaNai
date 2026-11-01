@@ -73,7 +73,7 @@ namespace VideoJaNai.Views
                 {
                     sidebar.Width = new GridLength(Math.Clamp(vm.SidebarWidth, sidebar.MinWidth, sidebar.MaxWidth));
                 }
-                vm.CheckAndExtractBackend();
+                _ = vm.StartupChecks();
             }
         }
 

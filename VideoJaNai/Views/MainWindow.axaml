@@ -586,34 +586,55 @@
                   </ContentControl>
                 </StackPanel>
               </Grid>
-              <StackPanel Classes="row">
-                <ContentControl Classes="hint" Content="{x:Static lang:Resources.FfmpegPresetsLabel}">
-                  <ToolTip.Tip>
-                    <StackPanel Spacing="6">
-                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>NVENC HEVC</Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionNvencHevc}" /></TextBlock>
-                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>x265 (CPU)</Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionX265}" /></TextBlock>
-                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>x264 (CPU)</Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionX264}" /></TextBlock>
-                      <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>Lossless (CPU)</Bold>: <Run Text="{x:Static lang:Resources.FfmpegPresetsDescriptionLossless}" /></TextBlock>
-                    </StackPanel>
-                  </ToolTip.Tip>
-                </ContentControl>
-                <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegHevcNvencSelected}" Content="NVENC HEVC" Command="{Binding CurrentWorkflow.SetFfmpegHevcNvenc}"
-                              ToolTip.Tip="{x:Static lang:Resources.FfmpegPresetsDescriptionNvencHevc}" />
-                <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegX265Selected}" Content="x265 (CPU)" Command="{Binding CurrentWorkflow.SetFfmpegX265}"
-                              ToolTip.Tip="{x:Static lang:Resources.FfmpegPresetsDescriptionX265}" />
-                <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegX264Selected}" Content="x264 (CPU)" Command="{Binding CurrentWorkflow.SetFfmpegX264}"
-                              ToolTip.Tip="{x:Static lang:Resources.FfmpegPresetsDescriptionX264}" />
-                <ToggleButton IsChecked="{Binding CurrentWorkflow.FfmpegLosslessSelected}" Content="Lossless (CPU)" Command="{Binding CurrentWorkflow.SetFfmpegLossless}"
-                              ToolTip.Tip="{x:Static lang:Resources.FfmpegPresetsDescriptionLossless}" />
-                <ContentControl Classes="hint" Margin="25,0,0,0" Content="Output format" ToolTip.Tip="10-bit reduces banding (default, matches the old pipeline). 4:4:4 preserves full chroma but needs a CPU encoder (x265/x264/Lossless) and produces larger files." />
-                <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt420P8Selected}" Content="8-bit 4:2:0" Command="{Binding CurrentWorkflow.SetOutputPixFmt420P8}" />
-                <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt420P10Selected}" Content="10-bit 4:2:0" Command="{Binding CurrentWorkflow.SetOutputPixFmt420P10}" />
-                <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt444P8Selected}" Content="8-bit 4:4:4" Command="{Binding CurrentWorkflow.SetOutputPixFmt444P8}" />
-                <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt444P10Selected}" Content="10-bit 4:4:4" Command="{Binding CurrentWorkflow.SetOutputPixFmt444P10}" />
-              </StackPanel>
+              <!-- Encoder (where) and codec (what): two rows sharing the label column. Only the
+                   encoders that work on this PC are listed (aji_encode probe), and of the GPUs only
+                   the one doing the upscale unless "Show other GPUs" is on. -->
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                <ContentControl Classes="hint" Grid.Row="0" Grid.Column="0" Content="{x:Static lang:Resources.EncoderLabel}" ToolTip.Tip="{x:Static lang:Resources.EncoderDescription}" />
+                <StackPanel Classes="row" Grid.Row="0" Grid.Column="1">
+                  <ItemsControl ItemsSource="{Binding CurrentWorkflow.EncoderGroupChoices}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:EncoderChoice">
+                        <ToggleButton IsChecked="{Binding IsSelected, Mode=OneWay}" Content="{Binding Label}" Command="{Binding Select}" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <ContentControl Classes="hint" Margin="25,0,0,0" IsVisible="{Binding CurrentWorkflow.ShowOtherGpuEncodersOption}" ToolTip.Tip="{x:Static lang:Resources.ShowOtherGpuEncodersDescription}">
+                    <CheckBox IsChecked="{Binding ShowOtherGpuEncoders}" Content="{x:Static lang:Resources.ShowOtherGpuEncodersLabel}" />
+                  </ContentControl>
+                </StackPanel>
+                <ContentControl Classes="hint" Grid.Row="1" Grid.Column="0" Margin="0,8,0,0" Content="{x:Static lang:Resources.CodecLabel}" ToolTip.Tip="{x:Static lang:Resources.CodecDescription}" />
+                <StackPanel Classes="row" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0">
+                  <ItemsControl ItemsSource="{Binding CurrentWorkflow.CodecChoices}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:EncoderChoice">
+                        <ToggleButton IsChecked="{Binding IsSelected, Mode=OneWay}" Content="{Binding Label}" Command="{Binding Select}" ToolTip.Tip="{Binding Tooltip}" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <ContentControl Classes="hint" Margin="25,0,0,0" Content="Output format" ToolTip.Tip="10-bit reduces banding (default, matches the old pipeline). 4:4:4 preserves full chroma but needs a CPU encoder (x265/x264/FFV1) and produces larger files." />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt420P8Selected}" Content="8-bit 4:2:0" Command="{Binding CurrentWorkflow.SetOutputPixFmt420P8}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt420P10Selected}" Content="10-bit 4:2:0" Command="{Binding CurrentWorkflow.SetOutputPixFmt420P10}"
+                                IsEnabled="{Binding CurrentWorkflow.Output10BitEnabled}" ToolTip.ShowOnDisabled="True" ToolTip.Tip="{x:Static lang:Resources.Output10BitDisabledDescription}" ToolTip.ServiceEnabled="{Binding !CurrentWorkflow.Output10BitEnabled}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt444P8Selected}" Content="8-bit 4:4:4" Command="{Binding CurrentWorkflow.SetOutputPixFmt444P8}"
+                                IsEnabled="{Binding CurrentWorkflow.Output444Enabled}" ToolTip.ShowOnDisabled="True" ToolTip.Tip="{x:Static lang:Resources.Output444DisabledDescription}" ToolTip.ServiceEnabled="{Binding !CurrentWorkflow.Output444Enabled}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.OutputPixFmt444P10Selected}" Content="10-bit 4:4:4" Command="{Binding CurrentWorkflow.SetOutputPixFmt444P10}"
+                                IsEnabled="{Binding CurrentWorkflow.Output444P10Enabled}" ToolTip.ShowOnDisabled="True" ToolTip.Tip="{x:Static lang:Resources.Output444DisabledDescription}" ToolTip.ServiceEnabled="{Binding !CurrentWorkflow.Output444P10Enabled}" />
+                </StackPanel>
+              </Grid>
               <Grid ColumnDefinitions="Auto,Auto,*">
                 <ContentControl Classes="hint" Grid.Column="0" Content="{x:Static lang:Resources.FfmpegOutputSettingsLabel}" ToolTip.Tip="{x:Static lang:Resources.FfmpegOutputSettingsDescription}" />
-                <TextBox Grid.Column="2" Text="{Binding CurrentWorkflow.FfmpegVideoSettings}" HorizontalAlignment="Stretch" />
+                <TextBox Grid.Column="2" Text="{Binding CurrentWorkflow.FfmpegVideoSettingsText}" HorizontalAlignment="Stretch" />
               </Grid>
             </StackPanel>
           </Expander>

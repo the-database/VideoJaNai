@@ -187,10 +187,16 @@
     <value>FFmpeg Output Video Settings</value>
   </data>
   <data name="FfmpegPresetsDescriptionLossless" xml:space="preserve">
-    <value>FFV1 lossless compression, usually fastest to encode but extremely large filesize, and may be slower if bottlenecked by a slow storage drive.</value>
+    <value>FFV1 lossless compression on the CPU: keeps the upscaled frames exactly. Extremely large files, and it can be slowed down by a slow storage drive.</value>
   </data>
-  <data name="FfmpegPresetsDescriptionNvencHevc" xml:space="preserve">
-    <value>HEVC compression with NVENC, fast encode using GPU but lower quality than CPU encoding.</value>
+  <data name="FfmpegPresetsDescriptionGpuHevc" xml:space="preserve">
+    <value>HEVC on the GPU at about 50 Mbps: very fast, but lower quality for the file size than x265 on the CPU.</value>
+  </data>
+  <data name="FfmpegPresetsDescriptionGpuAv1" xml:space="preserve">
+    <value>AV1 on the GPU at about 50 Mbps: as fast as HEVC, with better compression. Needs a player that supports AV1.</value>
+  </data>
+  <data name="FfmpegPresetsDescriptionNvencLossless" xml:space="preserve">
+    <value>Lossless HEVC on the GPU: keeps the upscaled frames exactly, like FFV1, but encodes much faster. Extremely large files, about the size of FFV1's.</value>
   </data>
   <data name="FfmpegPresetsDescriptionX264" xml:space="preserve">
     <value>x264 compression, OK compression, faster to encode.</value>
@@ -198,8 +204,29 @@
   <data name="FfmpegPresetsDescriptionX265" xml:space="preserve">
     <value>x265 compression, more efficient compression but slower to encode.</value>
   </data>
-  <data name="FfmpegPresetsLabel" xml:space="preserve">
-    <value>FFmpeg Presets</value>
+  <data name="EncoderLabel" xml:space="preserve">
+    <value>Encoder</value>
+  </data>
+  <data name="EncoderDescription" xml:space="preserve">
+    <value>Where the video is encoded. GPU encoders are very fast; CPU encoders are slower but give the best quality for the file size. Only encoders that work on this PC are listed, and of the GPUs only the one doing the upscale.</value>
+  </data>
+  <data name="CodecLabel" xml:space="preserve">
+    <value>Codec</value>
+  </data>
+  <data name="CodecDescription" xml:space="preserve">
+    <value>The video format. HEVC plays almost everywhere; AV1 compresses better but needs a recent GPU to encode it and a player that supports it; lossless keeps the upscaled frames exactly, in very large files. Edit the FFmpeg settings below for anything else.</value>
+  </data>
+  <data name="ShowOtherGpuEncodersLabel" xml:space="preserve">
+    <value>Show other GPUs</value>
+  </data>
+  <data name="ShowOtherGpuEncodersDescription" xml:space="preserve">
+    <value>Also list the encoders of GPUs that don't do the upscale, such as a CPU's integrated graphics next to a graphics card. They work, but every frame has to be copied to that GPU and its encoder is usually slower and lower quality, so the upscaling GPU's own encoder is the better choice. Useful when only the other GPU can encode a codec you want, such as AV1.</value>
+  </data>
+  <data name="Output10BitDisabledDescription" xml:space="preserve">
+    <value>This encoder can't encode 10-bit on this PC.</value>
+  </data>
+  <data name="Output444DisabledDescription" xml:space="preserve">
+    <value>4:4:4 needs a CPU encoder (x265, x264 or FFV1); GPU encoders encode 4:2:0 only.</value>
   </data>
   <data name="FinalResizeFactorDescription" xml:space="preserve">
     <value>Resize the video by this factor after running all models. The video width and height are scaled by this percentage, so a value of 100% performs no resize, and a value of 50% cuts the width and height of the video in half. This setting is ignored if Final Resize Height is specified. Note that the final video width and height must be divisble by 2 or the output video will be invalid.</value>
