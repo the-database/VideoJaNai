@@ -81,14 +81,21 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.19.1: TensorRT-RTX engine builds no longer free the builder before the objects it created.
 // v0.20.0: CPU encoders (FFV1, x265) use every core instead of one; AMD AMF / Intel QSV encoders;
 // --probe-encoders (the GPUs and which GPU encoders open), which the Output section's encoder rows use.
-const string AjiVersion        = "v0.20.0";
+// v0.21.0: video preprocessing fuses the vertical chroma filter into the RGB conversion (bit-identical,
+// slightly faster); the rest is the still-image API, which VJN doesn't use.
+const string AjiVersion        = "v0.21.0";
 // The aji release publishes no checksums; recorded from the release assets.
 var ajiSha256Win = new Dictionary<string, string>
 {
-    ["aji-windows-x64.zip"]        = "91baf9b7fa25f649b2117659b82e24eaca959e57a9a795f880fb4a94baf0302a",
-    ["aji-trtrtx-windows-x64.zip"] = "28607eeddb4bd3772731bce86642efe25711ecdddb494874f5e3df0b41a93805",
+    ["aji-windows-x64.zip"]        = "00adb8dcbcb9cab02e2638d9ff302aae60fb8cccdb8771a3d557a5363359be19",
+    ["aji-trtrtx-windows-x64.zip"] = "213204243f947affebbe32db99379a4fea74cc1ab50657370dfff26fb72df0de",
 };
-const string SevenZipVersion   = "2602";                  // 7-zip "extra" (Windows) / linux-x64 standalone console
+// 7-Zip "extra" (Windows) / linux-x64 standalone console, from its GitHub release (7-zip.org links
+// there from 26.05 on; its own /a/ folder stops at 26.02). Digests from the release assets.
+const string SevenZipVersion   = "2605";
+const string SevenZipTag       = "26.05";
+const string SevenZipSha256Win   = "f27a8f103c84785026edcba1f67faf1357225df9d19ddb0b7760d55947141bc7";
+const string SevenZipSha256Linux = "22cf82fcc6eb7474f1d5bb4f02c0f8ebd573a718089d6833dc30f8350a3b232e";
 // animejanai-inference RIFE fp16 release. Set 2 only names the inputs' H/W dims (DirectML pins them);
 // outputs are bit-identical to set 1 and TensorRT engines carry over (cached by file name).
 const string RifeModelsVersion = "models-rife-fp16-2";
@@ -151,9 +158,10 @@ async Task InstallSevenZip()
     Console.WriteLine("Downloading 7-Zip standalone console...");
     if (plat.IsWindows)
     {
-        var downloadUrl = $"https://www.7-zip.org/a/7z{SevenZipVersion}-extra.7z";
+        var downloadUrl = $"https://github.com/ip7z/7zip/releases/download/{SevenZipTag}/7z{SevenZipVersion}-extra.7z";
         var targetPath = Path.GetFullPath("7z-extra.7z");
         await DownloadFileAsync(downloadUrl, targetPath, p => Console.WriteLine($"Downloading 7-Zip ({p}%)..."));
+        VerifySha256(targetPath, SevenZipSha256Win);
 
         var targetExtractPath = Path.GetFullPath("7z-extra-temp");
         Directory.CreateDirectory(targetExtractPath);
@@ -168,9 +176,10 @@ async Task InstallSevenZip()
     else
     {
         // The linux-x64 console ships as tar.xz; system tar avoids an archive chicken-and-egg.
-        var downloadUrl = $"https://www.7-zip.org/a/7z{SevenZipVersion}-linux-x64.tar.xz";
+        var downloadUrl = $"https://github.com/ip7z/7zip/releases/download/{SevenZipTag}/7z{SevenZipVersion}-linux-x64.tar.xz";
         var targetPath = Path.GetFullPath("7z-linux.tar.xz");
         await DownloadFileAsync(downloadUrl, targetPath, p => Console.WriteLine($"Downloading 7-Zip ({p}%)..."));
+        VerifySha256(targetPath, SevenZipSha256Linux);
         var tmp = Path.GetFullPath("7z-linux-temp");
         Directory.CreateDirectory(tmp);
         await RunProcess("tar", $"-xf \"{targetPath}\" -C \"{tmp}\"");
