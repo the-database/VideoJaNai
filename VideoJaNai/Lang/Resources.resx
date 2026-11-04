@@ -402,6 +402,18 @@
   <data name="UpscalingBackendLabel" xml:space="preserve">
     <value>Backend</value>
   </data>
+  <data name="GpuLabel" xml:space="preserve">
+    <value>GPU</value>
+  </data>
+  <data name="GpuDescription" xml:space="preserve">
+    <value>The GPU that does the upscale. Auto picks the graphics card: on DirectML, the GPU Windows ranks for high performance; on TensorRT, the fastest NVIDIA GPU. Choose one when this PC has more than one GPU and Auto picks the wrong one, such as integrated graphics.</value>
+  </data>
+  <data name="GpuAutoLabel" xml:space="preserve">
+    <value>Auto</value>
+  </data>
+  <data name="GpuAutoNamedLabel" xml:space="preserve">
+    <value>Auto ({0})</value>
+  </data>
   <data name="VideoInputAndOutputHeader" xml:space="preserve">
     <value>Video Input and Output</value>
   </data>

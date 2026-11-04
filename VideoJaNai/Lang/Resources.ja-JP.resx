@@ -369,6 +369,18 @@
   <data name="UpscalingBackendLabel" xml:space="preserve">
     <value>バックエンド</value>
   </data>
+  <data name="GpuLabel" xml:space="preserve">
+    <value>GPU</value>
+  </data>
+  <data name="GpuDescription" xml:space="preserve">
+    <value>アップスケールを行うGPUです。「自動」ではグラフィックカードを選びます。DirectMLではWindowsが高パフォーマンスとするGPU、TensorRTでは最も高速なNVIDIA GPUです。GPUが複数あり、「自動」で内蔵グラフィックスなど違うGPUが選ばれる場合に指定してください。</value>
+  </data>
+  <data name="GpuAutoLabel" xml:space="preserve">
+    <value>自動</value>
+  </data>
+  <data name="GpuAutoNamedLabel" xml:space="preserve">
+    <value>自動 ({0})</value>
+  </data>
   <data name="VideoInputAndOutputHeader" xml:space="preserve">
     <value>Video Input and Output</value>
   </data>
