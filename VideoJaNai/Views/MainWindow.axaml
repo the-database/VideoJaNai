@@ -674,7 +674,8 @@
               </StackPanel>
               <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding GpuChoiceVisible}">
                 <ContentControl Classes="hint" Content="{x:Static lang:Resources.GpuLabel}" ToolTip.Tip="{x:Static lang:Resources.GpuDescription}" />
-                <ComboBox VerticalAlignment="Center" ItemsSource="{Binding GpuChoices}" SelectedIndex="{Binding SelectedGpuChoiceIndex}" />
+                <ComboBox VerticalAlignment="Center" ItemsSource="{Binding GpuChoices}" SelectedIndex="{Binding SelectedGpuChoiceIndex}"
+                          IsEnabled="{Binding GpuChoiceEnabled}" />
               </StackPanel>
               <StackPanel IsVisible="{Binding IsInstalled}">
                 <StackPanel>
