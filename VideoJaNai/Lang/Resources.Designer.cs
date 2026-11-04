@@ -952,6 +952,15 @@ namespace VideoJaNai.Lang {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to TensorRT on {0} needs these components: {1}..
+        /// </summary>
+        public static string TensorRtKernelsMissingText {
+            get {
+                return ResourceManager.GetString("TensorRtKernelsMissingText", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Video Input and Output.
         /// </summary>
         public static string VideoInputAndOutputHeader {
