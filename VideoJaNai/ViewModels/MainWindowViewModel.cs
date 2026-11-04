@@ -351,10 +351,99 @@ namespace VideoJaNai.ViewModels
             }
         }
 
-        // The GPU that does the upscale: the NVIDIA card on TensorRT, DXGI adapter 0 on DirectML
-        // (null when the probe couldn't tell).
+        // ---- GPU choice ----------------------------------------------------------------------
+        // The GPU that does the upscale, app-wide like the backend: a probe GPU's id (aji_encode's
+        // --device), or null for Auto, which on DirectML is the GPU Windows ranks first for high
+        // performance and on TensorRT CUDA's first (normally the fastest NVIDIA card). Name and
+        // position (among the probe's GPUs) find a GPU again whose id is gone, see EncoderProbe.Find.
+        private string? _selectedGpuId;
+        [DataMember]
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string? SelectedGpuId
+        {
+            get => _selectedGpuId;
+            set => this.RaiseAndSetIfChanged(ref _selectedGpuId, value);
+        }
+
+        private string? _selectedGpuName;
+        [DataMember]
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string? SelectedGpuName
+        {
+            get => _selectedGpuName;
+            set => this.RaiseAndSetIfChanged(ref _selectedGpuName, value);
+        }
+
+        private int _selectedGpuPosition = -1;
+        [DataMember]
+        public int SelectedGpuPosition
+        {
+            get => _selectedGpuPosition;
+            set => this.RaiseAndSetIfChanged(ref _selectedGpuPosition, value);
+        }
+
+        // The GPUs the backend can upscale on: every GPU on DirectML, the NVIDIA ones on TensorRT
+        // and TensorRT-RTX. Only GPUs with an id, so none from an aji_encode without --device.
+        public IReadOnlyList<EncoderProbe.Gpu> BackendGpus =>
+            _encoderProbe?.Gpus.Where(g => g.Id != null &&
+                                           (DirectMlBackendSelected || g.Vendor == EncoderGroup.Nvidia)).ToList()
+            ?? [];
+
+        // The chosen GPU when the backend can use it, else null: Auto, and no --device.
+        public EncoderProbe.Gpu? ChosenGpu =>
+            _encoderProbe is EncoderProbe probe &&
+            EncoderProbe.Find(probe.Gpus, SelectedGpuId, SelectedGpuName, SelectedGpuPosition) is EncoderProbe.Gpu g &&
+            BackendGpus.Contains(g)
+                ? g : null;
+
+        // The GPU row is only there when there's a choice to make.
+        public bool GpuChoiceVisible => BackendGpus.Count > 1;
+
+        // Auto, then each GPU. Auto names the GPU it means where the probe knows it (DirectML's).
+        // The same array while the labels are the same: the list clears its selection when its items
+        // are replaced, and writes that back, so a GPU picked in it would be undone.
+        private string[] _gpuChoices = [];
+        public string[] GpuChoices
+        {
+            get
+            {
+                var gpus = BackendGpus;
+                var auto = DirectMlBackendSelected && _encoderProbe?.DefaultGpu is EncoderProbe.Gpu d && gpus.Contains(d)
+                    ? string.Format(CultureInfo.CurrentCulture, Resources.GpuAutoNamedLabel, EncoderProbe.Label(gpus, d))
+                    : Resources.GpuAutoLabel;
+                string[] choices = [auto, .. gpus.Select(g => EncoderProbe.Label(gpus, g))];
+                if (!choices.SequenceEqual(_gpuChoices))
+                {
+                    _gpuChoices = choices;
+                }
+                return _gpuChoices;
+            }
+        }
+
+        public int SelectedGpuChoiceIndex
+        {
+            get => ChosenGpu is EncoderProbe.Gpu g ? BackendGpus.ToList().IndexOf(g) + 1 : 0;
+            set
+            {
+                // the list sets -1 while its items are replaced
+                if (value < 0 || value == SelectedGpuChoiceIndex)
+                {
+                    return;
+                }
+                var gpus = BackendGpus;
+                var gpu = value > 0 && value <= gpus.Count ? gpus[value - 1] : null;
+                SelectedGpuId = gpu?.Id;
+                SelectedGpuName = gpu?.Name;
+                SelectedGpuPosition = gpu is null || _encoderProbe is null ? -1 : _encoderProbe.Gpus.ToList().IndexOf(gpu);
+                EncodersChanged();     // the upscaling GPU, so the listed encoders, follow the choice
+            }
+        }
+
+        // The GPU that does the upscale: the chosen one, else Auto's, which is an NVIDIA card on
+        // TensorRT and the probe's default GPU on DirectML (null when the probe couldn't tell).
         public EncoderGroup? InferenceGpuVendor =>
-            !DirectMlBackendSelected ? EncoderGroup.Nvidia : _encoderProbe?.DefaultGpuVendor;
+            ChosenGpu is EncoderProbe.Gpu g ? g.Vendor
+            : !DirectMlBackendSelected ? EncoderGroup.Nvidia : _encoderProbe?.DefaultGpuVendor;
 
         // Works on this PC: CPU presets always; GPU ones when the probe opened their encoder.
         // Without a probe only NVENC HEVC / Lossless are offered, as before detection existed.
@@ -385,6 +474,9 @@ namespace VideoJaNai.ViewModels
         private void EncodersChanged()
         {
             this.RaisePropertyChanged(nameof(Probe));
+            this.RaisePropertyChanged(nameof(GpuChoiceVisible));
+            this.RaisePropertyChanged(nameof(GpuChoices));
+            this.RaisePropertyChanged(nameof(SelectedGpuChoiceIndex));
             this.RaisePropertyChanged(nameof(HasOtherGpuEncoders));
             foreach (var wf in Workflows ?? [])
             {
@@ -1192,6 +1284,10 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             sb.Append(ENGLISH_CULTURE, $"--rife-model-dir \"{_pythonService.RifeModelsDirectory}\" ");
             sb.Append(ENGLISH_CULTURE, $"--trtexec \"{_pythonService.TrtexecPath}\" ");
             sb.Append(ENGLISH_CULTURE, $"--backend {backend} ");
+            if (ChosenGpu?.Id is string device)
+            {
+                sb.Append(ENGLISH_CULTURE, $"--device {device} ");
+            }
 
             // Engine builds see it too: deinterlacing changes the frame rate chains are matched on.
             if (CurrentWorkflow.Deinterlace != "off")

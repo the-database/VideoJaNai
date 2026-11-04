@@ -1,4 +1,4 @@
-using AnimeJaNaiConverterGui.Services;
+﻿using AnimeJaNaiConverterGui.Services;
 using Newtonsoft.Json;
 using Splat;
 using System.Linq;
@@ -194,6 +194,122 @@ namespace VideoJaNai.Tests
             Assert.Same(EncoderPresets.NvencHevc, wf.SelectedPreset);
             Assert.Equal("yuv420p10", wf.OutputPixFmt);
             Assert.False(wf.Output444Enabled);
+        }
+
+        // ---- GPU choice ----------------------------------------------------------------------
+
+        const string RtxId = "9223372036854776064", UhdId = "9223372036854775810";
+
+        // the same PC, probed by an aji_encode with --device (animejanai-inference 0.22.0+)
+        static readonly string NvidiaIntelProbeWithIds = NvidiaIntelProbe
+            .Replace("default=1 name=NVIDIA", $"default=1 id={RtxId} name=NVIDIA")
+            .Replace("default=0 name=Intel", $"default=0 id={UhdId} name=Intel");
+
+        static string Auto(string? name = null) => name is null
+            ? VideoJaNai.Lang.Resources.GpuAutoLabel
+            : string.Format(System.Globalization.CultureInfo.CurrentCulture, VideoJaNai.Lang.Resources.GpuAutoNamedLabel, name);
+
+        [Fact]
+        public void ProbeIdsAreParsed()
+        {
+            var p = EncoderProbe.Parse(NvidiaIntelProbeWithIds)!;
+            Assert.Equal(RtxId, p.Gpus[0].Id);
+            Assert.Equal("Intel(R) UHD Graphics 770", p.Gpus[1].Name);
+            Assert.Null(EncoderProbe.Parse(NvidiaIntelProbe)!.Gpus[0].Id);
+        }
+
+        [Fact]
+        public void DirectMlOffersEveryGpuAndAutoNamesItsGpu()
+        {
+            var vm = Load(NvidiaIntelProbeWithIds, directMl: true);
+            Assert.True(vm.GpuChoiceVisible);
+            Assert.Equal([Auto("NVIDIA GeForce RTX 5090"), "NVIDIA GeForce RTX 5090", "Intel(R) UHD Graphics 770"], vm.GpuChoices);
+            Assert.Equal(0, vm.SelectedGpuChoiceIndex);
+            Assert.Null(vm.ChosenGpu);
+        }
+
+        [Fact]
+        public void TheEncodersFollowTheChosenGpu()
+        {
+            var vm = Load(NvidiaIntelProbeWithIds, directMl: true);
+            vm.SelectedGpuChoiceIndex = 2;
+            Assert.Equal(UhdId, vm.ChosenGpu?.Id);
+            Assert.Equal((UhdId, "Intel(R) UHD Graphics 770", 1), (vm.SelectedGpuId, vm.SelectedGpuName, vm.SelectedGpuPosition));
+            Assert.Equal(EncoderGroup.Intel, vm.InferenceGpuVendor);
+            Assert.Same(EncoderPresets.QsvHevc, vm.Workflows[0].SelectedPreset);
+            vm.SelectedGpuChoiceIndex = 0;
+            Assert.Null(vm.SelectedGpuId);
+            Assert.Same(EncoderPresets.NvencHevc, vm.Workflows[0].SelectedPreset);
+        }
+
+        [Fact]
+        public void TensorRtOnlyOffersNvidiaGpus()
+        {
+            var vm = Load(NvidiaIntelProbeWithIds, directMl: true);
+            vm.SelectedGpuChoiceIndex = 2;          // the UHD 770, then a backend it can't run
+            vm.SetBackendTensorRt();
+            Assert.False(vm.GpuChoiceVisible);      // one NVIDIA GPU: nothing to choose
+            Assert.Null(vm.ChosenGpu);              // so Auto, and no --device
+            Assert.Equal(EncoderGroup.Nvidia, vm.InferenceGpuVendor);
+            vm.SetBackendDirectMl();
+            Assert.Equal(UhdId, vm.ChosenGpu?.Id);  // the choice is kept for DirectML
+        }
+
+        [Fact]
+        public void NoChoiceFromAnAjiEncodeWithoutDevice()
+        {
+            var vm = Load(NvidiaIntelProbe, directMl: true);
+            Assert.False(vm.GpuChoiceVisible);
+            Assert.Empty(vm.BackendGpus);
+        }
+
+        [Fact]
+        public void ASavedGpuWhoseIdIsGoneIsFoundByNameElseAuto()
+        {
+            var gpus = EncoderProbe.Parse(NvidiaIntelProbeWithIds)!.Gpus;
+            Assert.Equal(UhdId, EncoderProbe.Find(gpus, "123", "Intel(R) UHD Graphics 770", 1)?.Id);
+            Assert.Equal(UhdId, EncoderProbe.Find(gpus, "123", "Intel(R) UHD Graphics 770", 5)?.Id);
+            Assert.Null(EncoderProbe.Find(gpus, "123", "Radeon RX 7800 XT", 0));
+            Assert.Null(EncoderProbe.Find(gpus, null, null, -1));
+        }
+
+        [Fact]
+        public void IdenticalCardsAreToldApartAndFoundAgainByPosition()
+        {
+            var probe = """
+                GPU index=0 vendor=nvidia default=1 id=9223372036854776064 name=NVIDIA GeForce RTX 3060
+                GPU index=1 vendor=nvidia default=0 id=9223372036854785280 name=NVIDIA GeForce RTX 3060
+                ENCODER name=hevc_nvenc yuv420p=1 yuv420p10=1
+                """;
+            var vm = Load(probe, directMl: false);
+            Assert.Equal([Auto(), "NVIDIA GeForce RTX 3060 (#6064)", "NVIDIA GeForce RTX 3060 (#5280)"], vm.GpuChoices);
+            var gpus = vm.Probe!.Gpus;
+            // the second card moved slot: its new id is unknown, its position still names it
+            Assert.Equal(gpus[1], EncoderProbe.Find(gpus, "1", "NVIDIA GeForce RTX 3060", 1));
+        }
+
+        // The App Settings GPU list, bound as MainWindow.axaml binds it: replacing its items when the
+        // backend changes must not clear the choice.
+        [Avalonia.Headless.XUnit.AvaloniaFact]
+        public void TheGpuListKeepsItsChoiceAcrossABackendChange()
+        {
+            var vm = Load(NvidiaIntelProbeWithIds, directMl: true);
+            var list = new Avalonia.Controls.ComboBox { DataContext = vm };
+            list.Bind(Avalonia.Controls.ItemsControl.ItemsSourceProperty, new Avalonia.Data.Binding(nameof(vm.GpuChoices)));
+            list.Bind(Avalonia.Controls.Primitives.SelectingItemsControl.SelectedIndexProperty,
+                      new Avalonia.Data.Binding(nameof(vm.SelectedGpuChoiceIndex)) { Mode = Avalonia.Data.BindingMode.TwoWay });
+            var window = new Avalonia.Controls.Window { Content = list };
+            window.Show();
+
+            list.SelectedIndex = 2;
+            Assert.Equal(UhdId, vm.SelectedGpuId);
+            vm.SetBackendTensorRt();
+            window.UpdateLayout();
+            Assert.Equal(UhdId, vm.SelectedGpuId);
+            vm.SetBackendDirectMl();
+            window.UpdateLayout();
+            Assert.Equal(2, list.SelectedIndex);
+            Assert.Equal(UhdId, vm.ChosenGpu?.Id);
         }
 
         [Fact]

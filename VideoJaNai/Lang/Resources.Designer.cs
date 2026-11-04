@@ -914,7 +914,43 @@ namespace VideoJaNai.Lang {
                 return ResourceManager.GetString("UpscalingBackendLabel", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to GPU.
+        /// </summary>
+        public static string GpuLabel {
+            get {
+                return ResourceManager.GetString("GpuLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to The GPU that does the upscale..
+        /// </summary>
+        public static string GpuDescription {
+            get {
+                return ResourceManager.GetString("GpuDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Auto.
+        /// </summary>
+        public static string GpuAutoLabel {
+            get {
+                return ResourceManager.GetString("GpuAutoLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Auto ({0}).
+        /// </summary>
+        public static string GpuAutoNamedLabel {
+            get {
+                return ResourceManager.GetString("GpuAutoNamedLabel", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to Video Input and Output.
         /// </summary>
