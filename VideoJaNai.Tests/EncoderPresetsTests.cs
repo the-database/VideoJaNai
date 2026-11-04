@@ -223,6 +223,7 @@ namespace VideoJaNai.Tests
         {
             var vm = Load(NvidiaIntelProbeWithIds, directMl: true);
             Assert.True(vm.GpuChoiceVisible);
+            Assert.True(vm.GpuChoiceEnabled);
             Assert.Equal([Auto("NVIDIA GeForce RTX 5090"), "NVIDIA GeForce RTX 5090", "Intel(R) UHD Graphics 770"], vm.GpuChoices);
             Assert.Equal(0, vm.SelectedGpuChoiceIndex);
             Assert.Null(vm.ChosenGpu);
@@ -248,7 +249,10 @@ namespace VideoJaNai.Tests
             var vm = Load(NvidiaIntelProbeWithIds, directMl: true);
             vm.SelectedGpuChoiceIndex = 2;          // the UHD 770, then a backend it can't run
             vm.SetBackendTensorRt();
-            Assert.False(vm.GpuChoiceVisible);      // one NVIDIA GPU: nothing to choose
+            Assert.True(vm.GpuChoiceVisible);       // one NVIDIA GPU: shown, named, nothing to choose
+            Assert.False(vm.GpuChoiceEnabled);
+            Assert.Equal([Auto("NVIDIA GeForce RTX 5090"), "NVIDIA GeForce RTX 5090"], vm.GpuChoices);
+            Assert.Equal(0, vm.SelectedGpuChoiceIndex);
             Assert.Null(vm.ChosenGpu);              // so Auto, and no --device
             Assert.Equal(EncoderGroup.Nvidia, vm.InferenceGpuVendor);
             vm.SetBackendDirectMl();
