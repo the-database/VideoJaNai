@@ -23,11 +23,10 @@ Download either the AppImage or the `linux-x64.tar.zst` from the [latest release
 - [chaiNNer](https://github.com/chaiNNer-org/chaiNNer): General purpose tool for AI upscaling, which can be used to convert PyTorch (*.pth) models to ONNX models. 
 
 ## Related Projects
-VideoJaNai is part of the JaNai suite: see [animejan.ai](https://animejan.ai) for an overview of all the apps.
-- [mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai): Play anime upscaled to 4K in real time, with the same engine and models.
-- [animejanai-inference](https://github.com/the-database/animejanai-inference): The GPU inference engine VideoJaNai upscales with.
-- [MangaJaNai GUI](https://github.com/the-database/MangaJaNaiGUI): Upscale manga and other images.
-- [traiNNer-redux](https://github.com/the-database/traiNNer-redux): Software for training upscaling models.
+- [mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai): Real-time anime upscaling in mpv
+- [MangaJaNai GUI](https://github.com/the-database/MangaJaNaiGUI): Upscale manga and images
+- [yosh](https://github.com/the-database/yosh): Fast manga, comic and image reader
+- [traiNNer-redux](https://github.com/the-database/traiNNer-redux): Train your own upscaling models
 
 ## Acknowledgments 
 - [MPV_lazy](https://github.com/hooke007/MPV_lazy) 
