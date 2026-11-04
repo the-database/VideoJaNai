@@ -53,7 +53,7 @@ namespace VideoJaNai.Tests
         public Task<string?> DownloadUpdateAsync(Action<string>? onLine, CancellationToken ct) => Task.FromResult<string?>(null);
         public void ApplyUpdateOnExit() { }
         public string? TakeLastUpdateError() => null;
-        public Task<string> GetComponentsJsonAsync() => Task.FromResult("[]");
+        public Task<string> GetComponentsJsonAsync(string extraArguments = "") => Task.FromResult("[]");
         public Task<int> RunUpdaterStreamingAsync(string arguments, Action<string>? onLine, CancellationToken ct = default) => Task.FromResult(0);
     }
 }

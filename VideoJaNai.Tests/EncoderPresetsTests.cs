@@ -292,6 +292,55 @@ namespace VideoJaNai.Tests
             Assert.Equal(gpus[1], EncoderProbe.Find(gpus, "1", "NVIDIA GeForce RTX 3060", 1));
         }
 
+        // ---- component packs follow the chosen GPU ---------------------------------------------
+
+        const string AdaId = "9223372036854776064", BlackwellId = "9223372036854785280";
+
+        // an RTX 4090 + RTX 5050 PC
+        const string TwoNvidiaProbe = $"""
+            GPU index=0 vendor=nvidia default=1 id={AdaId} name=NVIDIA GeForce RTX 4090
+            GPU index=1 vendor=nvidia default=0 id={BlackwellId} name=NVIDIA GeForce RTX 5050
+            ENCODER name=hevc_nvenc yuv420p=1 yuv420p10=1
+            """;
+
+        [Fact]
+        public void AutoInstallsPacksForEveryNvidiaGpu()
+        {
+            Assert.Equal("", Load(TwoNvidiaProbe, directMl: false).ComponentGpusArgument);
+            Assert.Equal("", Load(NvidiaIntelProbeWithIds, directMl: true).ComponentGpusArgument);
+        }
+
+        [Fact]
+        public void AChosenGpuGetsOnlyItsOwnPacks()
+        {
+            var vm = Load(TwoNvidiaProbe, directMl: false);
+            vm.SelectedGpuChoiceIndex = 1;
+            Assert.Equal($" --gpus {AdaId}", vm.ComponentGpusArgument);
+            // DirectML needs no packs, whatever GPU it runs on
+            var dml = Load(NvidiaIntelProbeWithIds, directMl: true);
+            dml.SelectedGpuChoiceIndex = 1;
+            Assert.Equal(" --gpus none", dml.ComponentGpusArgument);
+        }
+
+        [Fact]
+        public void MissingKernelsForTheChosenGpuAreReported()
+        {
+            var vm = Load(TwoNvidiaProbe, directMl: false);
+            vm.SetBackendTensorRt();
+            vm.SelectedGpuChoiceIndex = 2;          // the 5050, whose kernels aren't installed
+            vm.Components = [new ComponentItem("trt-runtime", 1, installed: true, recommended: true, preselect: true),
+                             new ComponentItem("trt-sm89", 1, installed: true, recommended: false, preselect: true),
+                             new ComponentItem("trt-sm120", 1, installed: false, recommended: true, preselect: true)];
+            Assert.Null(vm.TensorRtKernelsMissingText());               // listed for another choice: not known yet
+            vm.ComponentsListedFor = vm.ComponentGpusArgument;
+            var text = vm.TensorRtKernelsMissingText();
+            Assert.Contains("NVIDIA GeForce RTX 5050", text);
+            Assert.Contains(ComponentItem.TitleFor("trt-sm120"), text);
+            vm.SelectedGpuChoiceIndex = 0;                              // Auto: no such check
+            vm.ComponentsListedFor = vm.ComponentGpusArgument;
+            Assert.Null(vm.TensorRtKernelsMissingText());
+        }
+
         // The App Settings GPU list, bound as MainWindow.axaml binds it: replacing its items when the
         // backend changes must not clear the choice.
         [Avalonia.Headless.XUnit.AvaloniaFact]

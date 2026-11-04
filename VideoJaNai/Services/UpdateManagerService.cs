@@ -122,9 +122,9 @@ namespace AnimeJaNaiConverterGui.Services
             }
         }
 
-        public async Task<string> GetComponentsJsonAsync()
+        public async Task<string> GetComponentsJsonAsync(string extraArguments = "")
         {
-            return IsInstalled ? await RunUpdaterAsync("--components --json") : "";
+            return IsInstalled ? await RunUpdaterAsync("--components --json" + extraArguments) : "";
         }
 
         public async Task<int> RunUpdaterStreamingAsync(string arguments, Action<string>? onLine, CancellationToken ct = default)
