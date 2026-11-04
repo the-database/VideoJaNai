@@ -672,6 +672,10 @@
                 <ToggleButton IsChecked="{Binding DirectMlBackendSelected}" Content="DirectML" Command="{Binding SetBackendDirectMl}"
                               ToolTip.Tip="{x:Static lang:Resources.UpscalingBackendDescriptionDirectMl}" />
               </StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="10,10,0,10" IsVisible="{Binding GpuChoiceVisible}">
+                <ContentControl Classes="hint" Content="{x:Static lang:Resources.GpuLabel}" ToolTip.Tip="{x:Static lang:Resources.GpuDescription}" />
+                <ComboBox VerticalAlignment="Center" ItemsSource="{Binding GpuChoices}" SelectedIndex="{Binding SelectedGpuChoiceIndex}" />
+              </StackPanel>
               <StackPanel IsVisible="{Binding IsInstalled}">
                 <StackPanel>
                   <ContentControl Classes="hint" HorizontalAlignment="Left" Margin="10,10,0,10" ToolTip.Tip="{x:Static lang:Resources.AutoUpdateDescription}">

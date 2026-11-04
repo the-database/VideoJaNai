@@ -100,12 +100,14 @@ namespace VideoJaNai.ViewModels
     }
 
     // What `aji_encode --probe-encoders` found on this PC:
-    //   GPU index=0 vendor=nvidia default=1 name=NVIDIA GeForce RTX 5090
+    //   GPU index=0 vendor=nvidia default=1 id=9223372036854776064 name=NVIDIA GeForce RTX 5090
     //   ENCODER name=hevc_qsv yuv420p=1 yuv420p10=1
-    // (GPU lines are Windows only; default=1 is the GPU DirectML runs on.)
+    // default=1 is the GPU DirectML runs on without --device. id= is what --device takes (the
+    // card's PCI address); aji_encode before animejanai-inference 0.22.0 prints no id= and lists
+    // GPUs on Windows only.
     public sealed class EncoderProbe
     {
-        public sealed record Gpu(EncoderGroup? Vendor, bool IsDefault, string Name);
+        public sealed record Gpu(EncoderGroup? Vendor, bool IsDefault, string Name, string? Id = null);
 
         public IReadOnlyList<Gpu> Gpus { get; }
         private readonly Dictionary<string, (bool Bit8, bool Bit10)> _encoders;
@@ -136,7 +138,8 @@ namespace VideoJaNai.ViewModels
                     gpus.Add(new Gpu(
                         EncoderPresets.GroupOfVendor(fields.GetValueOrDefault("vendor", "")),
                         fields.GetValueOrDefault("default") == "1",
-                        nameAt < 0 ? "" : line[(nameAt + 6)..]));
+                        nameAt < 0 ? "" : line[(nameAt + 6)..],
+                        fields.GetValueOrDefault("id")));
                 }
                 else if (line.StartsWith("ENCODER ", StringComparison.Ordinal))
                 {
@@ -168,8 +171,44 @@ namespace VideoJaNai.ViewModels
         public bool Opens(string codec, bool tenBit) =>
             !_encoders.TryGetValue(codec, out var e) || (tenBit ? e.Bit10 : e.Bit8);
 
-        // the vendor of the GPU DirectML runs on, when the probe listed GPUs
-        public EncoderGroup? DefaultGpuVendor => Gpus.FirstOrDefault(g => g.IsDefault)?.Vendor;
+        // the GPU DirectML runs on without --device, when the probe listed GPUs
+        public Gpu? DefaultGpu => Gpus.FirstOrDefault(g => g.IsDefault);
+        public EncoderGroup? DefaultGpuVendor => DefaultGpu?.Vendor;
+
+        // The saved GPU among `gpus`: by id; if that's gone, the GPU at the saved position when it
+        // has the saved name (which tells identical cards apart), else the first with that name;
+        // else none, which is Auto. MangaJaNai GUI finds its saved device the same way.
+        public static Gpu? Find(IReadOnlyList<Gpu> gpus, string? id, string? name, int position)
+        {
+            if (id is null)
+            {
+                return null;
+            }
+            return gpus.FirstOrDefault(g => g.Id == id)
+                ?? (position >= 0 && position < gpus.Count && gpus[position].Name == name ? gpus[position] : null)
+                ?? gpus.FirstOrDefault(g => g.Name == name);
+        }
+
+        // A GPU's name in the GPU list. GPUs that share a name (two of the same card) get the end of
+        // their id, just long enough to tell them apart: "NVIDIA GeForce RTX 3060 (#6512)".
+        public static string Label(IReadOnlyList<Gpu> gpus, Gpu gpu)
+        {
+            var twins = gpus.Where(g => g.Name == gpu.Name).ToList();
+            var id = gpu.Id ?? "";
+            if (twins.Count < 2 || id.Length == 0)
+            {
+                return gpu.Name;
+            }
+            var longest = twins.Max(g => (g.Id ?? "").Length);
+            var n = Math.Min(4, longest);
+            while (n < longest && twins.Select(g => Tail(g.Id ?? "", n)).Distinct().Count() < twins.Count)
+            {
+                n++;
+            }
+            return $"{gpu.Name} (#{Tail(id, n)})";
+        }
+
+        private static string Tail(string id, int n) => id.Length <= n ? id : id[^n..];
     }
 
     // One toggle of the encoder or codec row.
