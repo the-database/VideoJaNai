@@ -437,13 +437,30 @@ namespace VideoJaNai.ViewModels
             }
         }
 
+        // True while SelectedGpuChoiceIndex reports -1 to put the list's selection back, see below.
+        private bool _gpuChoiceResync;
+
         public int SelectedGpuChoiceIndex
         {
-            get => ChosenGpu is EncoderProbe.Gpu g ? BackendGpus.ToList().IndexOf(g) + 1 : 0;
+            get => _gpuChoiceResync ? -1 : ChosenGpu is EncoderProbe.Gpu g ? BackendGpus.ToList().IndexOf(g) + 1 : 0;
             set
             {
-                // the list sets -1 while its items are replaced
-                if (value < 0 || value == SelectedGpuChoiceIndex)
+                // The list clears its selection (-1) when its items are replaced: the probe's GPUs
+                // arriving after the window opened, or a backend change. Raising the same index
+                // again doesn't restore it (the binding only passes on a changed value), so once the
+                // list has settled, report -1 and then the index.
+                if (value < 0)
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        _gpuChoiceResync = true;
+                        this.RaisePropertyChanged(nameof(SelectedGpuChoiceIndex));
+                        _gpuChoiceResync = false;
+                        this.RaisePropertyChanged(nameof(SelectedGpuChoiceIndex));
+                    });
+                    return;
+                }
+                if (value == SelectedGpuChoiceIndex)
                 {
                     return;
                 }
