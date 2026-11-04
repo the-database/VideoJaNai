@@ -86,12 +86,13 @@ var trtDebSha256 = new Dictionary<string, string>
 // --device and GPU ids in --probe-encoders (App Settings' GPU choice), DirectML on the
 // high-performance GPU instead of DXGI adapter 0, and a "GPU:" line in the engine log. v0.22.1: AMF and
 // QSV encode on the upscaling GPU when it is AMD / Intel (not the first such GPU, an iGPU on laptops).
-const string AjiVersion        = "v0.22.1";
+// v0.22.2: --probe-encoders marks integrated GPUs (integrated=), which the GPU choice labels and warns about.
+const string AjiVersion        = "v0.22.2";
 // The aji release publishes no checksums; recorded from the release assets.
 var ajiSha256Win = new Dictionary<string, string>
 {
-    ["aji-windows-x64.zip"]        = "1b326b2e00709cafdece6700f8c0eb889980b4ae7b18a13f63231bb542226df5",
-    ["aji-trtrtx-windows-x64.zip"] = "135d757c5b48d89ee82d06631d15d179817fa55e3a26d0be57f331093f6ed6fc",
+    ["aji-windows-x64.zip"]        = "b306b1888a1692bb65d55f66bbb4001eed6d0cc73cfbc5e0f41f11ed39f039af",
+    ["aji-trtrtx-windows-x64.zip"] = "a2616d0b21f1b5300c62047d4783c3dfceee69178a9ea63595deb23b8cef4e95",
 };
 // 7-Zip "extra" (Windows) / linux-x64 standalone console, from its GitHub release (7-zip.org links
 // there from 26.05 on; its own /a/ folder stops at 26.02). Digests from the release assets.
