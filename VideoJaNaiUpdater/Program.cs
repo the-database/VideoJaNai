@@ -10,6 +10,8 @@
 //   VideoJaNaiUpdater.exe --install X    download + install component pack X
 //   VideoJaNaiUpdater.exe --remove X     delete component pack X's files
 //   VideoJaNaiUpdater.exe --auto         install everything the detected hardware recommends
+//                         [--gpus <ids>|none] with --auto and --components: recommend packs for these
+//                         GPUs only (App Settings' chosen GPU, as aji_encode --device ids), or none
 //   VideoJaNaiUpdater.exe --recommend    KEY=value hardware summary for the Inno installer
 //
 // Update size is tiered: if the latest release's heavy deps match what's installed (compared via
@@ -56,6 +58,22 @@ if (!OperatingSystem.IsWindows())
 }
 
 string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "--check";
+
+// --gpus: the GPUs to recommend packs for, when the app has one chosen in App Settings: aji_encode
+// --device ids (the PCI address), or "none" when the chosen backend needs no packs (DirectML).
+// Without it every NVIDIA GPU counts, as for Auto, where TensorRT may build on any of them.
+HashSet<ulong>? gpuFilter = null;
+if (Array.IndexOf(args, "--gpus") is int gpusAt and >= 0 && gpusAt + 1 < args.Length)
+{
+    gpuFilter = [];
+    foreach (var part in args[gpusAt + 1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        if (ulong.TryParse(part, out var id))
+        {
+            gpuFilter.Add(id);
+        }
+    }
+}
 
 // A background --download unpacks the update here (inside the install, so each install has its own),
 // and --apply installs from it without downloading again. ready.json marks it complete.
@@ -837,9 +855,14 @@ string? PackVersionMismatch(PackIndex index)
 //
 // Every NVIDIA GPU is reported (Sm "sm89, sm120", names joined with " + "): NVML enumerates in PCI
 // order while CUDA picks the fastest GPU first, so recommending only NVML's device 0 left the GPU
-// TensorRT actually builds on without its builder kernels on multi-GPU systems.
-static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
+// TensorRT actually builds on without its builder kernels on multi-GPU systems. With `only` (--gpus),
+// just the NVIDIA GPUs among those ids (an empty set: none).
+static (bool HasNvidia, string Sm, string GpuName) DetectGpu(IReadOnlySet<ulong>? only = null)
 {
+    if (only is { Count: 0 })
+    {
+        return (false, "", "");
+    }
     try
     {
         if (Nvml.nvmlInit_v2() != 0)
@@ -856,7 +879,8 @@ static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
             var names = new List<string>();
             for (uint i = 0; i < count; i++)
             {
-                if (Nvml.nvmlDeviceGetHandleByIndex_v2(i, out var dev) != 0)
+                if (Nvml.nvmlDeviceGetHandleByIndex_v2(i, out var dev) != 0 ||
+                    (only != null && !only.Any(id => SameGpu(id, PciId(dev)))))
                 {
                     continue;
                 }
@@ -880,6 +904,31 @@ static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
     {
         return (false, "", "");
     }
+}
+
+// A GPU's id as aji_encode's --device and --probe-encoders give it: its PCI location,
+// (1 << 63) | domain << 32 | bus << 8 | device. 0 if NVML can't say.
+static ulong PciId(IntPtr dev)
+{
+    var info = new Nvml.PciInfo();
+    if (Nvml.nvmlDeviceGetPciInfo_v3(dev, ref info) != 0)
+    {
+        return 0;
+    }
+    return (1UL << 63) | ((ulong)info.Domain << 32) | ((ulong)info.Bus << 8) | (info.Device & 0xff);
+}
+
+// Windows reports no PCI domain for DirectML adapters (0), so ids compare without it unless both
+// carry one, as aji_encode compares them.
+static bool SameGpu(ulong a, ulong b)
+{
+    const ulong pci = 1UL << 63, domain = 0x7fffffff00000000UL;
+    if ((a & pci) != 0 && (b & pci) != 0 && ((a & domain) == 0 || (b & domain) == 0))
+    {
+        a &= ~domain;
+        b &= ~domain;
+    }
+    return a == b;
 }
 
 // Hardware-matched packs only. RIFE is a user choice, not a recommendation: it is preselected on
@@ -946,16 +995,18 @@ async Task ComponentsAsync(PackIndex? prefetched, bool json = false)
 {
     var index = prefetched ?? await GetPackIndexAsync();
     var installed = ReadInstalledComponents(index);
-    var (hasNvidia, sm, gpu) = DetectGpu();
+    var (hasNvidia, sm, gpu) = DetectGpu(gpuFilter);
     var rec = RecommendedPacks(index, hasNvidia, sm);
     if (json)
     {
-        // consumed by VideoJaNai's in-app component manager; keep keys stable
+        // consumed by VideoJaNai's in-app component manager; keep keys stable. gpu: the GPUs the
+        // recommendations are for (--gpus); nvidia_present: whether this PC has an NVIDIA GPU at all.
         Console.WriteLine(JsonSerializer.Serialize(new
         {
             package_version = index.PackageVersion,
             version_mismatch = PackVersionMismatch(index),
             gpu = new { nvidia = hasNvidia, sm, name = gpu },
+            nvidia_present = gpuFilter is null ? hasNvidia : DetectGpu(null).HasNvidia,
             packs = index.Packs.Select(p => new
             {
                 name = p.Name,
@@ -1091,7 +1142,7 @@ int RemoveComponent(string name)
 async Task<int> AutoComponentsAsync()
 {
     var index = await GetPackIndexAsync();
-    var (hasNvidia, sm, gpu) = DetectGpu();
+    var (hasNvidia, sm, gpu) = DetectGpu(gpuFilter);
     var rec = RecommendedPacks(index, hasNvidia, sm);
     var installed = ReadInstalledComponents(index);
     // "Needs installing" is not just "absent": a pack already recorded as installed is stale when the
@@ -1174,6 +1225,21 @@ static class Nvml
     public static extern int nvmlDeviceGetCudaComputeCapability(IntPtr device, out int major, out int minor);
     [System.Runtime.InteropServices.DllImport("nvml.dll")]
     public static extern int nvmlDeviceGetName(IntPtr device, byte[] name, uint length);
+    [System.Runtime.InteropServices.DllImport("nvml.dll")]
+    public static extern int nvmlDeviceGetPciInfo_v3(IntPtr device, ref PciInfo pci);
+
+    // nvmlPciInfo_t
+    [StructLayout(LayoutKind.Sequential)]
+    public struct PciInfo
+    {
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)] public byte[] BusIdLegacy;
+        public uint Domain;
+        public uint Bus;
+        public uint Device;
+        public uint PciDeviceId;
+        public uint PciSubSystemId;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)] public byte[] BusId;
+    }
 }
 
 record Release(string Tag, List<Asset> Assets);

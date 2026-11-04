@@ -414,6 +414,9 @@
   <data name="GpuAutoNamedLabel" xml:space="preserve">
     <value>Auto ({0})</value>
   </data>
+  <data name="TensorRtKernelsMissingText" xml:space="preserve">
+    <value>TensorRT on {0} needs these components: {1}. Install them in App Settings &gt; Components, or choose another GPU or backend.</value>
+  </data>
   <data name="VideoInputAndOutputHeader" xml:space="preserve">
     <value>Video Input and Output</value>
   </data>
