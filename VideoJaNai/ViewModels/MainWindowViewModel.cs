@@ -385,10 +385,18 @@ namespace VideoJaNai.ViewModels
 
         // The GPUs the backend can upscale on: every GPU on DirectML, the NVIDIA ones on TensorRT
         // and TensorRT-RTX. Only GPUs with an id, so none from an aji_encode without --device.
+        // Graphics cards first, integrated graphics last (otherwise in the probe's order): Windows
+        // and Direct3D tell those apart, but not which of two graphics cards upscales faster.
         public IReadOnlyList<EncoderProbe.Gpu> BackendGpus =>
             _encoderProbe?.Gpus.Where(g => g.Id != null &&
-                                           (DirectMlBackendSelected || g.Vendor == EncoderGroup.Nvidia)).ToList()
+                                           (DirectMlBackendSelected || g.Vendor == EncoderGroup.Nvidia))
+                .OrderBy(g => g.Integrated == true).ToList()
             ?? [];
+
+        // An integrated GPU chosen while the backend has a graphics card to run on: upscaling there is
+        // far slower, so App Settings says so (a warning, not a block).
+        public bool GpuChoiceIntegratedWarning =>
+            ChosenGpu?.Integrated == true && BackendGpus.Any(g => g.Integrated == false);
 
         // The chosen GPU when the backend can use it, else null: Auto, and no --device.
         public EncoderProbe.Gpu? ChosenGpu =>
@@ -428,7 +436,9 @@ namespace VideoJaNai.ViewModels
                 var auto = AutoGpu is EncoderProbe.Gpu d
                     ? string.Format(CultureInfo.CurrentCulture, Resources.GpuAutoNamedLabel, EncoderProbe.Label(gpus, d))
                     : Resources.GpuAutoLabel;
-                string[] choices = [auto, .. gpus.Select(g => EncoderProbe.Label(gpus, g))];
+                string[] choices = [auto, .. gpus.Select(g => g.Integrated == true
+                    ? string.Format(CultureInfo.CurrentCulture, Resources.GpuIntegratedLabel, EncoderProbe.Label(gpus, g))
+                    : EncoderProbe.Label(gpus, g))];
                 if (!choices.SequenceEqual(_gpuChoices))
                 {
                     _gpuChoices = choices;
@@ -511,6 +521,7 @@ namespace VideoJaNai.ViewModels
             this.RaisePropertyChanged(nameof(Probe));
             this.RaisePropertyChanged(nameof(GpuChoiceVisible));
             this.RaisePropertyChanged(nameof(GpuChoiceEnabled));
+            this.RaisePropertyChanged(nameof(GpuChoiceIntegratedWarning));
             this.RaisePropertyChanged(nameof(GpuChoices));
             this.RaisePropertyChanged(nameof(SelectedGpuChoiceIndex));
             this.RaisePropertyChanged(nameof(HasOtherGpuEncoders));
