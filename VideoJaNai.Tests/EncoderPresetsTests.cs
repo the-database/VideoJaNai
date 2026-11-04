@@ -292,6 +292,47 @@ namespace VideoJaNai.Tests
             Assert.Equal(gpus[1], EncoderProbe.Find(gpus, "1", "NVIDIA GeForce RTX 3060", 1));
         }
 
+        // ---- integrated graphics ----------------------------------------------------------------
+
+        // a Ryzen laptop as Windows lists it: the iGPU drives the display, so it comes first
+        const string RyzenLaptopProbe = """
+            GPU index=0 vendor=amd default=0 integrated=1 id=9223372036854781696 name=AMD Radeon(TM) Graphics
+            GPU index=1 vendor=amd default=1 integrated=0 id=9223372036854775808 name=AMD Radeon RX 7600S
+            ENCODER name=hevc_amf yuv420p=1 yuv420p10=1
+            """;
+
+        static string Integrated(string name) =>
+            string.Format(System.Globalization.CultureInfo.CurrentCulture, VideoJaNai.Lang.Resources.GpuIntegratedLabel, name);
+
+        [Fact]
+        public void IntegratedGpusAreListedLastAndMarked()
+        {
+            var vm = Load(RyzenLaptopProbe, directMl: true);
+            Assert.True(vm.Probe!.Gpus[0].Integrated);
+            Assert.Null(EncoderProbe.Parse(NvidiaIntelProbeWithIds)!.Gpus[1].Integrated);   // older aji_encode
+            Assert.Equal([Auto("AMD Radeon RX 7600S"), "AMD Radeon RX 7600S", Integrated("AMD Radeon(TM) Graphics")],
+                         vm.GpuChoices);
+            Assert.False(vm.GpuChoiceIntegratedWarning);
+        }
+
+        [Fact]
+        public void ChoosingIntegratedGraphicsOverAGraphicsCardWarns()
+        {
+            var vm = Load(RyzenLaptopProbe, directMl: true);
+            vm.SelectedGpuChoiceIndex = 2;
+            Assert.Equal("AMD Radeon(TM) Graphics", vm.ChosenGpu?.Name);
+            Assert.True(vm.GpuChoiceIntegratedWarning);
+            vm.SelectedGpuChoiceIndex = 1;
+            Assert.False(vm.GpuChoiceIntegratedWarning);
+            // a PC with only integrated graphics has nothing better to pick
+            var igpuOnly = Load("""
+                GPU index=0 vendor=intel default=1 integrated=1 id=9223372036854775810 name=Intel(R) UHD Graphics 770
+                ENCODER name=hevc_qsv yuv420p=1 yuv420p10=1
+                """, directMl: true);
+            Assert.False(igpuOnly.GpuChoiceEnabled);
+            Assert.False(igpuOnly.GpuChoiceIntegratedWarning);
+        }
+
         // ---- component packs follow the chosen GPU ---------------------------------------------
 
         const string AdaId = "9223372036854776064", BlackwellId = "9223372036854785280";
