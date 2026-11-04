@@ -82,13 +82,15 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.20.0: CPU encoders (FFV1, x265) use every core instead of one; AMD AMF / Intel QSV encoders;
 // --probe-encoders (the GPUs and which GPU encoders open), which the Output section's encoder rows use.
 // v0.21.0: video preprocessing fuses the vertical chroma filter into the RGB conversion (bit-identical,
-// slightly faster); the rest is the still-image API, which VJN doesn't use.
-const string AjiVersion        = "v0.21.0";
+// slightly faster); the rest is the still-image API, which VJN doesn't use. v0.22.0: aji_encode
+// --device and GPU ids in --probe-encoders (App Settings' GPU choice), DirectML on the
+// high-performance GPU instead of DXGI adapter 0, and a "GPU:" line in the engine log.
+const string AjiVersion        = "v0.22.0";
 // The aji release publishes no checksums; recorded from the release assets.
 var ajiSha256Win = new Dictionary<string, string>
 {
-    ["aji-windows-x64.zip"]        = "00adb8dcbcb9cab02e2638d9ff302aae60fb8cccdb8771a3d557a5363359be19",
-    ["aji-trtrtx-windows-x64.zip"] = "213204243f947affebbe32db99379a4fea74cc1ab50657370dfff26fb72df0de",
+    ["aji-windows-x64.zip"]        = "2664f81695c1f21b52fd85692b699077765be8bcd6ba73b291c8129589736b9c",
+    ["aji-trtrtx-windows-x64.zip"] = "fff1980e80d82078c48cedae2d820a5f8fd826bd61894b5036c9729d066b3ba2",
 };
 // 7-Zip "extra" (Windows) / linux-x64 standalone console, from its GitHub release (7-zip.org links
 // there from 26.05 on; its own /a/ folder stops at 26.02). Digests from the release assets.
