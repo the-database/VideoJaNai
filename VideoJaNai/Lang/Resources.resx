@@ -406,13 +406,19 @@
     <value>GPU</value>
   </data>
   <data name="GpuDescription" xml:space="preserve">
-    <value>The GPU that does the upscale. Auto picks the graphics card: on DirectML, the GPU Windows ranks for high performance; on TensorRT, the fastest NVIDIA GPU. Choose one when this PC has more than one GPU and Auto picks the wrong one, such as integrated graphics.</value>
+    <value>The GPU that does the upscale. Auto picks the graphics card: on DirectML, the GPU Windows ranks for high performance; on TensorRT, the NVIDIA GPU CUDA lists first (usually the most powerful). Choose one when this PC has more than one GPU and Auto picks the wrong one. Integrated graphics are listed last and upscale much slower than a graphics card.</value>
   </data>
   <data name="GpuAutoLabel" xml:space="preserve">
     <value>Auto</value>
   </data>
   <data name="GpuAutoNamedLabel" xml:space="preserve">
     <value>Auto ({0})</value>
+  </data>
+  <data name="GpuIntegratedLabel" xml:space="preserve">
+    <value>{0} (integrated)</value>
+  </data>
+  <data name="GpuIntegratedWarningText" xml:space="preserve">
+    <value>Integrated graphics upscale much slower than your graphics card. Choose Auto unless you mean to use them.</value>
   </data>
   <data name="TensorRtKernelsMissingText" xml:space="preserve">
     <value>TensorRT on {0} needs these components: {1}. Install them in App Settings &gt; Components, or choose another GPU or backend.</value>

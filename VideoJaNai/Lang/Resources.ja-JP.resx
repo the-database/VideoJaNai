@@ -373,13 +373,19 @@
     <value>GPU</value>
   </data>
   <data name="GpuDescription" xml:space="preserve">
-    <value>アップスケールを行うGPUです。「自動」ではグラフィックカードを選びます。DirectMLではWindowsが高パフォーマンスとするGPU、TensorRTでは最も高速なNVIDIA GPUです。GPUが複数あり、「自動」で内蔵グラフィックスなど違うGPUが選ばれる場合に指定してください。</value>
+    <value>アップスケールを行うGPUです。「自動」ではグラフィックカードを選びます。DirectMLではWindowsが高パフォーマンスとするGPU、TensorRTではCUDAが最初に挙げるNVIDIA GPU(通常は最も高性能なもの)です。GPUが複数あり、「自動」で違うGPUが選ばれる場合に指定してください。内蔵グラフィックスは一覧の最後に表示され、グラフィックカードよりアップスケールがはるかに遅くなります。</value>
   </data>
   <data name="GpuAutoLabel" xml:space="preserve">
     <value>自動</value>
   </data>
   <data name="GpuAutoNamedLabel" xml:space="preserve">
     <value>自動 ({0})</value>
+  </data>
+  <data name="GpuIntegratedLabel" xml:space="preserve">
+    <value>{0} (内蔵)</value>
+  </data>
+  <data name="GpuIntegratedWarningText" xml:space="preserve">
+    <value>内蔵グラフィックスはグラフィックカードよりアップスケールがはるかに遅くなります。意図していない場合は「自動」を選んでください。</value>
   </data>
   <data name="TensorRtKernelsMissingText" xml:space="preserve">
     <value>{0}でTensorRTを使うには次のコンポーネントが必要です: {1}。設定の「Components」からインストールするか、別のGPUまたはバックエンドを選択してください。</value>
