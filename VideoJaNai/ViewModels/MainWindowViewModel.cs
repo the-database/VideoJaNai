@@ -396,10 +396,26 @@ namespace VideoJaNai.ViewModels
             BackendGpus.Contains(g)
                 ? g : null;
 
-        // The GPU row is only there when there's a choice to make.
-        public bool GpuChoiceVisible => BackendGpus.Count > 1;
+        // The GPU row is there whenever the probe found a GPU the backend can use, so the settings
+        // always say which GPU upscales (a sanity check, and something to share when troubleshooting);
+        // it can only be changed when there's more than one.
+        public bool GpuChoiceVisible => BackendGpus.Count > 0;
+        public bool GpuChoiceEnabled => BackendGpus.Count > 1;
 
-        // Auto, then each GPU. Auto names the GPU it means where the probe knows it (DirectML's).
+        // The GPU Auto upscales on, when the probe can tell: DirectML's default GPU, or on TensorRT
+        // the only NVIDIA GPU (with several, CUDA picks the fastest, which the probe doesn't know).
+        private EncoderProbe.Gpu? AutoGpu
+        {
+            get
+            {
+                var gpus = BackendGpus;
+                return DirectMlBackendSelected
+                    ? (_encoderProbe?.DefaultGpu is EncoderProbe.Gpu d && gpus.Contains(d) ? d : null)
+                    : (gpus.Count == 1 ? gpus[0] : null);
+            }
+        }
+
+        // Auto, then each GPU. Auto names the GPU it means where the probe knows it (AutoGpu).
         // The same array while the labels are the same: the list clears its selection when its items
         // are replaced, and writes that back, so a GPU picked in it would be undone.
         private string[] _gpuChoices = [];
@@ -408,7 +424,7 @@ namespace VideoJaNai.ViewModels
             get
             {
                 var gpus = BackendGpus;
-                var auto = DirectMlBackendSelected && _encoderProbe?.DefaultGpu is EncoderProbe.Gpu d && gpus.Contains(d)
+                var auto = AutoGpu is EncoderProbe.Gpu d
                     ? string.Format(CultureInfo.CurrentCulture, Resources.GpuAutoNamedLabel, EncoderProbe.Label(gpus, d))
                     : Resources.GpuAutoLabel;
                 string[] choices = [auto, .. gpus.Select(g => EncoderProbe.Label(gpus, g))];
@@ -475,6 +491,7 @@ namespace VideoJaNai.ViewModels
         {
             this.RaisePropertyChanged(nameof(Probe));
             this.RaisePropertyChanged(nameof(GpuChoiceVisible));
+            this.RaisePropertyChanged(nameof(GpuChoiceEnabled));
             this.RaisePropertyChanged(nameof(GpuChoices));
             this.RaisePropertyChanged(nameof(SelectedGpuChoiceIndex));
             this.RaisePropertyChanged(nameof(HasOtherGpuEncoders));
