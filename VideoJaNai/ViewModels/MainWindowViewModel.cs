@@ -202,6 +202,7 @@ namespace VideoJaNai.ViewModels
                 wf.BackendChanged();
             }
             EncodersChanged();     // the upscaling GPU, so the listed encoders, follow the backend
+            _ = RefreshComponentsIfChoiceChanged();     // and what the component packs are for
         }
 
         public bool DirectMlBackendSelected => UseDirectMl == true && UpscaleWorkflow.DirectMlAvailable;
@@ -452,6 +453,7 @@ namespace VideoJaNai.ViewModels
                 SelectedGpuName = gpu?.Name;
                 SelectedGpuPosition = gpu is null || _encoderProbe is null ? -1 : _encoderProbe.Gpus.ToList().IndexOf(gpu);
                 EncodersChanged();     // the upscaling GPU, so the listed encoders, follow the choice
+                _ = RefreshComponentsIfChoiceChanged();     // and what the component packs are for
             }
         }
 
@@ -545,6 +547,8 @@ namespace VideoJaNai.ViewModels
         {
             await CheckAndExtractBackend();
             await RefreshEncoderProbeAsync();
+            _followChoiceInComponents = true;
+            await RefreshComponentsIfChoiceChanged();   // what a chosen GPU needs, for validation
         }
 
         private bool _showConsole = false;
@@ -676,6 +680,10 @@ namespace VideoJaNai.ViewModels
             {
                 return (null, "TensorRT is not installed. Install it, or select DirectML, in App Settings.", null);
             }
+            if (CurrentWorkflow.TensorRtSelected && TensorRtKernelsMissingText() is string kernelsMissing)
+            {
+                return (null, kernelsMissing, null);
+            }
 
             try
             {
@@ -765,6 +773,53 @@ namespace VideoJaNai.ViewModels
         {
             get => _components;
             set => this.RaiseAndSetIfChanged(ref _components, value);
+        }
+
+        // ---- packs for the chosen GPU -------------------------------------------------------
+        // Which GPUs the component packs are for, as the updater's --gpus (with a leading space): with
+        // a GPU chosen in App Settings, that GPU on TensorRT / TensorRT-RTX, or none on DirectML, which
+        // needs no packs. Empty for Auto: every NVIDIA GPU gets its packs, since TensorRT builds on
+        // CUDA's fastest card, which a beginner's PC doesn't tell us, and a missing kernel pack breaks
+        // engine builds while an extra one only costs disk. A pack the chosen GPU doesn't need is
+        // left as it is, and once removed it stays removed (--auto no longer recommends it).
+        public string ComponentGpusArgument =>
+            ChosenGpu is not EncoderProbe.Gpu g ? ""
+            : DirectMlBackendSelected ? " --gpus none"
+            : $" --gpus {g.Id}";
+
+        // The ComponentGpusArgument that Components was listed for (null before the first list).
+        [IgnoreDataMember]
+        public string? ComponentsListedFor { get; set; }
+
+        // Set once the startup checks are done: from then on a GPU or backend change lists the
+        // components again, for what the new choice needs.
+        private bool _followChoiceInComponents;
+
+        private async Task RefreshComponentsIfChoiceChanged()
+        {
+            if (_followChoiceInComponents && !ComponentsBusy && _updateManagerService.IsInstalled &&
+                ComponentsListedFor != ComponentGpusArgument)
+            {
+                await RefreshComponents();
+                CurrentWorkflow?.Validate();
+            }
+        }
+
+        // The TensorRT kernel packs the chosen GPU needs that aren't installed (TensorRT with a GPU
+        // chosen, once Components is listed for that choice): a message, else null. The TensorRT
+        // runtime and TensorRT-RTX have their own checks.
+        public string? TensorRtKernelsMissingText()
+        {
+            if (ChosenGpu is not EncoderProbe.Gpu g || !TensorRtBackendSelected ||
+                ComponentsListedFor != ComponentGpusArgument)
+            {
+                return null;
+            }
+            var missing = Components
+                .Where(c => c.Recommended && !c.Installed && (c.Name.StartsWith("trt-sm", StringComparison.Ordinal) || c.Name == "trt-ptx"))
+                .Select(c => c.Title).ToList();
+            return missing.Count == 0 ? null
+                : string.Format(CultureInfo.CurrentCulture, Resources.TensorRtKernelsMissingText, g.Name, string.Join(", ", missing));
         }
 
         private string _gpuStatusText = string.Empty;
@@ -1671,7 +1726,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                     : "Updating components for your hardware...";
                 try
                 {
-                    var rc = await _updateManagerService.RunUpdaterStreamingAsync("--auto", BackendSetupSubStatusQueueEnqueue);
+                    var rc = await _updateManagerService.RunUpdaterStreamingAsync("--auto" + ComponentGpusArgument, BackendSetupSubStatusQueueEnqueue);
                     if (rc != 0 && missing)
                     {
                         ExtractingBackendFailed = true;
@@ -1702,7 +1757,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             ComponentStatusText = "Reinstalling components...";
             try
             {
-                await _updateManagerService.RunUpdaterStreamingAsync("--auto", line => ComponentStatusText = line);
+                await _updateManagerService.RunUpdaterStreamingAsync("--auto" + ComponentGpusArgument, line => ComponentStatusText = line);
             }
             catch (Exception ex) { ComponentStatusText = ex.Message; }
             ComponentsBusy = false;
@@ -1714,18 +1769,22 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         {
             try
             {
-                var json = await _updateManagerService.GetComponentsJsonAsync();
+                var gpusArgument = ComponentGpusArgument;
+                var json = await _updateManagerService.GetComponentsJsonAsync(gpusArgument);
                 if (string.IsNullOrWhiteSpace(json))
                 {
                     return;
                 }
                 var root = Newtonsoft.Json.Linq.JObject.Parse(json);
+                // gpu: the NVIDIA GPUs the packs are for (every one, or the chosen one);
+                // nvidia_present: whether this PC has one at all (older updaters: same as gpu.nvidia)
                 var gpu = root["gpu"];
                 bool nvidia = (bool?)gpu?["nvidia"] ?? false;
+                bool nvidiaPresent = (bool?)root["nvidia_present"] ?? nvidia;
                 var gpuName = (string?)gpu?["name"] ?? "";
                 var sm = (string?)gpu?["sm"] ?? "";
-                GpuStatusText = nvidia
-                    ? $"{gpuName} ({sm})"
+                GpuStatusText = nvidia ? $"{gpuName} ({sm})"
+                    : ChosenGpu is EncoderProbe.Gpu chosen && DirectMlBackendSelected ? $"{chosen.Name}, on DirectML: no components needed."
                     : "No NVIDIA GPU detected — using the built-in DirectML engine.";
 
                 var items = new AvaloniaList<ComponentItem>();
@@ -1741,7 +1800,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                     // TensorRT stack on non-NVIDIA boxes are hidden — the updater CLI still lists them all.
                     // TensorRT-RTX is recommended only on the GPUs where it's the default (RTX 20 /
                     // GTX 16-series and newer), so it is offered here to every NVIDIA GPU on Windows.
-                    bool optIn = name == "trt-rtx" && nvidia && UpscaleWorkflow.TensorRtRtxAvailable;
+                    bool optIn = name == "trt-rtx" && nvidiaPresent && UpscaleWorkflow.TensorRtRtxAvailable;
                     if (!installed && !recommended && !preselect && name != "rife" && !optIn)
                     {
                         continue;
@@ -1749,6 +1808,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                     items.Add(new ComponentItem(name, (long?)p["bytes"] ?? 0, installed, recommended, preselect));
                 }
                 Components = items;
+                ComponentsListedFor = gpusArgument;
             }
             catch (Exception ex)
             {
@@ -3089,6 +3149,11 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                 validationText.Add(DirectMlAvailable
                     ? "The TensorRT components are not installed (they are for NVIDIA GPUs). Select DirectML or install TensorRT in App Settings."
                     : "The TensorRT components are not installed. Install them from App Settings.");
+            }
+            else if (TensorRtSelected && Vm?.TensorRtKernelsMissingText() is string kernelsMissing)
+            {
+                valid = false;
+                validationText.Add(kernelsMissing);
             }
 
             if (DirectMlSelected && OutputIs444)
