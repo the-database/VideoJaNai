@@ -365,6 +365,28 @@ namespace VideoJaNai.Tests
             Assert.Equal(UhdId, vm.ChosenGpu?.Id);
         }
 
+        // First launch: the list is bound before the probe has run, then the probe's GPUs arrive. The
+        // list must show Auto, not come up empty.
+        [Avalonia.Headless.XUnit.AvaloniaFact]
+        public void TheGpuListShowsAutoWhenTheProbeArrivesLate()
+        {
+            var vm = Load(null, directMl: false);
+            var list = new Avalonia.Controls.ComboBox { DataContext = vm };
+            list.Bind(Avalonia.Controls.ItemsControl.ItemsSourceProperty, new Avalonia.Data.Binding(nameof(vm.GpuChoices)));
+            list.Bind(Avalonia.Controls.Primitives.SelectingItemsControl.SelectedIndexProperty,
+                      new Avalonia.Data.Binding(nameof(vm.SelectedGpuChoiceIndex)) { Mode = Avalonia.Data.BindingMode.TwoWay });
+            list.Bind(Avalonia.Visual.IsVisibleProperty, new Avalonia.Data.Binding(nameof(vm.GpuChoiceVisible)));
+            var window = new Avalonia.Controls.Window { Content = list };
+            window.Show();
+            window.UpdateLayout();
+
+            vm.EncoderProbeOutput = NvidiaIntelProbeWithIds;
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.Equal(0, list.SelectedIndex);
+            Assert.Equal(Auto("NVIDIA GeForce RTX 5090"), list.SelectedItem);
+        }
+
         [Fact]
         public void TypedSettingsBecomeTheWorkflowsOwn()
         {
