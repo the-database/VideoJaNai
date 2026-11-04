@@ -100,14 +100,15 @@ namespace VideoJaNai.ViewModels
     }
 
     // What `aji_encode --probe-encoders` found on this PC:
-    //   GPU index=0 vendor=nvidia default=1 id=9223372036854776064 name=NVIDIA GeForce RTX 5090
+    //   GPU index=0 vendor=nvidia default=1 integrated=0 id=9223372036854776064 name=NVIDIA GeForce RTX 5090
     //   ENCODER name=hevc_qsv yuv420p=1 yuv420p10=1
     // default=1 is the GPU DirectML runs on without --device. id= is what --device takes (the
     // card's PCI address); aji_encode before animejanai-inference 0.22.0 prints no id= and lists
-    // GPUs on Windows only.
+    // GPUs on Windows only. integrated=1 marks integrated graphics (0.22.2+; null when unknown).
     public sealed class EncoderProbe
     {
-        public sealed record Gpu(EncoderGroup? Vendor, bool IsDefault, string Name, string? Id = null);
+        public sealed record Gpu(EncoderGroup? Vendor, bool IsDefault, string Name, string? Id = null,
+                                 bool? Integrated = null);
 
         public IReadOnlyList<Gpu> Gpus { get; }
         private readonly Dictionary<string, (bool Bit8, bool Bit10)> _encoders;
@@ -139,7 +140,8 @@ namespace VideoJaNai.ViewModels
                         EncoderPresets.GroupOfVendor(fields.GetValueOrDefault("vendor", "")),
                         fields.GetValueOrDefault("default") == "1",
                         nameAt < 0 ? "" : line[(nameAt + 6)..],
-                        fields.GetValueOrDefault("id")));
+                        fields.GetValueOrDefault("id"),
+                        fields.GetValueOrDefault("integrated") switch { "1" => true, "0" => false, _ => null }));
                 }
                 else if (line.StartsWith("ENCODER ", StringComparison.Ordinal))
                 {

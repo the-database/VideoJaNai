@@ -676,6 +676,13 @@
                 <ContentControl Classes="hint" Content="{x:Static lang:Resources.GpuLabel}" ToolTip.Tip="{x:Static lang:Resources.GpuDescription}" />
                 <ComboBox VerticalAlignment="Center" ItemsSource="{Binding GpuChoices}" SelectedIndex="{Binding SelectedGpuChoiceIndex}"
                           IsEnabled="{Binding GpuChoiceEnabled}" />
+                <StackPanel Margin="12,0,0,0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
+                            IsVisible="{Binding GpuChoiceIntegratedWarning}">
+                  <materialIcons:MaterialIcon Kind="Alert" Width="14" Height="14" Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                  <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420"
+                             Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                             Text="{x:Static lang:Resources.GpuIntegratedWarningText}" />
+                </StackPanel>
               </StackPanel>
               <StackPanel IsVisible="{Binding IsInstalled}">
                 <StackPanel>

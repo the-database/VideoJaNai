@@ -954,6 +954,24 @@ namespace VideoJaNai.Lang {
         /// <summary>
         ///   Looks up a localized string similar to TensorRT on {0} needs these components: {1}..
         /// </summary>
+        public static string GpuIntegratedLabel {
+            get {
+                return ResourceManager.GetString("GpuIntegratedLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Integrated graphics upscale much slower than your graphics card..
+        /// </summary>
+        public static string GpuIntegratedWarningText {
+            get {
+                return ResourceManager.GetString("GpuIntegratedWarningText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to TensorRT on {0} needs these components: {1}..
+        /// </summary>
         public static string TensorRtKernelsMissingText {
             get {
                 return ResourceManager.GetString("TensorRtKernelsMissingText", resourceCulture);
