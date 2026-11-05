@@ -148,6 +148,17 @@ Output:
                     cts.Cancel();
                 }
             };
+            // `kill` (SIGTERM) too, on Linux: without this, .NET exits at once and leaves aji_encode
+            // running and the partial file behind
+            using var sigterm = OperatingSystem.IsWindows() ? null : System.Runtime.InteropServices.PosixSignalRegistration.Create(
+                System.Runtime.InteropServices.PosixSignal.SIGTERM, ctx =>
+                {
+                    if (!cts.IsCancellationRequested)
+                    {
+                        ctx.Cancel = true;
+                        cts.Cancel();
+                    }
+                });
             var plan = await Resolve.PlanAsync(f);
             Report report = f.Lines ? new LinesReport() : new HumanReport(f.Verbose);
             try
