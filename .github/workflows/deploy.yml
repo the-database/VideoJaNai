@@ -66,7 +66,7 @@ jobs:
     # folds in the published app + updater) and, with --packs, carves the heavy GPU-specific pieces
     # into publish/packs-v<ver>/component-*.7z + packs.json, then slims them out of the core. --offline
     # first archives the complete tree as publish/VideoJaNai-offline-package-<ver>.7z.*. --cli assembles the
-    # command line's standalone tree (the slim core without the GUI) as publish/videojanai-v<ver>.
+    # command line's standalone tree (the slim core without the GUI) as publish/videojanai-cli-v<ver>.
     - name: Assemble package
       run: ./publish/BuildVideoJaNai.exe ${{ github.event.inputs.release_version }} --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater.exe --packs --offline --cli cli-publish/videojanai.exe
 
@@ -95,7 +95,7 @@ jobs:
     - name: Create videojanai-windows-x64.zip
       shell: pwsh
       run: |
-        Push-Location "publish/videojanai-v${{ github.event.inputs.release_version }}"
+        Push-Location "publish/videojanai-cli-v${{ github.event.inputs.release_version }}"
         7z a -tzip -mx=9 "$env:GITHUB_WORKSPACE/videojanai-windows-x64.zip" *
         Pop-Location
 
@@ -177,7 +177,7 @@ jobs:
       run: ./publish/BuildVideoJaNai "$VER" --target linux-x64 --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater --packs --offline --cli cli-publish/videojanai
 
     - name: Package videojanai-linux-x64.tar.zst
-      run: tar --zstd -C "publish/videojanai-v$VER" -cf videojanai-linux-x64.tar.zst .
+      run: tar --zstd -C "publish/videojanai-cli-v$VER" -cf videojanai-linux-x64.tar.zst .
 
     - name: Package portable tarball (+ install scripts)
       run: |

@@ -14,7 +14,7 @@
 // --offline (with --packs) also writes VideoJaNai-offline-package-<ver>[-<rid>].7z.*: the complete
 // tree, every component pack included, for installs without internet access.
 //
-// --cli (after --packs' slimming) also assembles videojanai-v<ver>/: the command line's standalone
+// --cli (after --packs' slimming) also assembles videojanai-cli-v<ver>/: the command line's standalone
 // tree, the slim core without the GUI (videojanai + the updater + animejanai/ + manifest.json), which
 // the release workflow archives as videojanai-windows-x64.zip / videojanai-linux-x64.tar.zst.
 // `videojanai setup` adds this PC's component packs to it with the updater, from this release.
@@ -817,7 +817,8 @@ async Task Main()
 // setup` installs the component packs with, and the manifest that names this release to it. No GUI.
 async Task WriteCliTree(string cliExe)
 {
-    var cliDirectory = Path.Combine(assemblyDirectory, $"videojanai-v{version}");
+    // not videojanai-v<ver>: on Windows that is the package tree itself (VideoJaNai-v<ver>, any case)
+    var cliDirectory = Path.Combine(assemblyDirectory, $"videojanai-cli-v{version}");
     Console.WriteLine($"Assembling the command line's tree in {cliDirectory}...");
     if (Directory.Exists(cliDirectory)) Directory.Delete(cliDirectory, true);
     Directory.CreateDirectory(cliDirectory);
