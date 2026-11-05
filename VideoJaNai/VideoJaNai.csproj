@@ -13,6 +13,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="VideoJaNai.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
@@ -66,4 +70,13 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
+
+
+  <ItemGroup>
+    <ProjectReference Include="..\VideoJaNai.Core\VideoJaNai.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="VideoJaNai.Core" />
+  </ItemGroup>
+
 </Project>

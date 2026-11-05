@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace AnimeJaNaiConverterGui.Services
+namespace VideoJaNai.Core
 {
     // Reads an ONNX model's graph input shape without an onnx dependency: a
     // minimal protobuf walk (ModelProto.graph -> GraphProto.input /

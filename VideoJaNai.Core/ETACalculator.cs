@@ -4,7 +4,7 @@ using System.Diagnostics;
 using ProgressItem = System.Collections.Generic.KeyValuePair<long, float>;
 
 
-namespace AnimeJaNaiConverterGui.Services
+namespace VideoJaNai.Core
 {
     public interface IETACalculator
     {

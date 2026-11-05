@@ -12,6 +12,10 @@
 //   VideoJaNaiUpdater.exe --auto         install everything the detected hardware recommends
 //                         [--gpus <ids>|none] with --auto and --components: recommend packs for these
 //                         GPUs only (App Settings' chosen GPU, as aji_encode --device ids), or none
+//                         [--check] with --auto: list what it would install, install nothing
+//                         [--include <packs>] with --auto: also these packs (videojanai setup: rife)
+//                         [--progress lines] with --auto: also report on stdout for programs, as
+//                         mangajanai setup does (videojanai setup runs this); other text goes to stderr
 //   VideoJaNaiUpdater.exe --recommend    KEY=value hardware summary for the Inno installer
 //
 // Update size is tiered: if the latest release's heavy deps match what's installed (compared via
@@ -58,6 +62,21 @@ if (!OperatingSystem.IsWindows())
 }
 
 string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "--check";
+
+// --auto --progress lines: the SETUP_* lines (see SetupLine) on stdout, everything else on stderr.
+bool setupLines = mode == "--auto" && Array.IndexOf(args, "--progress") is int progressAt and >= 0 &&
+                  progressAt + 1 < args.Length && args[progressAt + 1] is "lines" or "line";
+bool autoCheckOnly = mode == "--auto" && args.Skip(1).Contains("--check");
+// --auto --include rife: packs wanted whatever the hardware recommends (RIFE is only preselected on a
+// fresh install, so a later --auto would never add it)
+var autoInclude = mode == "--auto" && Array.IndexOf(args, "--include") is int includeAt and >= 0 && includeAt + 1 < args.Length
+    ? args[includeAt + 1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase)
+    : [];
+TextWriter protocolOut = Console.Out;
+if (setupLines)
+{
+    Console.SetOut(Console.Error);
+}
 
 // --gpus: the GPUs to recommend packs for, when the app has one chosen in App Settings: aji_encode
 // --device ids (the PCI address), or "none" when the chosen backend needs no packs (DirectML).
@@ -407,9 +426,10 @@ async Task<string> DownloadFullAsync(Release release, string work)
     return Path.Combine(work, parts[0].Name);
 }
 
-async Task DownloadWithProgress(Asset asset, string dest)
+async Task DownloadWithProgress(Asset asset, string dest, string? setupName = null)
 {
     double last = -10;
+    double lastLine = -1;
     Console.WriteLine($"Downloading {asset.Name}...");
     await DownloadFileAsync(asset.Url, dest, p =>
     {
@@ -418,7 +438,51 @@ async Task DownloadWithProgress(Asset asset, string dest)
             Console.WriteLine($"  {asset.Name}: {p}%");
             last = p;
         }
+    }, (got, total) =>
+    {
+        // SETUP_DOWNLOAD at most once per percent (and at the end)
+        var pct = total > 0 ? Math.Floor(got * 100.0 / total) : -1;
+        if (setupName != null && (pct > lastLine || got == total))
+        {
+            lastLine = pct;
+            SetupLine($"SETUP_DOWNLOAD {setupName} {got} {total}");
+        }
     });
+}
+
+// The --auto --progress lines protocol (the same lines as mangajanai setup's):
+//   SETUP_PLAN <pack> <bytes> installed|download   each pack this PC needs
+//   SETUP_TOTAL <bytes>                            what will be downloaded (0: all installed)
+//   SETUP_DOWNLOAD <pack> <got> <total>            download progress, at most once per percent
+//   SETUP_EXTRACT <pack>                           the pack's archive is being unpacked
+//   SETUP_DONE                                     finished, nothing left to do (not after --check
+//                                                  with work left)
+// A failure ends the run without SETUP_DONE: the message is on stderr, the exit code non-zero.
+void SetupLine(string line)
+{
+    if (setupLines)
+    {
+        protocolOut.WriteLine(line);
+        protocolOut.Flush();
+    }
+}
+
+// A downloaded pack against packs.json's sha256 (indexes that predate it have none).
+static void VerifySha256(Pack pack, string archive)
+{
+    if (string.IsNullOrEmpty(pack.Sha256))
+    {
+        return;
+    }
+    using var stream = File.OpenRead(archive);
+    var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream));
+    if (!actual.Equals(pack.Sha256, StringComparison.OrdinalIgnoreCase))
+    {
+        stream.Dispose();
+        File.Delete(archive);
+        throw new InvalidOperationException(
+            $"{pack.Asset}: the download doesn't match its SHA-256 (got {actual.ToLowerInvariant()}, expected {pack.Sha256.ToLowerInvariant()}); try again");
+    }
 }
 
 // ---- extraction / apply --------------------------------------------------------------------
@@ -746,7 +810,8 @@ async Task<PackIndex> GetPackIndexAsync()
             e.GetProperty("bytes").GetInt64(),
             files,
             e.TryGetProperty("dep", out var d) ? d.GetString() : null,
-            e.TryGetProperty("installed_bytes", out var ib) ? ib.GetInt64() : 0));
+            e.TryGetProperty("installed_bytes", out var ib) ? ib.GetInt64() : 0,
+            e.TryGetProperty("sha256", out var sha) ? sha.GetString() : null));
     }
     return new PackIndex(
         doc.RootElement.TryGetProperty("package_version", out var v)
@@ -1094,13 +1159,16 @@ async Task<int> InstallComponentAsync(string name)
     string archive = Path.Combine(work, pack.Asset);
     if (pack.Url.Contains("://"))
     {
-        await DownloadWithProgress(new Asset(pack.Asset, pack.Url), archive);
+        await DownloadWithProgress(new Asset(pack.Asset, pack.Url), archive, pack.Name);
     }
     else
     {
         File.Copy(pack.Url, archive, true); // VIDEOJANAI_PACKS_DIR dev path
+        SetupLine($"SETUP_DOWNLOAD {pack.Name} {pack.Bytes} {pack.Bytes}");
     }
+    VerifySha256(pack, archive);
     Console.WriteLine($"Installing {pack.Name}...");
+    SetupLine($"SETUP_EXTRACT {pack.Name}");
     Extract(archive, installDir);
     TryDelete(() => File.Delete(archive));
 
@@ -1150,16 +1218,29 @@ async Task<int> AutoComponentsAsync()
     // content. Without this, --auto reports "everything is installed" after an upgrade and the old
     // runtime is kept forever; InstallComponentAsync re-checks and still skips genuine no-ops.
     var missing = index.Packs
-        .Where(p => PreselectPack(p, installed, rec))
+        .Where(p => PreselectPack(p, installed, rec) || autoInclude.Contains(p.Name))
         .Where(p => !installed.TryGetValue(p.Name, out var recorded) ||
                     (p.Dep is not null && ReadManifestDep(localManifest, p.Dep) is string t &&
                      t != "" && recorded != t) ||
                     !PackContentMatches(p))
         .Select(p => p.Name).ToList();
+    var needed = index.Packs.Where(p => PreselectPack(p, installed, rec) || autoInclude.Contains(p.Name)).ToList();
+    foreach (var p in needed)
+    {
+        SetupLine($"SETUP_PLAN {p.Name} {p.Bytes} {(missing.Contains(p.Name) ? "download" : "installed")}");
+    }
+    SetupLine($"SETUP_TOTAL {needed.Where(p => missing.Contains(p.Name)).Sum(p => p.Bytes)}");
     if (missing.Count == 0)
     {
         Console.WriteLine("Everything the detected hardware needs is already installed.");
         await ComponentsAsync(index, false);
+        SetupLine("SETUP_DONE");
+        return 0;
+    }
+    if (autoCheckOnly)
+    {
+        Console.WriteLine($"For {(hasNvidia ? gpu : "this GPU")}, would install: " +
+            string.Join(", ", needed.Where(p => missing.Contains(p.Name)).Select(p => $"{p.Name} ({p.Bytes / 1048576} MB)")));
         return 0;
     }
     Console.WriteLine($"Installing for {(hasNvidia ? gpu : "this GPU")}: {string.Join(", ", missing)}");
@@ -1171,6 +1252,7 @@ async Task<int> AutoComponentsAsync()
             return rc;
         }
     }
+    SetupLine("SETUP_DONE");
     return 0;
 }
 
@@ -1249,5 +1331,5 @@ record Asset(string Name, string Url);
 // Dep: the manifest deps key that governs the pack's content. InstalledBytes: the pack's total size
 // once extracted, to verify what is on disk really is this pack (0 for indexes that predate it).
 record Pack(string Name, string Asset, string? Url, long Bytes, List<string> Files, string? Dep,
-            long InstalledBytes = 0);
+            long InstalledBytes = 0, string? Sha256 = null);
 record PackIndex(string PackageVersion, List<Pack> Packs);

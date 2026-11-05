@@ -20,12 +20,15 @@ on:
 #   - component-*.7z + packs.json        on-demand GPU/RIFE component packs (updater / in-app manager)
 #   - VideoJaNai-offline-package-<ver>.7z.* the core with every component pack included, for
 #                                        machines without internet access
+#   - videojanai-windows-x64.zip         the command line, standalone: the core without the GUI;
+#                                        `videojanai setup` adds the component packs
 # Heavy GPU-specific pieces (TensorRT runtime, per-GPU builder kernels, RIFE models) are NOT in the
 # core or the installer; they download post-install via VideoJaNaiUpdater, keeping the base small.
 # The deploy-linux leg adds the RID-suffixed Linux assets to the same release (tarball, AppImage,
-# manifest-linux-x64.json, component-*-linux-x64.7z + packs-linux-x64.json). Both legs push GBs of
-# assets with one token and can trip GitHub's upload rate limit; dispatch windows_only=true, wait,
-# then linux_only=true to release them one after the other.
+# manifest-linux-x64.json, component-*-linux-x64.7z + packs-linux-x64.json, and the command line's
+# videojanai-linux-x64.tar.zst). Both legs push GBs of assets with one token and can trip GitHub's
+# upload rate limit; dispatch windows_only=true, wait, then linux_only=true to release them one
+# after the other.
 jobs:
   deploy:
     if: ${{ github.event.inputs.linux_only != 'true' }}
@@ -54,12 +57,17 @@ jobs:
     - name: Publish updater
       run: dotnet publish VideoJaNaiUpdater/VideoJaNaiUpdater.csproj -c Release -o updater-publish
 
+    # The command line, videojanai.exe: NativeAOT (the runner's Visual Studio C++ tools link it).
+    - name: Publish videojanai
+      run: dotnet publish VideoJaNai.Cli/VideoJaNai.Cli.csproj -c Release -r win-x64 -p:Version=${{ github.event.inputs.release_version }} -o cli-publish
+
     # Assemble the slim core (downloads aji / TensorRT runtime / ffmpeg shared / RIFE / ONNX models,
     # folds in the published app + updater) and, with --packs, carves the heavy GPU-specific pieces
     # into publish/packs-v<ver>/component-*.7z + packs.json, then slims them out of the core. --offline
-    # first archives the complete tree as publish/VideoJaNai-offline-package-<ver>.7z.*.
+    # first archives the complete tree as publish/VideoJaNai-offline-package-<ver>.7z.*. --cli assembles the
+    # command line's standalone tree (the slim core without the GUI) as publish/videojanai-v<ver>.
     - name: Assemble package
-      run: ./publish/BuildVideoJaNai.exe ${{ github.event.inputs.release_version }} --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater.exe --packs --offline
+      run: ./publish/BuildVideoJaNai.exe ${{ github.event.inputs.release_version }} --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater.exe --packs --offline --cli cli-publish/videojanai.exe
 
     - name: Install 7zip
       run: choco install 7zip -y
@@ -82,6 +90,14 @@ jobs:
     - name: Create 7zip archive of the artifact (full package)
       run: 7z a -t7z -mx=9 -v1900m VideoJaNai-full-package-${{ github.event.inputs.release_version }}.7z ./publish/VideoJaNai-v${{ github.event.inputs.release_version }}
 
+    # The command line's download: the tree's contents at the zip's root, as mangajanai's.
+    - name: Create videojanai-windows-x64.zip
+      shell: pwsh
+      run: |
+        Push-Location "publish/videojanai-v${{ github.event.inputs.release_version }}"
+        7z a -tzip -mx=9 "$env:GITHUB_WORKSPACE/videojanai-windows-x64.zip" *
+        Pop-Location
+
     # manifest.json is uploaded standalone so the updater can compare heavy deps before downloading.
     - name: Stage manifest
       shell: pwsh
@@ -100,7 +116,7 @@ jobs:
         allowUpdates: true
         updateOnlyUnreleased: true
         # No removeArtifacts: the Linux leg's assets share this tag. Same-named assets are replaced.
-        artifacts: "VideoJaNai-Setup-${{ github.event.inputs.release_version }}.exe,VideoJaNai-full-package-${{ github.event.inputs.release_version }}.7z.*,manifest.json,publish/packs-v${{ github.event.inputs.release_version }}/component-*.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs.json,publish/VideoJaNai-offline-package-${{ github.event.inputs.release_version }}.7z.*"
+        artifacts: "VideoJaNai-Setup-${{ github.event.inputs.release_version }}.exe,VideoJaNai-full-package-${{ github.event.inputs.release_version }}.7z.*,manifest.json,videojanai-windows-x64.zip,publish/packs-v${{ github.event.inputs.release_version }}/component-*.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs.json,publish/VideoJaNai-offline-package-${{ github.event.inputs.release_version }}.7z.*"
         token: ${{ secrets.GITHUB_TOKEN }}
 
   # Linux leg. Runs in mpv-AnimeJaNai's old-baseline build image (Ubuntu 22.04: glibc 2.35, .NET 10
@@ -150,8 +166,17 @@ jobs:
     - name: Publish updater (linux-x64, single file)
       run: dotnet publish VideoJaNaiUpdater/VideoJaNaiUpdater.csproj -c Release -r linux-x64 -o updater-publish
 
-    - name: Assemble package (linux-x64, with packs + offline package)
-      run: ./publish/BuildVideoJaNai "$VER" --target linux-x64 --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater --packs --offline
+    # The command line, videojanai: NativeAOT, which links with clang (and zlib).
+    - name: Publish videojanai (linux-x64, NativeAOT)
+      run: |
+        apt-get install -y -qq clang zlib1g-dev
+        dotnet publish VideoJaNai.Cli/VideoJaNai.Cli.csproj -c Release -r linux-x64 -p:Version="$VER" -o cli-publish
+
+    - name: Assemble package (linux-x64, with packs + offline package + the command line's tree)
+      run: ./publish/BuildVideoJaNai "$VER" --target linux-x64 --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater --packs --offline --cli cli-publish/videojanai
+
+    - name: Package videojanai-linux-x64.tar.zst
+      run: tar --zstd -C "publish/videojanai-v$VER" -cf videojanai-linux-x64.tar.zst .
 
     - name: Package portable tarball (+ install scripts)
       run: |
@@ -182,5 +207,5 @@ jobs:
         omitDraftDuringUpdate: true
         omitNameDuringUpdate: true
         omitBodyDuringUpdate: true
-        artifacts: "VideoJaNai-v${{ github.event.inputs.release_version }}-linux-x64.tar.zst,*.AppImage,manifest-linux-x64.json,publish/packs-v${{ github.event.inputs.release_version }}/component-*-linux-x64.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs-linux-x64.json,publish/VideoJaNai-offline-package-${{ github.event.inputs.release_version }}-linux-x64.7z.*"
+        artifacts: "VideoJaNai-v${{ github.event.inputs.release_version }}-linux-x64.tar.zst,videojanai-linux-x64.tar.zst,*.AppImage,manifest-linux-x64.json,publish/packs-v${{ github.event.inputs.release_version }}/component-*-linux-x64.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs-linux-x64.json,publish/VideoJaNai-offline-package-${{ github.event.inputs.release_version }}-linux-x64.7z.*"
         token: ${{ secrets.GITHUB_TOKEN }}
