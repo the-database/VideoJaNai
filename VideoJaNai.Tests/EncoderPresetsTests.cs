@@ -1,4 +1,5 @@
-﻿using AnimeJaNaiConverterGui.Services;
+﻿using System;
+using AnimeJaNaiConverterGui.Services;
 using Newtonsoft.Json;
 using Splat;
 using System.Linq;
@@ -119,6 +120,8 @@ namespace VideoJaNai.Tests
         [Fact]
         public void DefaultFollowsTheUpscalingGpu()
         {
+            // DirectML behaviour; elsewhere the backend stays TensorRT
+            Assert.SkipUnless(OperatingSystem.IsWindows(), "DirectML is Windows only");
             Assert.Same(EncoderPresets.NvencHevc, Load(NvidiaIntelProbe, directMl: false).Workflows[0].SelectedPreset);
             Assert.Same(EncoderPresets.AmfHevc, Load(AmdProbe, directMl: true).Workflows[0].SelectedPreset);
             // DirectML on an AMD GPU whose encoder doesn't open: the CPU
@@ -129,6 +132,8 @@ namespace VideoJaNai.Tests
         [Fact]
         public void TheOldBundledDefaultIsADefaultToo()
         {
+            // DirectML behaviour; elsewhere the backend stays TensorRT
+            Assert.SkipUnless(OperatingSystem.IsWindows(), "DirectML is Windows only");
             var wf = Load(AmdProbe, directMl: true, ffmpegSettings: EncoderPresets.LegacyDefaultSettings).Workflows[0];
             Assert.True(wf.UsesDefaultEncoder);
             Assert.Same(EncoderPresets.AmfHevc, wf.SelectedPreset);
@@ -221,6 +226,8 @@ namespace VideoJaNai.Tests
         [Fact]
         public void DirectMlOffersEveryGpuAndAutoNamesItsGpu()
         {
+            // DirectML behaviour; elsewhere the backend stays TensorRT
+            Assert.SkipUnless(OperatingSystem.IsWindows(), "DirectML is Windows only");
             var vm = Load(NvidiaIntelProbeWithIds, directMl: true);
             Assert.True(vm.GpuChoiceVisible);
             Assert.True(vm.GpuChoiceEnabled);
@@ -232,6 +239,8 @@ namespace VideoJaNai.Tests
         [Fact]
         public void TheEncodersFollowTheChosenGpu()
         {
+            // DirectML behaviour; elsewhere the backend stays TensorRT
+            Assert.SkipUnless(OperatingSystem.IsWindows(), "DirectML is Windows only");
             var vm = Load(NvidiaIntelProbeWithIds, directMl: true);
             vm.SelectedGpuChoiceIndex = 2;
             Assert.Equal(UhdId, vm.ChosenGpu?.Id);
@@ -246,6 +255,8 @@ namespace VideoJaNai.Tests
         [Fact]
         public void TensorRtOnlyOffersNvidiaGpus()
         {
+            // DirectML behaviour; elsewhere the backend stays TensorRT
+            Assert.SkipUnless(OperatingSystem.IsWindows(), "DirectML is Windows only");
             var vm = Load(NvidiaIntelProbeWithIds, directMl: true);
             vm.SelectedGpuChoiceIndex = 2;          // the UHD 770, then a backend it can't run
             vm.SetBackendTensorRt();
@@ -307,6 +318,8 @@ namespace VideoJaNai.Tests
         [Fact]
         public void IntegratedGpusAreListedLastAndMarked()
         {
+            // DirectML behaviour; elsewhere the backend stays TensorRT
+            Assert.SkipUnless(OperatingSystem.IsWindows(), "DirectML is Windows only");
             var vm = Load(RyzenLaptopProbe, directMl: true);
             Assert.True(vm.Probe!.Gpus[0].Integrated);
             Assert.Null(EncoderProbe.Parse(NvidiaIntelProbeWithIds)!.Gpus[1].Integrated);   // older aji_encode
@@ -318,6 +331,8 @@ namespace VideoJaNai.Tests
         [Fact]
         public void ChoosingIntegratedGraphicsOverAGraphicsCardWarns()
         {
+            // DirectML behaviour; elsewhere the backend stays TensorRT
+            Assert.SkipUnless(OperatingSystem.IsWindows(), "DirectML is Windows only");
             var vm = Load(RyzenLaptopProbe, directMl: true);
             vm.SelectedGpuChoiceIndex = 2;
             Assert.Equal("AMD Radeon(TM) Graphics", vm.ChosenGpu?.Name);
@@ -354,6 +369,8 @@ namespace VideoJaNai.Tests
         [Fact]
         public void AChosenGpuGetsOnlyItsOwnPacks()
         {
+            // DirectML behaviour; elsewhere the backend stays TensorRT
+            Assert.SkipUnless(OperatingSystem.IsWindows(), "DirectML is Windows only");
             var vm = Load(TwoNvidiaProbe, directMl: false);
             vm.SelectedGpuChoiceIndex = 1;
             Assert.Equal($" --gpus {AdaId}", vm.ComponentGpusArgument);
@@ -387,6 +404,8 @@ namespace VideoJaNai.Tests
         [Avalonia.Headless.XUnit.AvaloniaFact]
         public void TheGpuListKeepsItsChoiceAcrossABackendChange()
         {
+            // DirectML behaviour; elsewhere the backend stays TensorRT
+            Assert.SkipUnless(OperatingSystem.IsWindows(), "DirectML is Windows only");
             var vm = Load(NvidiaIntelProbeWithIds, directMl: true);
             var list = new Avalonia.Controls.ComboBox { DataContext = vm };
             list.Bind(Avalonia.Controls.ItemsControl.ItemsSourceProperty, new Avalonia.Data.Binding(nameof(vm.GpuChoices)));

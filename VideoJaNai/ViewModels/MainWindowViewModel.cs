@@ -611,11 +611,18 @@ namespace VideoJaNai.ViewModels
             {
                 return null;
             }
-            return Directory.GetFiles(CurrentWorkflow.InputFolderPath)
-                .Where(file => VIDEO_EXTENSIONS.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
-                .Order(StringComparer.OrdinalIgnoreCase)
-                .FirstOrDefault();
+            return PlanFolder().Videos.FirstOrDefault()?.Input;
         }
+
+        // Folder mode's videos: the folder's and its subfolders' (the output keeps the subfolders),
+        // planned as the command line plans a folder. Problem: two videos would write one file.
+        internal PlanResult PlanFolder() =>
+            BatchPlanning.Plan([CurrentWorkflow!.InputFolderPath],
+                               string.IsNullOrWhiteSpace(CurrentWorkflow.OutputFolderPath) ? null : CurrentWorkflow.OutputFolderPath,
+                               CurrentWorkflow.OutputFilename, skipExisting: !CurrentWorkflow.OverwriteExistingVideos);
+
+        // Why folder mode can't run as set up (from the last CheckInputs), else null.
+        public string? InputPlanProblem { get; private set; }
 
         private (PreviewSession? session, string? error, string? title) StartPreviewSession()
         {
@@ -888,6 +895,7 @@ namespace VideoJaNai.ViewModels
         {
 
             InputStatusText = "0 video files";
+            InputPlanProblem = null;
 
             if (CurrentWorkflow.Valid && !Upscaling)
             {
@@ -921,33 +929,13 @@ namespace VideoJaNai.ViewModels
                 else  // input folder
                 {
                     List<string> statuses = new();
-                    var existFileCount = 0;
                     var totalFileCount = 0;
 
-                    var videos = Directory.EnumerateFiles(CurrentWorkflow.InputFolderPath, "*.*", SearchOption.AllDirectories)
-                        .Where(file => VIDEO_EXTENSIONS.Any(ext => file.ToLower().EndsWith(ext)));
-                    var filesCount = 0;
-
-                    foreach (var inputVideoPath in videos)
-                    {
-                        var outputFilePath = Path.Join(
-                                                    Path.GetFullPath(CurrentWorkflow.OutputFolderPath),
-                                                    CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(inputVideoPath)));
-
-                        // if out file exists, exist count ++
-                        // if overwrite image OR out file doesn't exist, count image++
-                        var fileExists = File.Exists(outputFilePath);
-
-                        if (fileExists)
-                        {
-                            existFileCount++;
-                        }
-
-                        if (!fileExists || CurrentWorkflow.OverwriteExistingVideos)
-                        {
-                            filesCount++;
-                        }
-                    }
+                    // the videos the run takes (subfolders included), so the count is what runs
+                    var plan = PlanFolder();
+                    InputPlanProblem = plan.Problem;
+                    var existFileCount = plan.Videos.Count(v => File.Exists(v.Output));
+                    var filesCount = plan.Problem != null ? 0 : plan.Videos.Count(v => v.Action == PlanAction.Encode);
 
                     var videoS = filesCount == 1 ? "" : "s";
                     var existVideoS = existFileCount == 1 ? "" : "s";
@@ -1042,18 +1030,20 @@ namespace VideoJaNai.ViewModels
             }
             else
             {
-                var files = Directory.GetFiles(CurrentWorkflow.InputFolderPath).Where(file => VIDEO_EXTENSIONS.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)).ToList();
-
-                foreach (var file in files)
+                // the folder's videos and its subfolders' (the output keeps the subfolders); outputs that
+                // exist are skipped unless overwriting, as the status bar says
+                foreach (var video in PlanFolder().Videos)
                 {
                     ct.ThrowIfCancellationRequested();
-                    await CheckEngines(file);
+                    if (video.Action == PlanAction.SkipExisting)
+                    {
+                        ConsoleQueueEnqueue($"Skipping {video.Input}: {video.Output} already exists.");
+                        continue;
+                    }
+                    await CheckEngines(video.Input);
                     ct.ThrowIfCancellationRequested();
-                    var outputFilePath = Path.Join(
-                            Path.GetFullPath(CurrentWorkflow.OutputFolderPath),
-                            CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(file)));
-                    ct.ThrowIfCancellationRequested();
-                    await RunUpscaleSingle(file, outputFilePath);
+                    Directory.CreateDirectory(Path.GetDirectoryName(video.Output)!);
+                    await RunUpscaleSingle(video.Input, video.Output);
                     ct.ThrowIfCancellationRequested();
                 }
             }
@@ -2816,7 +2806,12 @@ namespace VideoJaNai.ViewModels
             if (Vm != null)
             {
                 var numFilesToUpscale = Vm.CheckInputs();
-                if (numFilesToUpscale == 0)
+                if (Vm.InputPlanProblem is string planProblem)
+                {
+                    Valid = false;
+                    validationText.Add($"{planProblem}.");
+                }
+                else if (numFilesToUpscale == 0)
                 {
                     Valid = false;
                     validationText.Add($"{Vm.InputStatusText} selected for upscaling. At least one file must be selected.");

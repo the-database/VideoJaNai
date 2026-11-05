@@ -353,69 +353,11 @@ namespace VideoJaNai.Cli
             }
         }
 
-        // Inputs -> videos: a file as is (any container libav reads); a folder's videos with its
-        // subfolders, which the output keeps. Outputs already there are skipped (skipExisting) or
-        // redone. Two videos writing one file is an error.
+        // Inputs -> videos (Core's planner, the GUI's folder mode's too); -o may name the file.
         public static List<PlannedVideo> PlanVideos(IReadOnlyList<string> inputs, string? outputFolder, string filename, bool skipExisting)
         {
-            var videos = new List<PlannedVideo>();
-            foreach (var raw in inputs)
-            {
-                var input = Path.GetFullPath(raw);
-                if (File.Exists(input))
-                {
-                    string output;
-                    if (outputFolder != null && inputs.Count == 1 && BatchPlan.IsVideo(outputFolder) && !Directory.Exists(outputFolder))
-                    {
-                        output = Path.GetFullPath(outputFolder);    // -o names the output file
-                    }
-                    else
-                    {
-                        output = BatchPlan.OutputPath(outputFolder ?? BatchPlan.DefaultOutputFolderForFile(input), filename, input);
-                    }
-                    videos.Add(new PlannedVideo(input, output, Action(output)));
-                }
-                else if (Directory.Exists(input))
-                {
-                    var root = outputFolder ?? BatchPlan.DefaultOutputFolderForFolder(input);
-                    var rootFull = Path.GetFullPath(root);
-                    foreach (var (video, rel) in BatchPlan.FolderVideos(input, recursive: true))
-                    {
-                        // an output folder inside the input: don't upscale earlier results (or a
-                        // stopped run's temporary file)
-                        if (IsUnder(video, rootFull) || Path.GetFileName(video).Contains(Run.PartialMarker, StringComparison.Ordinal))
-                        {
-                            continue;
-                        }
-                        var output = BatchPlan.OutputPath(Path.Join(rootFull, rel), filename, video);
-                        videos.Add(new PlannedVideo(video, output, Action(output)));
-                    }
-                }
-                else
-                {
-                    throw new RunException($"not found: {raw}");
-                }
-            }
-            var clash = videos.GroupBy(v => v.Output, OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
-                .FirstOrDefault(g => g.Count() > 1);
-            if (clash != null)
-            {
-                throw new RunException($"{string.Join(" and ", clash.Select(v => v.Input))} would both be written to {clash.Key}; give --filename a pattern that tells them apart");
-            }
-            var same = videos.FirstOrDefault(v => string.Equals(v.Input, v.Output, StringComparison.OrdinalIgnoreCase));
-            if (same != null)
-            {
-                throw new RunException($"{same.Input} would be written over itself; give another --filename or -o");
-            }
-            return videos;
-
-            PlanAction Action(string output) => skipExisting && File.Exists(output) ? PlanAction.SkipExisting : PlanAction.Encode;
-        }
-
-        static bool IsUnder(string path, string folder)
-        {
-            var rel = Path.GetRelativePath(folder, path);
-            return rel != path && !rel.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(rel);
+            var plan = BatchPlanning.Plan(inputs, outputFolder, filename, skipExisting, outputMayBeFile: true);
+            return plan.Problem is string problem ? throw new RunException(problem) : plan.Videos;
         }
 
         static string Heading(EncodeJob job, string? preset, WorkflowSettings wf, string? workflowLabel,
