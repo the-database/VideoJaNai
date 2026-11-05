@@ -135,9 +135,19 @@ namespace VideoJaNai.Core
             {
                 return null;
             }
+            // by version number (v1.1 after v1, v10 after v9), not by name, where v1_ sorts after v1.1_
             return Directory.EnumerateFiles(modelsDirectory, $"temporalfix_s{strength}_v*.onnx")
-                .Order(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(f => VersionOf(Path.GetFileName(f)))
+                .ThenBy(f => f, StringComparer.OrdinalIgnoreCase)
                 .LastOrDefault();
+        }
+
+        // temporalfix_s1_v1.1_op18_fp16.onnx -> 1.1 (0.0 when the name has no version)
+        private static Version VersionOf(string fileName)
+        {
+            var m = Regex.Match(fileName, @"_v(\d+(?:\.\d+){0,3})(?=[_.])");
+            return m.Success && Version.TryParse(m.Groups[1].Value.Contains('.') ? m.Groups[1].Value : m.Groups[1].Value + ".0", out var v)
+                ? v : new Version(0, 0);
         }
     }
 

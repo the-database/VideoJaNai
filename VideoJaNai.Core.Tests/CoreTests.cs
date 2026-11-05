@@ -100,15 +100,16 @@ namespace VideoJaNai.Core.Tests
         }
 
         [Fact]
-        public void TheLastTemporalFixVersionByNameIsUsed()
+        public void TheNewestTemporalFixVersionIsUsed()
         {
-            // (by name: v1_ sorts after v1.1_, so a v1 left next to a v1.1 would win; the bundle
-            // has one version per strength)
             using var t = new TempDir();
             t.File("temporalfix_s1_v1_op18_fp16.onnx");
-            t.File("temporalfix_s1_v2_op18_fp16.onnx");
-            Assert.EndsWith("temporalfix_s1_v2_op18_fp16.onnx", TemporalFix.ModelPath(t.Path, 1));
-            Assert.Null(TemporalFix.ModelPath(t.Path, 2));
+            t.File("temporalfix_s1_v1.1_op18_fp16.onnx");
+            t.File("temporalfix_s2_v9_op18_fp16.onnx");
+            t.File("temporalfix_s2_v10_op18_fp16.onnx");
+            Assert.EndsWith("temporalfix_s1_v1.1_op18_fp16.onnx", TemporalFix.ModelPath(t.Path, 1));
+            Assert.EndsWith("temporalfix_s2_v10_op18_fp16.onnx", TemporalFix.ModelPath(t.Path, 2));
+            Assert.Null(TemporalFix.ModelPath(t.Path, 3));
         }
 
         [Fact]
