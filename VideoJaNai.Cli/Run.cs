@@ -48,7 +48,7 @@ namespace VideoJaNai.Cli
                     ct.ThrowIfCancellationRequested();
                     report.VideoStart(n, plan.Videos.Count, v);
                     var took = Stopwatch.StartNew();
-                    var observer = new Observer(report);
+                    var observer = new Observer(report, plan.Job.AllModels.Any());
                     var temp = PartialPath(v.Output);
                     try
                     {
@@ -112,7 +112,7 @@ namespace VideoJaNai.Cli
 
         // aji_encode's lines -> the report: PROGRESS to the bar (or passed through), the log kept
         // (its last lines explain a failure), fallbacks and passthrough as notices.
-        private sealed class Observer(Report report) : IEncodeObserver
+        private sealed class Observer(Report report, bool upscales) : IEncodeObserver
         {
             private readonly AjiProgress _progress = new();
             private readonly Queue<string> _tail = new();
@@ -155,7 +155,7 @@ namespace VideoJaNai.Cli
                 {
                     report.Fallback(fallback);
                 }
-                else if (line.Contains("no chain active for", StringComparison.Ordinal))
+                else if (upscales && line.Contains("no chain active for", StringComparison.Ordinal))
                 {
                     var at = line.IndexOf("no chain active for", StringComparison.Ordinal);
                     report.Note($"{line[at..]}: no chain covers this size, so the video is re-encoded without upscaling");
