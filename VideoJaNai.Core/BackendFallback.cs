@@ -1,6 +1,6 @@
 using System;
 
-namespace VideoJaNai.ViewModels
+namespace VideoJaNai.Core
 {
     // libaji's TensorRT-RTX -> TensorRT fallback, as aji_encode logs it on stderr:
     // "[aji:1] TensorRT-RTX failed (<step>: <why>); using TensorRT instead", or "TensorRT-RTX failed

@@ -2,19 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace VideoJaNai.ViewModels
+namespace VideoJaNai.Core
 {
     // Where a video is encoded: the first row of the Output section's encoder choice.
     public enum EncoderGroup { Nvidia, Amd, Intel, Cpu }
 
     // A preset of the second row: an encoder's codec with its FFmpeg settings (what aji_encode gets
-    // as --vcodec / --vquality, see MapFfmpegSettings).
+    // as --vcodec / --vquality, see AjiArgs.SplitFfmpegSettings). Its description is localized UI
+    // text, so it stays in the GUI (VideoJaNai.ViewModels.EncoderPresetText).
     public sealed record EncoderPreset(
         EncoderGroup Group,
         string Label,
         string SummaryLabel,
-        string Settings,
-        Func<string> Description)
+        string Settings)
     {
         // the encoder name, the settings' first word (hevc_nvenc, libx265, ...)
         public string Codec => EncoderPresets.CodecOf(Settings);
@@ -23,28 +23,33 @@ namespace VideoJaNai.ViewModels
 
     public static class EncoderPresets
     {
+        public const string FfmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\" -max_interleave_delta 0";
+        public const string FfmpegX264 = "libx264 -crf 13 -preset slow -max_interleave_delta 0";
+        public const string FfmpegHevcNvenc = "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M -max_interleave_delta 0";
+        public const string FfmpegLossless = "ffv1 -max_interleave_delta 0";
+
         // Every GPU HEVC/AV1 preset targets the ~50 Mbps the NVENC HEVC preset always has, so a
         // file's size doesn't depend on which GPU made it.
         public static readonly EncoderPreset NvencHevc = new(EncoderGroup.Nvidia, "HEVC", "NVENC HEVC",
-            MainWindowViewModel._ffmpegHevcNvenc, () => Lang.Resources.FfmpegPresetsDescriptionGpuHevc);
+            FfmpegHevcNvenc);
         public static readonly EncoderPreset NvencAv1 = new(EncoderGroup.Nvidia, "AV1", "NVENC AV1",
-            "av1_nvenc -preset p7 -b:v 50M -max_interleave_delta 0", () => Lang.Resources.FfmpegPresetsDescriptionGpuAv1);
+            "av1_nvenc -preset p7 -b:v 50M -max_interleave_delta 0");
         public static readonly EncoderPreset NvencLossless = new(EncoderGroup.Nvidia, "Lossless", "NVENC Lossless",
-            "hevc_nvenc -preset p7 -tune lossless -max_interleave_delta 0", () => Lang.Resources.FfmpegPresetsDescriptionNvencLossless);
+            "hevc_nvenc -preset p7 -tune lossless -max_interleave_delta 0");
         public static readonly EncoderPreset AmfHevc = new(EncoderGroup.Amd, "HEVC", "AMF HEVC",
-            "hevc_amf -quality quality -rc vbr_peak -b:v 50M -maxrate 75M -max_interleave_delta 0", () => Lang.Resources.FfmpegPresetsDescriptionGpuHevc);
+            "hevc_amf -quality quality -rc vbr_peak -b:v 50M -maxrate 75M -max_interleave_delta 0");
         public static readonly EncoderPreset AmfAv1 = new(EncoderGroup.Amd, "AV1", "AMF AV1",
-            "av1_amf -quality quality -rc vbr_peak -b:v 50M -maxrate 75M -max_interleave_delta 0", () => Lang.Resources.FfmpegPresetsDescriptionGpuAv1);
+            "av1_amf -quality quality -rc vbr_peak -b:v 50M -maxrate 75M -max_interleave_delta 0");
         public static readonly EncoderPreset QsvHevc = new(EncoderGroup.Intel, "HEVC", "QSV HEVC",
-            "hevc_qsv -preset medium -b:v 50M -maxrate 75M -max_interleave_delta 0", () => Lang.Resources.FfmpegPresetsDescriptionGpuHevc);
+            "hevc_qsv -preset medium -b:v 50M -maxrate 75M -max_interleave_delta 0");
         public static readonly EncoderPreset QsvAv1 = new(EncoderGroup.Intel, "AV1", "QSV AV1",
-            "av1_qsv -preset medium -b:v 50M -maxrate 75M -max_interleave_delta 0", () => Lang.Resources.FfmpegPresetsDescriptionGpuAv1);
+            "av1_qsv -preset medium -b:v 50M -maxrate 75M -max_interleave_delta 0");
         public static readonly EncoderPreset X265 = new(EncoderGroup.Cpu, "x265 (HEVC)", "x265",
-            MainWindowViewModel._ffmpegX265, () => Lang.Resources.FfmpegPresetsDescriptionX265);
+            FfmpegX265);
         public static readonly EncoderPreset X264 = new(EncoderGroup.Cpu, "x264 (H.264)", "x264",
-            MainWindowViewModel._ffmpegX264, () => Lang.Resources.FfmpegPresetsDescriptionX264);
+            FfmpegX264);
         public static readonly EncoderPreset Ffv1 = new(EncoderGroup.Cpu, "FFV1 (lossless)", "FFV1 Lossless",
-            MainWindowViewModel._ffmpegLossless, () => Lang.Resources.FfmpegPresetsDescriptionLossless);
+            FfmpegLossless);
 
         public static readonly IReadOnlyList<EncoderPreset> All =
             [NvencHevc, NvencAv1, NvencLossless, AmfHevc, AmfAv1, QsvHevc, QsvAv1, X265, X264, Ffv1];
@@ -211,25 +216,5 @@ namespace VideoJaNai.ViewModels
         }
 
         private static string Tail(string id, int n) => id.Length <= n ? id : id[^n..];
-    }
-
-    // One toggle of the encoder or codec row.
-    public sealed class EncoderChoice
-    {
-        private readonly Action _select;
-
-        public EncoderChoice(string label, string? tooltip, bool isSelected, Action select)
-        {
-            Label = label;
-            Tooltip = tooltip;
-            IsSelected = isSelected;
-            _select = select;
-        }
-
-        public string Label { get; }
-        public string? Tooltip { get; }
-        public bool IsSelected { get; }
-
-        public void Select() => _select();
     }
 }

@@ -26,12 +26,7 @@ namespace VideoJaNai.ViewModels
     public class MainWindowViewModel : ViewModelBase
     {
         // what batch mode picks up from the input folder (anything libav reads works as a single video)
-        public static readonly List<string> VIDEO_EXTENSIONS = [
-            ".mkv", ".mp4", ".m4v", ".mov", ".webm", ".avi", ".wmv", ".asf", ".flv", ".f4v",
-            ".mpg", ".mpeg", ".m2v", ".vob", ".ts", ".m2ts", ".mts", ".3gp", ".ogv", ".dv",
-            ".rm", ".rmvb", ".divx", ".y4m"];
-
-        private static readonly CultureInfo ENGLISH_CULTURE = CultureInfo.GetCultureInfo("en-US");
+        public static readonly List<string> VIDEO_EXTENSIONS = [.. BatchPlan.VideoExtensions];
 
         private string? _availableUpdateVersion;
         // Auto update: the version unpacked in update-staging/ (installs when the app closes), the
@@ -73,13 +68,8 @@ namespace VideoJaNai.ViewModels
 
         private CancellationTokenSource? _cancellationTokenSource;
         private Process? _runningProcess = null;
-        private readonly IETACalculator _etaCalculator = new ETACalculator(10, 5.0);
-
-        // Processing throughput, computed app-side from the PROGRESS frame= counter (aji_encode
-        // emits fps=0). EMA-smoothed since PROGRESS lines arrive in 32-frame bursts.
-        private long _lastFpsFrame = -1;
-        private DateTime _lastFpsTime;
-        private double _smoothedFps;
+        // aji_encode's PROGRESS lines -> the progress bar (fps measured from the frame counter, ETA)
+        private readonly AjiProgress _progress = new();
 
         private double _progressValue;
         [IgnoreDataMember]
@@ -281,16 +271,11 @@ namespace VideoJaNai.ViewModels
 
         // The bundled vs_temporalfix model for a strength (temporalfix_s2_v1_op18_fp16.onnx, ...): the
         // newest version in the models folder, or null when it is missing.
-        public string? TemporalFixModelPath(int strength)
-        {
-            if (!Directory.Exists(ModelsDirectory))
-            {
-                return null;
-            }
-            return Directory.EnumerateFiles(ModelsDirectory, $"temporalfix_s{strength}_v*.onnx")
-                .Order(StringComparer.OrdinalIgnoreCase)
-                .LastOrDefault();
-        }
+        public string? TemporalFixModelPath(int strength) => TemporalFix.ModelPath(ModelsDirectory, strength);
+
+        // Where aji_encode, the models and the conf are, for Core's run code.
+        public AjiPaths Paths => new(_pythonService.AjiEncodePath, _pythonService.TrtexecPath, _pythonService.InferenceDirectory,
+                                     _pythonService.ModelsDirectory, _pythonService.RifeModelsDirectory, _pythonService.ConfPath);
 
         public bool TensorRtInstalled => _pythonService.IsTensorRtInstalled();
         public bool TensorRtRtxInstalled => _pythonService.IsTensorRtRtxInstalled();
@@ -312,10 +297,10 @@ namespace VideoJaNai.ViewModels
                 : string.Format(CultureInfo.CurrentCulture, Resources.TensorRtRtxComponentsMissingText, string.Join(", ", missing));
         }
 
-        public static readonly string _ffmpegX265 = "libx265 -crf 16 -preset slow -x265-params \"sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6\" -max_interleave_delta 0";
-        public static readonly string _ffmpegX264 = "libx264 -crf 13 -preset slow -max_interleave_delta 0";
-        public static readonly string _ffmpegHevcNvenc = "hevc_nvenc -preset p7 -profile:v main10 -b:v 50M -max_interleave_delta 0";
-        public static readonly string _ffmpegLossless = "ffv1 -max_interleave_delta 0";
+        public static readonly string _ffmpegX265 = EncoderPresets.FfmpegX265;
+        public static readonly string _ffmpegX264 = EncoderPresets.FfmpegX264;
+        public static readonly string _ffmpegHevcNvenc = EncoderPresets.FfmpegHevcNvenc;
+        public static readonly string _ffmpegLossless = EncoderPresets.FfmpegLossless;
 
         // ---- encoder detection ------------------------------------------------------------
         // `aji_encode --probe-encoders` output from the last run, kept so the encoder rows are
@@ -387,11 +372,7 @@ namespace VideoJaNai.ViewModels
         // and TensorRT-RTX. Only GPUs with an id, so none from an aji_encode without --device.
         // Graphics cards first, integrated graphics last (otherwise in the probe's order): Windows
         // and Direct3D tell those apart, but not which of two graphics cards upscales faster.
-        public IReadOnlyList<EncoderProbe.Gpu> BackendGpus =>
-            _encoderProbe?.Gpus.Where(g => g.Id != null &&
-                                           (DirectMlBackendSelected || g.Vendor == EncoderGroup.Nvidia))
-                .OrderBy(g => g.Integrated == true).ToList()
-            ?? [];
+        public IReadOnlyList<EncoderProbe.Gpu> BackendGpus => GpuChoice.BackendGpus(_encoderProbe, DirectMlBackendSelected);
 
         // An integrated GPU chosen while the backend has a graphics card to run on: upscaling there is
         // far slower, so App Settings says so (a warning, not a block).
@@ -400,10 +381,7 @@ namespace VideoJaNai.ViewModels
 
         // The chosen GPU when the backend can use it, else null: Auto, and no --device.
         public EncoderProbe.Gpu? ChosenGpu =>
-            _encoderProbe is EncoderProbe probe &&
-            EncoderProbe.Find(probe.Gpus, SelectedGpuId, SelectedGpuName, SelectedGpuPosition) is EncoderProbe.Gpu g &&
-            BackendGpus.Contains(g)
-                ? g : null;
+            GpuChoice.Chosen(_encoderProbe, DirectMlBackendSelected, SelectedGpuId, SelectedGpuName, SelectedGpuPosition);
 
         // The GPU row is there whenever the probe found a GPU the backend can use, so the settings
         // always say which GPU upscales (a sanity check, and something to share when troubleshooting);
@@ -413,16 +391,7 @@ namespace VideoJaNai.ViewModels
 
         // The GPU Auto upscales on, when the probe can tell: DirectML's default GPU, or on TensorRT
         // the only NVIDIA GPU (with several, CUDA picks the fastest, which the probe doesn't know).
-        private EncoderProbe.Gpu? AutoGpu
-        {
-            get
-            {
-                var gpus = BackendGpus;
-                return DirectMlBackendSelected
-                    ? (_encoderProbe?.DefaultGpu is EncoderProbe.Gpu d && gpus.Contains(d) ? d : null)
-                    : (gpus.Count == 1 ? gpus[0] : null);
-            }
-        }
+        private EncoderProbe.Gpu? AutoGpu => GpuChoice.Auto(_encoderProbe, DirectMlBackendSelected);
 
         // Auto, then each GPU. Auto names the GPU it means where the probe knows it (AutoGpu).
         // The same array while the labels are the same: the list clears its selection when its items
@@ -486,16 +455,11 @@ namespace VideoJaNai.ViewModels
 
         // The GPU that does the upscale: the chosen one, else Auto's, which is an NVIDIA card on
         // TensorRT and the probe's default GPU on DirectML (null when the probe couldn't tell).
-        public EncoderGroup? InferenceGpuVendor =>
-            ChosenGpu is EncoderProbe.Gpu g ? g.Vendor
-            : !DirectMlBackendSelected ? EncoderGroup.Nvidia : _encoderProbe?.DefaultGpuVendor;
+        public EncoderGroup? InferenceGpuVendor => GpuChoice.InferenceVendor(_encoderProbe, DirectMlBackendSelected, ChosenGpu);
 
         // Works on this PC: CPU presets always; GPU ones when the probe opened their encoder.
         // Without a probe only NVENC HEVC / Lossless are offered, as before detection existed.
-        public bool PresetAvailable(EncoderPreset p) =>
-            !p.IsGpu ? true
-            : _encoderProbe is EncoderProbe probe ? probe.Opens(p.Codec)
-            : p == EncoderPresets.NvencHevc || p == EncoderPresets.NvencLossless;
+        public bool PresetAvailable(EncoderPreset p) => GpuChoice.PresetAvailable(_encoderProbe, p);
 
         public bool GroupAvailable(EncoderGroup g) => EncoderPresets.For(g).Any(PresetAvailable);
 
@@ -511,10 +475,7 @@ namespace VideoJaNai.ViewModels
             new[] { EncoderGroup.Nvidia, EncoderGroup.Amd, EncoderGroup.Intel }.Any(g => g != v && GroupAvailable(g));
 
         // What a workflow nobody picked an encoder for uses: HEVC on the upscaling GPU, else x265.
-        public EncoderPreset DefaultEncoderPreset =>
-            InferenceGpuVendor is EncoderGroup v && EncoderPresets.For(v).FirstOrDefault() is EncoderPreset hevc && PresetAvailable(hevc)
-                ? hevc
-                : EncoderPresets.X265;
+        public EncoderPreset DefaultEncoderPreset => GpuChoice.DefaultEncoder(_encoderProbe, InferenceGpuVendor);
 
         private void EncodersChanged()
         {
@@ -533,39 +494,10 @@ namespace VideoJaNai.ViewModels
 
         public async Task RefreshEncoderProbeAsync()
         {
-            if (!File.Exists(_pythonService.AjiEncodePath))
+            // an older aji_encode rejects the flag (exit 2, usage on stderr): keep what we had
+            if (await AjiProcess.ProbeAsync(Paths) is string output)
             {
-                return;
-            }
-            try
-            {
-                using var process = new Process();
-                process.StartInfo.FileName = _pythonService.AjiEncodePath;
-                process.StartInfo.Arguments = "--probe-encoders";
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.WorkingDirectory = _pythonService.InferenceDirectory;
-                foreach (var (k, v) in AjiEnvironment() ?? [])
-                {
-                    process.StartInfo.Environment[k] = v;
-                }
-                process.Start();
-                var stdout = process.StandardOutput.ReadToEndAsync();
-                _ = process.StandardError.ReadToEndAsync();
-                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-                await process.WaitForExitAsync(timeout.Token);
-                var output = await stdout;
-                // an older aji_encode rejects the flag (exit 2, usage on stderr): keep what we had
-                if (process.ExitCode == 0 && EncoderProbe.Parse(output) != null)
-                {
-                    await Dispatcher.UIThread.InvokeAsync(() => EncoderProbeOutput = output);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"encoder probe failed: {ex.Message}");
+                await Dispatcher.UIThread.InvokeAsync(() => EncoderProbeOutput = output);
             }
         }
 
@@ -1040,209 +972,35 @@ namespace VideoJaNai.ViewModels
             {
                 if (_rifeModels == null)
                 {
-                    var models = new List<string>();
                     // TODO: re-check this regex/discovery against the new models-rife-fp16-1 filenames.
-                    var modelsPath = _pythonService.RifeModelsDirectory;
-
-                    if (!Directory.Exists(modelsPath))
+                    if (!Directory.Exists(_pythonService.RifeModelsDirectory))
                     {
                         return [];
                     }
-
-                    var files = Directory.GetFiles(modelsPath, searchPattern: "*.onnx");
-
-                    foreach (var file in files)
-                    {
-                        Debug.WriteLine(file);
-                        var m = Regex.Match(Path.GetFileName(file), @"rife_v(\d+)\.(\d+)(_lite)?(_ensemble)?.onnx");
-                        if (m.Success)
-                        {
-                            var model = m.Groups[1].Value + m.Groups[2].Value;
-                            if (file.Contains("_lite"))
-                            {
-                                model += "1";
-                            }
-
-                            if (!models.Contains(model))
-                            {
-                                models.Add(model);
-                            }
-                        }
-                    }
-
-                    models.Sort(delegate (string m1, string m2)
-                    {
-                        var m1i = decimal.Parse(m1[..Math.Min(3, m1.Length)]);
-                        var m2i = decimal.Parse(m2[..Math.Min(3, m2.Length)]);
-
-                        if (m1.Length > 3)
-                        {
-                            m1i += .1m;
-                        }
-
-                        if (m2.Length > 3)
-                        {
-                            m2i += .1m;
-                        }
-
-                        return m2i.CompareTo(m1i);
-                    });
-
-                    _rifeModels = [.. models.Select(m => RifeValueToLabel(m))];
+                    _rifeModels = Rife.Models(_pythonService.RifeModelsDirectory);
                 }
 
                 return _rifeModels;
             }
         }
 
-        public static string RifeLabelToValue(string rifeLabel)
-        {
-            if (string.IsNullOrEmpty(rifeLabel))
-            {
-                return rifeLabel;
-            }
-            else
-            {
-                var m = Regex.Match(rifeLabel, @"RIFE (\d+)\.(\d+)( Lite)?");
-                if (m.Success)
-                {
-                    var value = $"{m.Groups[1].Value}{m.Groups[2].Value}";
-                    if (m.Groups[3].Success)
-                    {
-                        value += "1";
-                    }
-                    return value;
-                }
-            }
+        public static string RifeLabelToValue(string rifeLabel) => Rife.LabelToValue(rifeLabel);
 
-            throw new ArgumentException(rifeLabel);
+        public static string RifeValueToLabel(string rifeValue) => Rife.ValueToLabel(rifeValue);
+
+        // The selected workflow as Core's run description, on this PC's backend, GPU and default encoder.
+        internal EncodeJob CurrentJob()
+        {
+            var wf = CurrentWorkflow!;
+            var backend = wf.DirectMlSelected ? Backend.DirectMl
+                        : wf.TensorRtRtxSelected ? Backend.TensorRtRtx
+                        : Backend.TensorRt;
+            return EncodeJob.FromWorkflow(wf.ToSettings(), backend, ChosenGpu?.Id, DefaultEncoderPreset, ModelsDirectory);
         }
 
-        public static string RifeValueToLabel(string rifeValue)
-        {
-            string dec;
-
-            if (string.IsNullOrEmpty(rifeValue))
-            {
-                return rifeValue;
-            }
-
-            if (rifeValue.Length == 2)
-            {
-                dec = rifeValue[1].ToString();
-            }
-            else
-            {
-                dec = rifeValue.Substring(1, 2);
-            }
-
-            var modelName = $"RIFE {rifeValue[0]}.{dec}";
-
-            if (rifeValue.Length >= 4 && rifeValue.EndsWith('1'))
-            {
-                modelName += " Lite";
-            }
-
-            return modelName;
-        }
-
-        public void SetupAnimeJaNaiConfSlot1()
-        {
-            // Emits the canonical config_version=2 schema consumed by the libaji engine
-            // (see AnimeJaNaiConfEditor). There is no backend_path, no per-chain
-            // final_resize, and no per-chain tensorrt settings.
-            var backend = CurrentWorkflow.DirectMlSelected ? "DirectML"
-                        : CurrentWorkflow.TensorRtRtxSelected ? "TensorRT-RTX"
-                        : "TensorRT";
-
-            var configText = new StringBuilder();
-            configText.AppendLine("[global]");
-            configText.AppendLine("config_version=2");
-            configText.AppendLine("logging=yes");
-            configText.AppendLine($"backend={backend}");
-
-            // trt_engine_settings (TensorRT, and TensorRT-RTX: it builds in-process but reads the
-            // shape / optimization-level / workspace flags, and its TensorRT fallback uses it all):
-            // precision is model-driven (stronglyTyped); these
-            // trtexec args control build shapes + builder options. Written only when changed from the
-            // engine default (Static), matching AnimeJaNaiConfEditor's write-minimal behavior — an
-            // unchanged value lets libaji use its identical built-in default.
-            if (!CurrentWorkflow.DirectMlSelected &&
-                !string.IsNullOrWhiteSpace(CurrentWorkflow.TrtEngineSettings) &&
-                CurrentWorkflow.TrtEngineSettings != UpscaleWorkflow.TrtEngineSettingsDefault)
-            {
-                configText.AppendLine($"trt_engine_settings={CurrentWorkflow.TrtEngineSettings}");
-            }
-
-            configText.AppendLine("[slot_1]");
-            configText.AppendLine("profile_name=encode");
-            configText.AppendLine("chain_1_min_resolution=0x0");
-            configText.AppendLine("chain_1_max_resolution=0x0");
-            configText.AppendLine("chain_1_min_fps=0");
-            configText.AppendLine("chain_1_max_fps=0");
-
-            var modelCount = 0;
-            void AppendModel(string onnxPath, int? resizeHeight, decimal? resizeFactor, decimal? temporalSceneThreshold)
-            {
-                var n = ++modelCount;
-
-                // aji resolves models by bare name against --model-dir, so copy the selected onnx in.
-                Directory.CreateDirectory(_pythonService.ModelsDirectory);
-                var targetCopyPath = Path.Combine(_pythonService.ModelsDirectory, Path.GetFileName(onnxPath));
-
-                if (Path.GetFullPath(targetCopyPath) != Path.GetFullPath(onnxPath))
-                {
-                    File.Copy(onnxPath, targetCopyPath, true);
-                }
-
-                configText.AppendLine(string.Create(ENGLISH_CULTURE, @$"chain_1_model_{n}_resize_height_before_upscale={resizeHeight}
-chain_1_model_{n}_resize_factor_before_upscale={resizeFactor}
-chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
-
-                if (temporalSceneThreshold is decimal threshold)
-                {
-                    configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_model_{n}_temporal_scene_threshold={threshold}"));
-                }
-            }
-
-            // Temporal fix runs after the upscaling models at the upscaled resolution (highest quality:
-            // it also steadies shimmer the upscaler adds; the engine stacks it after a temporal
-            // upscaling model), or first, at the source resolution (2-3x faster).
-            var temporalFix = CurrentWorkflow.EnableTemporalFix ? TemporalFixModelPath(CurrentWorkflow.TemporalFixStrength ?? 2) : null;
-            var temporalFixFirst = temporalFix != null && CurrentWorkflow.TemporalFixBeforeUpscale;
-            if (temporalFixFirst)
-            {
-                AppendModel(temporalFix!, 0, 100M, CurrentWorkflow.TemporalFixSceneThreshold);
-            }
-
-            for (var i = 0; CurrentWorkflow.EnableUpscale && i < CurrentWorkflow.UpscaleSettings.Count; i++)
-            {
-                // Temporal models: the window size comes from the onnx itself; only the scene-change
-                // threshold is a setting (written only when it carries something, like the Manager).
-                var model = CurrentWorkflow.UpscaleSettings[i];
-                AppendModel(model.OnnxModelPath, model.ResizeHeightBeforeUpscale, model.ResizeFactorBeforeUpscale,
-                            model.IsTemporal || model.TemporalSceneThreshold != UpscaleModel.DefaultTemporalSceneThreshold
-                                ? model.TemporalSceneThreshold : null);
-            }
-
-            if (temporalFix != null && !temporalFixFirst)
-            {
-                AppendModel(temporalFix, 0, 100M, CurrentWorkflow.TemporalFixSceneThreshold);
-            }
-
-            var rife = CurrentWorkflow.EnableRife ? "yes" : "no";
-            var ensemble = CurrentWorkflow.RifeEnsemble ? "yes" : "no";
-            configText.AppendLine($"chain_1_rife={rife}");
-            configText.AppendLine($"chain_1_rife_model={RifeLabelToValue(CurrentWorkflow.RifeModel)}");
-            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_factor_numerator={CurrentWorkflow.RifeFactorNumerator}"));
-            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_factor_denominator={CurrentWorkflow.RifeFactorDenominator}"));
-            configText.AppendLine(string.Create(ENGLISH_CULTURE, $"chain_1_rife_scene_detect_threshold={CurrentWorkflow.RifeSceneDetectThreshold}"));
-            configText.AppendLine($"chain_1_rife_ensemble={ensemble}");
-            configText.AppendLine($"chain_1_rife_before_upscale={(CurrentWorkflow.RifeBeforeUpscale ? "yes" : "no")}");
-
-            Directory.CreateDirectory(_pythonService.AnimeJaNaiDirectory);
-            File.WriteAllText(_pythonService.ConfPath, configText.ToString());
-        }
+        // The conf aji_encode runs with (libaji's config_version=2 schema), with the workflow's models
+        // copied into the models folder, where aji resolves them by name.
+        public void SetupAnimeJaNaiConfSlot1() => AjiConf.Write(CurrentJob(), Paths);
 
         public async Task CheckEngines(string inputFilePath)
         {
@@ -1354,117 +1112,23 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
 
         public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
         {
-            var args = BuildAjiEncodeArgs(inputFilePath, outputFilePath, AjiMode.Encode);
-            ConsoleQueueEnqueue($"Upscaling with command: {_pythonService.AjiEncodePath} {args}");
-            await RunAjiEncode(args, resetProgress: true);
+            using var observer = new RunObserver(this);
+            await new EncodeRunner(Paths).EncodeAsync(CurrentJob(), inputFilePath, outputFilePath, observer, PreviewPath);
         }
 
         public async Task GenerateEngine(string inputFilePath)
         {
+            // CheckEngines decides when (EncodeRunner.BuildEngineAsync's rule), so build here whatever
+            // the backend
+            var job = CurrentJob();
             var args = BuildAjiEncodeArgs(inputFilePath, null, AjiMode.BuildOnly);
-            var engine = CurrentWorkflow?.TensorRtRtxSelected == true ? "TensorRT-RTX" : "TensorRT";
+            var engine = job.Backend == Backend.TensorRtRtx ? "TensorRT-RTX" : "TensorRT";
             ConsoleQueueEnqueue($"Generating {engine} engine with command: {_pythonService.AjiEncodePath} {args}");
             await RunAjiEncode(args, resetProgress: false);
         }
 
-        private enum AjiMode { Encode, BuildOnly, Preview }
-
-        private string BuildAjiEncodeArgs(string inputFilePath, string? outputFilePath, AjiMode mode)
-        {
-            // must agree with the conf's backend (SetupAnimeJaNaiConfSlot1)
-            var backend = CurrentWorkflow.DirectMlSelected ? "directml"
-                        : CurrentWorkflow.TensorRtRtxSelected ? "tensorrt-rtx"
-                        : "tensorrt";
-
-            var sb = new StringBuilder();
-            sb.Append(ENGLISH_CULTURE, $"--input \"{inputFilePath}\" ");
-            sb.Append(ENGLISH_CULTURE, $"--conf \"{_pythonService.ConfPath}\" ");
-            sb.Append("--slot 1 ");
-            sb.Append(ENGLISH_CULTURE, $"--model-dir \"{_pythonService.ModelsDirectory}\" ");
-            sb.Append(ENGLISH_CULTURE, $"--rife-model-dir \"{_pythonService.RifeModelsDirectory}\" ");
-            sb.Append(ENGLISH_CULTURE, $"--trtexec \"{_pythonService.TrtexecPath}\" ");
-            sb.Append(ENGLISH_CULTURE, $"--backend {backend} ");
-            if (ChosenGpu?.Id is string device)
-            {
-                sb.Append(ENGLISH_CULTURE, $"--device {device} ");
-            }
-
-            // Engine builds see it too: deinterlacing changes the frame rate chains are matched on.
-            if (CurrentWorkflow.Deinterlace != "off")
-            {
-                sb.Append(ENGLISH_CULTURE, $"--deinterlace {CurrentWorkflow.Deinterlace} ");
-            }
-
-            // Engine builds too: stretched before processing, the frames the chain sees change size.
-            if (CurrentWorkflow.SquarePixels != "off")
-            {
-                sb.Append(ENGLISH_CULTURE, $"--square-pixels {CurrentWorkflow.SquarePixels} ");
-            }
-
-            if (mode == AjiMode.BuildOnly)
-            {
-                sb.Append("--build-only ");
-            }
-            else
-            {
-                // The preview session takes the encode's settings too: the output format and the
-                // final resize change the frames it shows, and the encoder is validated against them.
-                if (mode == AjiMode.Encode)
-                {
-                    sb.Append(ENGLISH_CULTURE, $"--output \"{outputFilePath}\" ");
-                }
-
-                var (vcodec, vquality) = MapFfmpegSettings(CurrentWorkflow.EffectiveFfmpegVideoSettings);
-                sb.Append(ENGLISH_CULTURE, $"--vcodec {vcodec} ");
-                if (mode == AjiMode.Encode && !string.IsNullOrWhiteSpace(vquality))
-                {
-                    sb.Append(ENGLISH_CULTURE, $"--vquality \"{vquality}\" ");
-                }
-
-                sb.Append(ENGLISH_CULTURE, $"--pix-fmt {CurrentWorkflow.OutputPixFmt} ");
-
-                // final_resize has no conf field in the new engine; pass it to aji_encode directly.
-                if (CurrentWorkflow.FinalResizeHeight is int frh && frh > 0)
-                {
-                    sb.Append(ENGLISH_CULTURE, $"--final-resize-height {frh} ");
-                }
-                else if (CurrentWorkflow.FinalResizeFactor is int frf && frf > 0 && frf != 100)
-                {
-                    sb.Append(ENGLISH_CULTURE, $"--final-resize-factor {frf} ");
-                }
-
-                if (mode == AjiMode.Preview)
-                {
-                    sb.Append("--preview-session ");
-                }
-                else
-                {
-                    if (CurrentWorkflow.OverwriteExistingVideos)
-                    {
-                        sb.Append("--overwrite ");
-                    }
-
-                    sb.Append(ENGLISH_CULTURE, $"--preview \"{PreviewPath}\" ");
-                }
-            }
-
-            sb.Append("--progress line");
-            return sb.ToString();
-        }
-
-        // Splits a VideoJaNai ffmpeg preset ("<codec> <encoder args...>") into the aji_encode
-        // --vcodec / --vquality pair. The muxer-level option is dropped (aji_encode owns muxing).
-        private static (string vcodec, string vquality) MapFfmpegSettings(string settings)
-        {
-            var cleaned = settings.Replace("-max_interleave_delta 0", "").Trim();
-            var spaceIdx = cleaned.IndexOf(' ');
-            if (spaceIdx < 0)
-            {
-                return (cleaned, string.Empty);
-            }
-
-            return (cleaned[..spaceIdx], cleaned[(spaceIdx + 1)..].Trim());
-        }
+        internal string BuildAjiEncodeArgs(string inputFilePath, string? outputFilePath, AjiMode mode) =>
+            AjiArgs.Build(CurrentJob(), Paths, inputFilePath, outputFilePath, mode, mode == AjiMode.Encode ? PreviewPath : null);
 
         public async Task RunAjiEncode(string arguments, bool resetProgress)
         {
@@ -1472,150 +1136,90 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             {
                 ResetProgress();
             }
-
-            using (var process = new Process())
-            {
-                _runningProcess = process;
-                process.StartInfo.FileName = _pythonService.AjiEncodePath;
-                process.StartInfo.Arguments = arguments;
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.WorkingDirectory = _pythonService.InferenceDirectory;
-                foreach (var (k, v) in AjiEnvironment() ?? [])
-                {
-                    process.StartInfo.Environment[k] = v;
-                }
-                process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-                process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
-
-                // Create a StreamWriter to write the output to a log file (in the state folder: the
-                // working directory may be anywhere, including somewhere read-only)
-                using (var outputFile = new StreamWriter(Path.Combine(Program.AppStateFolder, "error.log"), append: true))
-                {
-                    process.ErrorDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            outputFile.WriteLine(e.Data); // Write the output to the log file
-                            ConsoleQueueEnqueue(e.Data);
-                            if (BackendFallback.FromAjiLog(e.Data) is string fallback)
-                            {
-                                BackendFallbackText = fallback;
-                            }
-                        }
-                    };
-
-                    process.OutputDataReceived += (sender, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(e.Data))
-                        {
-                            outputFile.WriteLine(e.Data); // Write the output to the log file
-
-                            // aji_encode emits machine-readable "PROGRESS ..." lines on stdout;
-                            // route those to the progress bar instead of the console, and
-                            // "PREVIEW ..." lines to the preview.
-                            if (e.Data.StartsWith("PREVIEW", StringComparison.Ordinal))
-                            {
-                                LoadPreview();
-                            }
-                            else if (!TryHandleProgressLine(e.Data))
-                            {
-                                ConsoleQueueEnqueue(e.Data);
-                            }
-                        }
-                    };
-
-                    process.Start();
-                    // Into the kill-on-close job right away, so closing VideoJaNai mid-encode
-                    // also stops aji_encode (and the trtexec it may be running).
-                    ChildProcessTracker.AddProcess(process);
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine(); // Start asynchronous reading of the output
-                    await process.WaitForExitAsync();
-                }
-            }
+            using var observer = new RunObserver(this);
+            await AjiProcess.RunAsync(Paths, arguments, observer.Stdout, observer.Stderr, observer.Started);
         }
 
-        private Dictionary<string, string>? AjiEnvironment()
+        // aji_encode's output during a run: every line to error.log (in the state folder: the working
+        // directory may be anywhere, including somewhere read-only) and the console, except PROGRESS
+        // lines (the progress bar) and PREVIEW lines (the preview); TensorRT-RTX fallbacks also go
+        // to the status bar.
+        private sealed class RunObserver : IEncodeObserver, IDisposable
         {
-            if (OperatingSystem.IsWindows())
+            private readonly MainWindowViewModel _vm;
+            private readonly StreamWriter _log;
+
+            public RunObserver(MainWindowViewModel vm)
             {
-                return null;
+                _vm = vm;
+                _log = new StreamWriter(Path.Combine(Program.AppStateFolder, "error.log"), append: true);
             }
-            // libaji_trt.so's RUNPATH points at system TensorRT/CUDA paths; the bundled runtime
-            // next to it is found through the loader path (inherited by trtexec too).
-            var ldPath = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH");
-            return new Dictionary<string, string>
+
+            public void Command(string text) => _vm.ConsoleQueueEnqueue(text);
+
+            public void EncodeStarting(string input, string output) => _vm.ResetProgress();
+
+            public void Started(Process process)
             {
-                ["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(ldPath)
-                    ? _pythonService.InferenceDirectory
-                    : $"{_pythonService.InferenceDirectory}:{ldPath}",
-            };
+                _vm._runningProcess = process;
+                // Into the kill-on-close job right away, so closing VideoJaNai mid-encode also stops
+                // aji_encode (and the trtexec it may be running).
+                ChildProcessTracker.AddProcess(process);
+            }
+
+            public void Stderr(string line)
+            {
+                Log(line);
+                _vm.ConsoleQueueEnqueue(line);
+                if (BackendFallback.FromAjiLog(line) is string fallback)
+                {
+                    _vm.BackendFallbackText = fallback;
+                }
+            }
+
+            public void Stdout(string line)
+            {
+                Log(line);
+                // aji_encode emits machine-readable "PROGRESS ..." lines on stdout; route those to the
+                // progress bar instead of the console, and "PREVIEW ..." lines to the preview.
+                if (line.StartsWith("PREVIEW", StringComparison.Ordinal))
+                {
+                    _vm.LoadPreview();
+                }
+                else if (!_vm.TryHandleProgressLine(line))
+                {
+                    _vm.ConsoleQueueEnqueue(line);
+                }
+            }
+
+            private void Log(string line)
+            {
+                lock (_log)
+                {
+                    _log.WriteLine(line);
+                }
+            }
+
+            public void Dispose() => _log.Dispose();
         }
+
+        private Dictionary<string, string>? AjiEnvironment() => AjiProcess.Environment(_pythonService.InferenceDirectory);
 
         private bool TryHandleProgressLine(string line)
         {
-            if (!line.StartsWith("PROGRESS", StringComparison.Ordinal))
+            if (!_progress.Handle(line))
             {
                 return false;
             }
-
-            var phaseMatch = Regex.Match(line, @"phase=(\w+)");
-            if (phaseMatch.Success)
-            {
-                ProgressPhase = phaseMatch.Groups[1].Value;
-            }
-
-            // FPS: aji_encode always emits fps=0, so derive throughput from how fast the output
-            // frame counter advances. frame=0 lines (build_engine) are skipped, so fps only shows
-            // once real encoding starts.
-            var frameMatch = Regex.Match(line, @"frame=([0-9]+)");
-            if (frameMatch.Success && long.TryParse(frameMatch.Groups[1].Value, NumberStyles.Integer, ENGLISH_CULTURE, out var frame) && frame > 0)
-            {
-                var now = DateTime.UtcNow;
-                if (_lastFpsFrame >= 0 && frame > _lastFpsFrame)
-                {
-                    var seconds = (now - _lastFpsTime).TotalSeconds;
-                    if (seconds > 0)
-                    {
-                        var inst = (frame - _lastFpsFrame) / seconds;
-                        _smoothedFps = _smoothedFps <= 0 ? inst : (0.5 * _smoothedFps) + (0.5 * inst);
-                    }
-                }
-                _lastFpsFrame = frame;
-                _lastFpsTime = now;
-            }
-
-            var pctMatch = Regex.Match(line, @"pct=([0-9]+(?:\.[0-9]+)?)");
-            if (pctMatch.Success && double.TryParse(pctMatch.Groups[1].Value, NumberStyles.Float, ENGLISH_CULTURE, out var pct))
-            {
-                ProgressValue = pct;
-
-                var fpsText = _smoothedFps > 0 ? string.Create(ENGLISH_CULTURE, $" - {_smoothedFps:0.0} fps") : "";
-                if (pct is > 0 and < 100)
-                {
-                    _etaCalculator.Update((float)(pct / 100.0));
-                    ProgressText = _etaCalculator.ETAIsAvailable
-                        ? string.Create(ENGLISH_CULTURE, $"{pct:0.0}%{fpsText} - ETA {_etaCalculator.ETR:hh\\:mm\\:ss}")
-                        : string.Create(ENGLISH_CULTURE, $"{pct:0.0}%{fpsText}");
-                }
-                else
-                {
-                    ProgressText = string.Create(ENGLISH_CULTURE, $"{pct:0.0}%");
-                }
-            }
-
+            ProgressPhase = _progress.Phase;
+            ProgressValue = _progress.Percent;
+            ProgressText = _progress.Text;
             return true;
         }
 
         private void ResetProgress()
         {
-            _etaCalculator.Reset();
-            _lastFpsFrame = -1;
-            _lastFpsTime = default;
-            _smoothedFps = 0;
+            _progress.Reset();
             ProgressValue = 0;
             ProgressText = string.Empty;
             ProgressPhase = string.Empty;
@@ -2286,6 +1890,45 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
             string.IsNullOrWhiteSpace(FfmpegVideoSettings) ||
             FfmpegVideoSettings.Trim() == EncoderPresets.LegacyDefaultSettings;
 
+        // The settings a run takes, as Core's plain copy (what the command line reads from a saved
+        // state too), so both run a workflow the same way.
+        public WorkflowSettings ToSettings() => new()
+        {
+            WorkflowName = WorkflowName,
+            SelectedTabIndex = SelectedTabIndex,
+            InputFilePath = InputFilePath,
+            InputFolderPath = InputFolderPath,
+            OutputFilename = OutputFilename,
+            OutputFolderPath = OutputFolderPath,
+            OverwriteExistingVideos = OverwriteExistingVideos,
+            FfmpegVideoSettings = FfmpegVideoSettings,
+            Deinterlace = Deinterlace,
+            SquarePixels = SquarePixels,
+            OutputPixFmt = OutputPixFmt,
+            TrtEngineSettings = TrtEngineSettings,
+            FinalResizeHeight = FinalResizeHeight,
+            FinalResizeFactor = FinalResizeFactor,
+            UpscaleSettings = [.. UpscaleSettings.Select(m => new ModelSettings
+            {
+                OnnxModelPath = m.OnnxModelPath,
+                ResizeHeightBeforeUpscale = m.ResizeHeightBeforeUpscale,
+                ResizeFactorBeforeUpscale = m.ResizeFactorBeforeUpscale,
+                TemporalSceneThreshold = m.TemporalSceneThreshold,
+            })],
+            EnableUpscale = EnableUpscale,
+            EnableTemporalFix = EnableTemporalFix,
+            TemporalFixStrength = TemporalFixStrength,
+            TemporalFixSceneThreshold = TemporalFixSceneThreshold,
+            TemporalFixBeforeUpscale = TemporalFixBeforeUpscale,
+            EnableRife = EnableRife,
+            RifeModel = RifeModel,
+            RifeEnsemble = RifeEnsemble,
+            RifeFactorNumerator = RifeFactorNumerator,
+            RifeFactorDenominator = RifeFactorDenominator,
+            RifeSceneDetectThreshold = RifeSceneDetectThreshold,
+            RifeBeforeUpscale = RifeBeforeUpscale,
+        };
+
         // what aji_encode gets
         public string EffectiveFfmpegVideoSettings =>
             UsesDefaultEncoder ? (Vm?.DefaultEncoderPreset ?? EncoderPresets.NvencHevc).Settings : FfmpegVideoSettings;
@@ -2469,8 +2112,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         // --stronglyTyped is a deprecated no-op, and libaji's sanitizer strips --inputIOFormats/
         // --outputIOFormats/--tacticSources anyway. Must stay byte-for-byte equal to libaji's
         // DEFAULT_TRT_ENGINE_SETTINGS so write-minimal can omit it from the conf.
-        public const string TrtEngineSettingsDefault =
-            "--builderOptimizationLevel=5 --optShapes=input:%video_resolution% --skipInference";
+        public const string TrtEngineSettingsDefault = TrtEngine.DefaultSettings;
 
         private string _trtEngineSettings = TrtEngineSettingsDefault;
         [DataMember]
@@ -2598,16 +2240,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         // --stronglyTyped: strongly-typed is the default now (a trtexec no-op), typed IO formats and
         // the cuDNN/cuBLAS tactic sources are gone, and the weak-typing precision flags were removed.
         // Purely cosmetic — libaji builds the same engine either way — but keeps the editor clean.
-        public static string NormalizeTrtEngineSettings(string settings)
-        {
-            if (string.IsNullOrWhiteSpace(settings))
-            {
-                return settings;
-            }
-            settings = Regex.Replace(settings, @"\s*--(?:fp16|bf16|int8|best|buildOnly|stronglyTyped)\b", "");
-            settings = Regex.Replace(settings, @"\s*--(?:inputIOFormats|outputIOFormats|tacticSources)=\S+", "");
-            return Regex.Replace(settings, @"\s+", " ").Trim();
-        }
+        public static string NormalizeTrtEngineSettings(string settings) => TrtEngine.Normalize(settings);
 
         public void SetTrtStaticOnnx()
         {
@@ -2627,10 +2260,10 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         }
 
         // DirectML is Windows-only; elsewhere a workflow saved with DirectML runs on TensorRT.
-        public static bool DirectMlAvailable => OperatingSystem.IsWindows();
+        public static bool DirectMlAvailable => Platform.DirectMlAvailable;
 
         // TensorRT-RTX (aji_trtrtx) ships for Windows only; elsewhere the setting runs on TensorRT.
-        public static bool TensorRtRtxAvailable => OperatingSystem.IsWindows();
+        public static bool TensorRtRtxAvailable => Platform.TensorRtRtxAvailable;
 
         // Either TensorRT backend, TensorRT or TensorRT-RTX: both build engines from the engine
         // settings, and TensorRT-RTX falls back to TensorRT. TensorRtRtxSelected tells them apart.
@@ -2804,7 +2437,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
         }
 
         // 0 would be a pass-through (vs_temporalfix's own strength 0 returns the clip untouched).
-        public static List<int> TemporalFixStrengths { get; } = [1, 2, 3];
+        public static List<int> TemporalFixStrengths { get; } = [.. TemporalFix.Strengths];
 
         private int? _temporalFixStrength = 2;
         [DataMember]
@@ -3148,22 +2781,10 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
 
             // The encoder: one the probe found unusable here (a workflow from another PC, a GPU
             // that isn't installed), a bit depth it can't encode, or 4:4:4 on any GPU encoder.
-            var codec = SelectedCodec;
-            var encoderName = SelectedPreset?.SummaryLabel ?? codec;
-            if (Vm?.Probe is EncoderProbe probe && probe.Tested(codec) && !probe.Opens(codec))
+            foreach (var problem in EncodeChecks.EncoderProblems(Vm?.Probe, EffectiveFfmpegVideoSettings, OutputPixFmt))
             {
                 valid = false;
-                validationText.Add($"{encoderName} isn't available on this PC (no supported GPU or driver). Choose another encoder.");
-            }
-            else if (Vm?.Probe is EncoderProbe probe10 && OutputPixFmt == "yuv420p10" && !probe10.Opens(codec, tenBit: true))
-            {
-                valid = false;
-                validationText.Add($"{encoderName} can't encode 10-bit on this PC. Choose 8-bit 4:2:0 or another encoder.");
-            }
-            if (OutputIs444 && SelectedEncoderIsGpu)
-            {
-                valid = false;
-                validationText.Add($"4:4:4 output needs a CPU encoder (x265 / x264 / FFV1); {encoderName} encodes 4:2:0 only.");
+                validationText.Add(problem);
             }
 
             if (TensorRtRtxSelected && Vm?.TensorRtRtxComponentsMissingText() is string rtxMissing)
@@ -3184,10 +2805,10 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
                 validationText.Add(kernelsMissing);
             }
 
-            if (DirectMlSelected && OutputIs444)
+            if (EncodeChecks.DirectMlFormatProblem(DirectMlSelected ? Backend.DirectMl : Backend.TensorRt, OutputPixFmt) is string dmlProblem)
             {
                 valid = false;
-                validationText.Add("DirectML outputs 4:2:0 only; choose a 4:2:0 output pixel format.");
+                validationText.Add(dmlProblem);
             }
 
             Valid = valid;
@@ -3252,7 +2873,7 @@ chain_1_model_{n}_name={Path.GetFileNameWithoutExtension(onnxPath)}"));
 
         public bool EnableResizeFactor => ResizeHeightBeforeUpscale == 0;
 
-        public const decimal DefaultTemporalSceneThreshold = 0.150M;
+        public const decimal DefaultTemporalSceneThreshold = ModelSettings.DefaultTemporalSceneThreshold;
 
         // Temporal (multi-frame) models upscale each frame from a window of its neighbors. The window
         // size comes from the onnx input shape, as the engine reads it; 1 for a regular model.
