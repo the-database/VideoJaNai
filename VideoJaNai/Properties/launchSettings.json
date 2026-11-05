@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "VideoJaNai": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "VIDEOJANAI_PACKS_DIR": "C:\\packs-3.4.0"
+      }
+    }
+  }
+}

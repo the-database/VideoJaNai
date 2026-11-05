@@ -14,7 +14,7 @@ namespace VideoJaNai.Cli
     // so a stopped or failed encode never leaves a file that skip-existing would keep.
     public static class Run
     {
-        public const string PartialMarker = ".videojanai-partial";
+        public const string PartialMarker = BatchPlanning.PartialMarker;
 
         public static async Task<int> ExecuteAsync(RunPlan plan, Report report, CancellationToken ct)
         {
