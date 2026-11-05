@@ -23,9 +23,10 @@ Usage:
   videojanai [inputs...] [options]       upscale (settings from {{Config.FileName}} and/or flags)
   videojanai init [file]                 write a commented {{Config.FileName}} to start from
   videojanai devices                     list the GPUs (the numbers --device takes) and encoders
-  videojanai setup [--check]             download what this PC needs (the GPU runtime), next to
-                                         the program; run it again after an update
-                                         (--progress lines: also report on stdout for programs)
+  videojanai setup [--no-rife] [--check] download what this PC needs (the GPU runtime and the RIFE
+                                         models), next to the program; run it again after an
+                                         update (--progress lines: also report on stdout for
+                                         programs)
 
 With no inputs on the command line, [input] path from the settings file is used. The settings file
 is -c <file>, else {{Config.FileName}} in the current folder, else next to the program; flags
@@ -172,7 +173,7 @@ Output:
             {
                 throw new UsageException($"{path} exists already; delete it first, or give another name");
             }
-            File.WriteAllText(path, Config.Template.Replace("\n", Environment.NewLine));
+            File.WriteAllText(path, Config.Template.Replace("\r\n", "\n").Replace("\n", Environment.NewLine));
             Console.Error.WriteLine($"Wrote {Path.GetFullPath(path)}. Edit it, then run `videojanai`.");
             return 0;
         }
@@ -256,6 +257,10 @@ Output:
                           ?? probe.Gpus.FirstOrDefault(g => g.Id == t || g.Name.Contains(t, StringComparison.OrdinalIgnoreCase))
                           ?? throw new RunException($"no GPU '{t}' (see `videojanai devices`)");
                 args.AddRange(["--gpus", gpu.Vendor == EncoderGroup.Nvidia && gpu.Id != null ? gpu.Id : "none"]);
+            }
+            if (!f.NoRife)
+            {
+                args.AddRange(["--include", "rife"]);
             }
             if (f.Check)
             {

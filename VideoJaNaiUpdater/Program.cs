@@ -13,6 +13,7 @@
 //                         [--gpus <ids>|none] with --auto and --components: recommend packs for these
 //                         GPUs only (App Settings' chosen GPU, as aji_encode --device ids), or none
 //                         [--check] with --auto: list what it would install, install nothing
+//                         [--include <packs>] with --auto: also these packs (videojanai setup: rife)
 //                         [--progress lines] with --auto: also report on stdout for programs, as
 //                         mangajanai setup does (videojanai setup runs this); other text goes to stderr
 //   VideoJaNaiUpdater.exe --recommend    KEY=value hardware summary for the Inno installer
@@ -66,6 +67,11 @@ string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "--check";
 bool setupLines = mode == "--auto" && Array.IndexOf(args, "--progress") is int progressAt and >= 0 &&
                   progressAt + 1 < args.Length && args[progressAt + 1] is "lines" or "line";
 bool autoCheckOnly = mode == "--auto" && args.Skip(1).Contains("--check");
+// --auto --include rife: packs wanted whatever the hardware recommends (RIFE is only preselected on a
+// fresh install, so a later --auto would never add it)
+var autoInclude = mode == "--auto" && Array.IndexOf(args, "--include") is int includeAt and >= 0 && includeAt + 1 < args.Length
+    ? args[includeAt + 1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase)
+    : [];
 TextWriter protocolOut = Console.Out;
 if (setupLines)
 {
@@ -1212,13 +1218,13 @@ async Task<int> AutoComponentsAsync()
     // content. Without this, --auto reports "everything is installed" after an upgrade and the old
     // runtime is kept forever; InstallComponentAsync re-checks and still skips genuine no-ops.
     var missing = index.Packs
-        .Where(p => PreselectPack(p, installed, rec))
+        .Where(p => PreselectPack(p, installed, rec) || autoInclude.Contains(p.Name))
         .Where(p => !installed.TryGetValue(p.Name, out var recorded) ||
                     (p.Dep is not null && ReadManifestDep(localManifest, p.Dep) is string t &&
                      t != "" && recorded != t) ||
                     !PackContentMatches(p))
         .Select(p => p.Name).ToList();
-    var needed = index.Packs.Where(p => PreselectPack(p, installed, rec)).ToList();
+    var needed = index.Packs.Where(p => PreselectPack(p, installed, rec) || autoInclude.Contains(p.Name)).ToList();
     foreach (var p in needed)
     {
         SetupLine($"SETUP_PLAN {p.Name} {p.Bytes} {(missing.Contains(p.Name) ? "download" : "installed")}");

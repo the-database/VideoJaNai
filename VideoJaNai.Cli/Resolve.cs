@@ -312,7 +312,7 @@ namespace VideoJaNai.Cli
                 {
                     if (string.IsNullOrWhiteSpace(m.OnnxModelPath))
                     {
-                        problems.Add("the workflow has a model step with no model file");
+                        problems.Add("the workflow has a model step with no model file (pick one in VideoJaNai, or give --model or --preset)");
                     }
                     else if (!File.Exists(m.OnnxModelPath))
                     {
@@ -328,7 +328,7 @@ namespace VideoJaNai.Cli
             {
                 problems.Add(Directory.Exists(install.Paths.RifeModelsDirectory)
                     ? $"{wf.RifeModel} isn't installed (have: {string.Join(", ", Rife.Models(install.Paths.RifeModelsDirectory))})"
-                    : "the RIFE models aren't installed: run `videojanai setup`");
+                    : "the RIFE models aren't installed: run `videojanai setup` (it installs them unless --no-rife)");
             }
             switch (job.Backend)
             {
