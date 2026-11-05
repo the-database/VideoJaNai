@@ -13,10 +13,16 @@ namespace VideoJaNai.Cli
         public string AnimeJaNaiDirectory { get; }
         public AjiPaths Paths { get; }
 
-        private Install(string animeJaNaiDirectory, string confPath)
+        private Install(string animeJaNaiDirectory, string confPath, string? inferenceDirectory = null)
         {
             AnimeJaNaiDirectory = animeJaNaiDirectory;
-            Paths = AjiPaths.ForAnimeJaNaiFolder(animeJaNaiDirectory, confPath);
+            var paths = AjiPaths.ForAnimeJaNaiFolder(animeJaNaiDirectory, confPath);
+            Paths = inferenceDirectory is null ? paths : paths with
+            {
+                InferenceDirectory = inferenceDirectory,
+                AjiEncodePath = Path.Join(inferenceDirectory, Platform.Exe("aji_encode")),
+                TrtexecPath = Path.Join(inferenceDirectory, Platform.Exe("trtexec")),
+            };
         }
 
         public static string ExeDir => AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, '/');
@@ -43,7 +49,9 @@ namespace VideoJaNai.Cli
                 var dir = Path.GetFullPath(ajiDir);
                 if (File.Exists(Path.Join(dir, Platform.Exe("aji_encode"))))
                 {
-                    dir = Path.GetDirectoryName(dir.TrimEnd(Path.DirectorySeparatorChar, '/'))!;   // inference/ -> animejanai/
+                    // aji_encode's own folder (inference/, or a build folder); the models are next to it
+                    var inference = dir.TrimEnd(Path.DirectorySeparatorChar, '/');
+                    return new Install(Path.GetDirectoryName(inference)!, conf, inference);
                 }
                 else if (Directory.Exists(Path.Join(dir, "animejanai", "inference")))
                 {
