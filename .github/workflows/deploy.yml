@@ -26,9 +26,10 @@ on:
 # core or the installer; they download post-install via VideoJaNaiUpdater, keeping the base small.
 # The deploy-linux leg adds the RID-suffixed Linux assets to the same release (tarball, AppImage,
 # manifest-linux-x64.json, component-*-linux-x64.7z + packs-linux-x64.json, and the command line's
-# videojanai-linux-x64.tar.zst). Both legs push GBs of assets with one token and can trip GitHub's
-# upload rate limit; dispatch windows_only=true, wait, then linux_only=true to release them one
-# after the other.
+# videojanai-linux-x64.tar.zst). One dispatch runs both legs in parallel; that's the normal way to
+# release. They upload GBs with one token, which has tripped GitHub's upload rate limit once: if a
+# leg fails that way, re-dispatch just that leg (windows_only=true or linux_only=true; both release
+# steps update the draft in place).
 jobs:
   deploy:
     if: ${{ github.event.inputs.linux_only != 'true' }}
