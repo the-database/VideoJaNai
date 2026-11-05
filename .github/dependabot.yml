@@ -1,0 +1,22 @@
+# Dependabot: monthly, grouped, to keep the noise down. The pins Dependabot can't see (upstream
+# release tags and asset SHA-256s) are bumped by bump-pins.yml instead.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      # Avalonia and the libraries built on it move together.
+      avalonia:
+        patterns: ["*Avalonia*"]
+      nuget:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
