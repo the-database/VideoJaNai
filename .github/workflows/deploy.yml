@@ -116,6 +116,8 @@ jobs:
         # that has already been published.
         allowUpdates: true
         updateOnlyUnreleased: true
+        # A re-run keeps the draft's release notes (it has no body of its own to write).
+        omitBodyDuringUpdate: true
         # No removeArtifacts: the Linux leg's assets share this tag. Same-named assets are replaced.
         artifacts: "VideoJaNai-Setup-${{ github.event.inputs.release_version }}.exe,VideoJaNai-full-package-${{ github.event.inputs.release_version }}.7z.*,manifest.json,videojanai-windows-x64.zip,publish/packs-v${{ github.event.inputs.release_version }}/component-*.7z,publish/packs-v${{ github.event.inputs.release_version }}/packs.json,publish/VideoJaNai-offline-package-${{ github.event.inputs.release_version }}.7z.*"
         token: ${{ secrets.GITHUB_TOKEN }}
