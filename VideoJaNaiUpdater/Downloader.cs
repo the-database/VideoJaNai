@@ -3,7 +3,8 @@ public class Downloader
 {
     public delegate void ProgressChanged(double percentage);
 
-    public static async Task DownloadFileAsync(string url, string destinationFilePath, ProgressChanged progressChanged)
+    public static async Task DownloadFileAsync(string url, string destinationFilePath, ProgressChanged progressChanged,
+                                               Action<long, long>? bytesChanged = null)
     {
         using HttpClient client = new();
         using HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
@@ -27,6 +28,7 @@ public class Downloader
                 double percentage = Math.Round((double)totalRead / totalBytes * 100, 0);
                 progressChanged?.Invoke(percentage);
             }
+            bytesChanged?.Invoke(totalRead, totalBytes);
         }
     }
 }

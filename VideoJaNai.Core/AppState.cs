@@ -100,14 +100,14 @@ namespace VideoJaNai.Core
                 EnableUpscale = Bool(w, "EnableUpscale") ?? d.EnableUpscale,
                 EnableTemporalFix = Bool(w, "EnableTemporalFix") ?? d.EnableTemporalFix,
                 TemporalFixStrength = Int(w, "TemporalFixStrength") ?? d.TemporalFixStrength,
-                TemporalFixSceneThreshold = Dec(w, "TemporalFixSceneThreshold") ?? d.TemporalFixSceneThreshold,
+                TemporalFixSceneThreshold = Dec(w, "TemporalFixSceneThreshold", d.TemporalFixSceneThreshold),
                 TemporalFixBeforeUpscale = Bool(w, "TemporalFixBeforeUpscale") ?? d.TemporalFixBeforeUpscale,
                 EnableRife = Bool(w, "EnableRife") ?? d.EnableRife,
                 RifeModel = Str(w, "RifeModel") ?? d.RifeModel,
                 RifeEnsemble = Bool(w, "RifeEnsemble") ?? d.RifeEnsemble,
                 RifeFactorNumerator = Int(w, "RifeFactorNumerator") ?? d.RifeFactorNumerator,
                 RifeFactorDenominator = Int(w, "RifeFactorDenominator") ?? d.RifeFactorDenominator,
-                RifeSceneDetectThreshold = Dec(w, "RifeSceneDetectThreshold") ?? d.RifeSceneDetectThreshold,
+                RifeSceneDetectThreshold = Dec(w, "RifeSceneDetectThreshold", d.RifeSceneDetectThreshold),
                 RifeBeforeUpscale = Bool(w, "RifeBeforeUpscale") ?? d.RifeBeforeUpscale,
             };
             foreach (var m in Values(w, "UpscaleSettings"))
@@ -117,8 +117,8 @@ namespace VideoJaNai.Core
                 {
                     OnnxModelPath = Str(m, "OnnxModelPath") ?? dm.OnnxModelPath,
                     ResizeHeightBeforeUpscale = Int(m, "ResizeHeightBeforeUpscale") ?? dm.ResizeHeightBeforeUpscale,
-                    ResizeFactorBeforeUpscale = Dec(m, "ResizeFactorBeforeUpscale") ?? dm.ResizeFactorBeforeUpscale,
-                    TemporalSceneThreshold = Dec(m, "TemporalSceneThreshold") ?? dm.TemporalSceneThreshold,
+                    ResizeFactorBeforeUpscale = Dec(m, "ResizeFactorBeforeUpscale", dm.ResizeFactorBeforeUpscale),
+                    TemporalSceneThreshold = Dec(m, "TemporalSceneThreshold", dm.TemporalSceneThreshold),
                 });
             }
             return wf;
@@ -160,7 +160,10 @@ namespace VideoJaNai.Core
         private static int? Int(JsonElement e, string name) =>
             Get(e, name) is JsonElement v && v.ValueKind == JsonValueKind.Number && v.TryGetDecimal(out var d) ? (int)d : null;
 
-        private static decimal? Dec(JsonElement e, string name) =>
-            Get(e, name) is JsonElement v && v.ValueKind == JsonValueKind.Number && v.TryGetDecimal(out var d) ? d : null;
+        // A decimal as the GUI ends up with it: one equal to the default keeps the default's own
+        // form (ReactiveUI's RaiseAndSetIfChanged doesn't assign an equal value, so a saved 100.0
+        // stays the default's 100), which is how the GUI writes it into the conf.
+        private static decimal? Dec(JsonElement e, string name, decimal? fallback) =>
+            Get(e, name) is JsonElement v && v.ValueKind == JsonValueKind.Number && v.TryGetDecimal(out var d) && d != fallback ? d : fallback;
     }
 }

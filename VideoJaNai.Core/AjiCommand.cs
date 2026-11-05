@@ -35,7 +35,7 @@ namespace VideoJaNai.Core
     // No backend_path, per-chain final_resize or per-chain TensorRT settings in this schema.
     public static class AjiConf
     {
-        private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
+        private static readonly CultureInfo English = CultureInfo.InvariantCulture;
 
         public static string Build(EncodeJob job)
         {
@@ -119,7 +119,7 @@ namespace VideoJaNai.Core
     // aji_encode's command line for a job.
     public static class AjiArgs
     {
-        private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
+        private static readonly CultureInfo English = CultureInfo.InvariantCulture;
 
         // previewPath: --preview <jpg> for an encode (aji_encode keeps a JPEG of its latest frame
         // there and prints PREVIEW lines); null for none.

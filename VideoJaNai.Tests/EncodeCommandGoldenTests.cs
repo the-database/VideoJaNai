@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using VideoJaNai.Core;
 using VideoJaNai.ViewModels;
 using Xunit;
 
@@ -85,6 +86,32 @@ namespace VideoJaNai.Tests
             return (vm, wf);
         }
 
+        // A workflow saved by the GUI (an exported .awf, and the saved state) runs the same in the
+        // GUI, after loading it again, and in the command line, which reads it with Core's AppState.
+        // (Loaded, not in memory: a decimal saved as 100.0 comes back as 100.0 in both.)
+        void CheckCommandLineParity(MainWindowViewModel vm, string input, string output)
+        {
+            var awf = Path.Join(_root, "export.awf");
+            vm.WriteCurrentWorkflowToFile(awf);
+            var state = Path.Join(_root, "appstate2.json");
+            new NewtonsoftJsonSuspensionDriver(state).SaveState(vm);
+            vm.ReadWorkflowFileToCurrentWorkflow(awf);
+            var gui = vm.CurrentJob();
+            var saved = AppState.Load(state);
+            Assert.Equal(vm.UseDirectMl, saved.UseDirectMl);
+            Assert.Equal(vm.UseTensorRtRtx, saved.UseTensorRtRtx);
+            Assert.Equal(vm.SelectedGpuId, saved.SelectedGpuId);
+            foreach (var wf in new[] { AppState.LoadWorkflow(awf), saved.SelectedWorkflow! })
+            {
+                var cli = EncodeJob.FromWorkflow(wf, gui.Backend, gui.Device, vm.DefaultEncoderPreset, vm.ModelsDirectory);
+                Assert.Equal(AjiConf.Build(gui), AjiConf.Build(cli));
+                foreach (var mode in new[] { AjiMode.Encode, AjiMode.BuildOnly, AjiMode.Preview })
+                {
+                    Assert.Equal(AjiArgs.Build(gui, vm.Paths, input, output, mode), AjiArgs.Build(cli, vm.Paths, input, output, mode));
+                }
+            }
+        }
+
         string Render(MainWindowViewModel vm, string input, string output)
         {
             var parts = new List<string>();
@@ -100,6 +127,7 @@ namespace VideoJaNai.Tests
             var text = string.Join("\n", parts).Replace("\r\n", "\n");
             text = text.Replace(_root, "<root>").Replace(_sourceModels, "<models>").Replace(Path.GetTempPath().TrimEnd('\\', '/'), "<tmp>");
             text = Regex.Replace(text, @"videojanai-preview-\d+\.jpg", "videojanai-preview-<pid>.jpg");
+            CheckCommandLineParity(vm, input, output);
             return text.Replace('\\', '/').Replace(".exe\"", "\"") + "\n";
         }
 
