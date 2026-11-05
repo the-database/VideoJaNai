@@ -17,6 +17,7 @@ namespace VideoJaNai.Cli
         public bool Lines;                 // --progress lines
         public bool Verbose;
         public bool Check;                 // setup --check
+        public bool NoRife;                // setup --no-rife
         public bool Help;
         public bool Version;
         public List<string> Positional { get; } = [];
@@ -26,7 +27,7 @@ namespace VideoJaNai.Cli
         [
             "--no-config", "--no-upscale", "--upscale", "--skip-existing", "--overwrite",
             "--temporal-fix-before-upscale", "--rife", "--rife-ensemble", "--rife-after-upscale",
-            "-v", "--verbose", "--check", "-h", "--help", "-V", "--version",
+            "-v", "--verbose", "--check", "--no-rife", "-h", "--help", "-V", "--version",
         ];
 
         public static Flags Parse(IReadOnlyList<string> args)
@@ -156,6 +157,7 @@ namespace VideoJaNai.Cli
                         }
                     case "-v": case "--verbose": f.Verbose = true; break;
                     case "--check": f.Check = true; break;
+                    case "--no-rife": f.NoRife = true; break;
                     case "-h": case "--help": f.Help = true; break;
                     case "-V": case "--version": f.Version = true; break;
                     default:

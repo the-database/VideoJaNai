@@ -110,6 +110,8 @@ namespace VideoJaNai.Core
             catch (OperationCanceledException)
             {
                 try { process.Kill(true); } catch { /* already exited */ }
+                // until it's gone, so the caller can delete the file it was writing
+                try { process.WaitForExit(10000); } catch { /* already exited */ }
                 throw;
             }
             // the last lines: WaitForExitAsync returns once both streams hit EOF
