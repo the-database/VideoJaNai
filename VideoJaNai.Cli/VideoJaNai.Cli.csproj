@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- videojanai: the command line, on VideoJaNai.Core (the same run code as the GUI). Published
+       with NativeAOT into the standalone videojanai archives. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>videojanai</AssemblyName>
+    <RootNamespace>VideoJaNai.Cli</RootNamespace>
+    <Version>0.0.0-dev</Version>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <PublishAot>true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <StackTraceSupport>false</StackTraceSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="VideoJaNai.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VideoJaNai.Core\VideoJaNai.Core.csproj" />
+  </ItemGroup>
+</Project>

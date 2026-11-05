@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- What a VideoJaNai run is, shared by the GUI and the videojanai command line: a workflow turned
+       into libaji's conf and aji_encode's arguments, encoder presets and the encoder probe, the
+       backend and GPU choice, batch planning, running aji_encode and reading its progress. No UI
+       dependencies, and trimming/AOT safe (the CLI is published with NativeAOT). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="VideoJaNai.Core.Tests" />
+  </ItemGroup>
+</Project>

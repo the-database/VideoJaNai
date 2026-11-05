@@ -8,10 +8,16 @@
 // users only ever download the small core + their GPU's component packs.
 //
 //   BuildVideoJaNai <version> [--target win-x64|linux-x64] [--app-dir <dir>] [--updater <exe>] [--packs [--offline]]
+//                   [--cli <videojanai exe>]
 //   BuildVideoJaNai <version> --packs-only [dir]   (emit packs from an existing tree)
 //
 // --offline (with --packs) also writes VideoJaNai-offline-package-<ver>[-<rid>].7z.*: the complete
 // tree, every component pack included, for installs without internet access.
+//
+// --cli (after --packs' slimming) also assembles videojanai-v<ver>/: the command line's standalone
+// tree, the slim core without the GUI (videojanai + the updater + animejanai/ + manifest.json), which
+// the release workflow archives as videojanai-windows-x64.zip / videojanai-linux-x64.tar.zst.
+// `videojanai setup` adds this PC's component packs to it with the updater, from this release.
 //
 // Target-parameterized like mpv-AnimeJaNai's assembler: every platform-varying name/source lives in
 // the Platform descriptor at the bottom. --target defaults to the host RID.
@@ -797,7 +803,43 @@ async Task Main()
         SlimInstallTree(packFiles);
     }
 
+    var cli = ArgValue("--cli");
+    if (!string.IsNullOrEmpty(cli))
+    {
+        await WriteCliTree(cli);
+    }
+
     Console.WriteLine($"Built {installDirectory}");
+}
+
+// The command line's standalone tree: what the slim core holds for running aji_encode (animejanai/,
+// with the inference core and the bundled models), the updater and archive tool that `videojanai
+// setup` installs the component packs with, and the manifest that names this release to it. No GUI.
+async Task WriteCliTree(string cliExe)
+{
+    var cliDirectory = Path.Combine(assemblyDirectory, $"videojanai-v{version}");
+    Console.WriteLine($"Assembling the command line's tree in {cliDirectory}...");
+    if (Directory.Exists(cliDirectory)) Directory.Delete(cliDirectory, true);
+    Directory.CreateDirectory(cliDirectory);
+    CopyDirectory(Path.Combine(installDirectory, "animejanai"), Path.Combine(cliDirectory, "animejanai"));
+    foreach (var name in new[] { "manifest.json", "version.txt", plat.ArchiveTool, plat.Exe("VideoJaNaiUpdater") })
+    {
+        var src = Path.Combine(installDirectory, name);
+        if (!File.Exists(src)) throw new FileNotFoundException($"the command line's tree needs {name} from the package tree", src);
+        File.Copy(src, Path.Combine(cliDirectory, name), true);
+    }
+    var exe = Path.Combine(cliDirectory, plat.Exe("videojanai"));
+    File.Copy(cliExe, exe, true);
+    if (!plat.IsWindows)
+    {
+        foreach (var x in new[] { exe, Path.Combine(cliDirectory, "VideoJaNaiUpdater"), Path.Combine(cliDirectory, plat.ArchiveTool),
+                                  Path.Combine(cliDirectory, "animejanai", "inference", "aji_encode") })
+        {
+            if (File.Exists(x)) await RunProcess("chmod", $"+x \"{x}\"");
+        }
+    }
+    long bytes = Directory.GetFiles(cliDirectory, "*", SearchOption.AllDirectories).Sum(f => new FileInfo(f).Length);
+    Console.WriteLine($"  {bytes / 1048576} MB");
 }
 
 // The released full-package is the slim core: TensorRT runtime, per-GPU builder resources, RIFE
@@ -993,12 +1035,19 @@ async Task<List<string>> EmitComponentPacks()
             var fi = new FileInfo(Path.Combine(installDirectory, f));
             return fi.Exists ? fi.Length : 0L;
         });
+        string sha256;
+        using (var stream = File.OpenRead(archive))
+        {
+            sha256 = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+        }
         index.Add(new
         {
             name,
             dep,
             asset = Path.GetFileName(archive),
             bytes = new FileInfo(archive).Length,
+            // the updater checks each download against it (indexes before 2.11 have none)
+            sha256,
             installed_bytes = installedBytes,
             files = allFiles,
         });

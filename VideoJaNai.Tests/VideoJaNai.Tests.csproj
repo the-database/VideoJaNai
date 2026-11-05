@@ -16,4 +16,8 @@
   <ItemGroup>
     <ProjectReference Include="..\VideoJaNai\VideoJaNai.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Using Include="VideoJaNai.Core" />
+  </ItemGroup>
+
 </Project>
