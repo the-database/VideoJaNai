@@ -122,7 +122,7 @@ namespace VideoJaNai.Core
     // measured here from the frame counter, smoothed, since the lines come in 32-frame bursts.
     public sealed class AjiProgress
     {
-        private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
+        private static readonly CultureInfo English = CultureInfo.InvariantCulture;
         private readonly ETACalculator _eta = new(10, 5.0);
         private long _lastFpsFrame = -1;
         private DateTime _lastFpsTime;
