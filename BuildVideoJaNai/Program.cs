@@ -93,6 +93,8 @@ var trtDebSha256 = new Dictionary<string, string>
 // high-performance GPU instead of DXGI adapter 0, and a "GPU:" line in the engine log. v0.22.1: AMF and
 // QSV encode on the upscaling GPU when it is AMD / Intel (not the first such GPU, an iGPU on laptops).
 // v0.22.2: --probe-encoders marks integrated GPUs (integrated=), which the GPU choice labels and warns about.
+// A libaji release opens the PR that moves AjiVersion and ajiSha256Win (.github/workflows/bump-pins.yml,
+// scripts/bump_pins.py libaji <tag>); add its line above by hand.
 const string AjiVersion        = "v0.22.2";
 // The aji release publishes no checksums; recorded from the release assets.
 var ajiSha256Win = new Dictionary<string, string>
