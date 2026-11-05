@@ -14,18 +14,7 @@ Download either the AppImage or the `linux-x64.tar.zst` from the [latest release
 - **Tarball**: extract it anywhere and run `./install.sh` from inside the extracted folder. This adds a menu entry and installs the components for your GPU. The folder stays in place and updates itself in-app.
 
 ### Command line
-`videojanai` upscales from the command line, with the same engine and settings as the GUI. Download `videojanai-windows-x64.zip` or `videojanai-linux-x64.tar.zst` from the [latest release](https://github.com/the-database/VideoJaNai/releases/latest), unpack it anywhere, and run `videojanai setup` once to download the components for your GPU (and the RIFE models, unless `--no-rife`). On Windows, if you skip setup and VideoJaNai is installed, it uses VideoJaNai's components.
-
-```sh
-videojanai episode.mkv                         # -> episode-animejanai.mkv, next to it
-videojanai season1/ -o upscaled/               # a folder, with its subfolders; existing outputs are skipped
-videojanai dvd.vob --deinterlace ivtc --rife   # IVTC, upscale, then interpolate to 2x the frame rate
-videojanai ep.mkv --no-upscale --temporal-fix 2   # only steady the shimmer
-videojanai ep.mkv --workflow "My workflow.awf"    # a workflow exported from VideoJaNai
-videojanai devices                             # the GPUs (for --device) and the GPU encoders that work
-```
-
-With no model given it uses preset `balanced`: AnimeJaNai HD V3.1 Balanced for 720p to 1080p sources and the SD model below 720p (sources above 1080p keep their size). `--model` runs your own ONNX models. `videojanai init` writes a commented `videojanai.ini` to keep settings in, `--settings appstate2.json` runs the GUI's selected workflow, and `--progress lines` reports progress on stdout for other programs. `videojanai --help` lists every option.
+`videojanai` upscales from the command line, with the same engine, components and settings as the GUI. Download `videojanai-windows-x64.zip` or `videojanai-linux-x64.tar.zst` from the [latest release](https://github.com/the-database/VideoJaNai/releases/latest), unpack it anywhere, run `videojanai setup` once, then `videojanai <video>`. See [its README](VideoJaNai.Cli/README.md) for everything else.
 
 <img width="1908" height="1019" alt="image" src="https://github.com/user-attachments/assets/5592bbed-b0af-4624-9d87-1f4081458ad7" />
 
