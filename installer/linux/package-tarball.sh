@@ -16,7 +16,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 cp -f "$HERE/install.sh" "$HERE/uninstall.sh" "$TREE/"
 cp -f "$HERE/../../logo.png" "$TREE/videojanai.png"
 chmod +x "$TREE/install.sh" "$TREE/uninstall.sh" "$TREE/VideoJaNai" "$TREE/VideoJaNaiUpdater" "$TREE/7zz" \
-         "$TREE/animejanai/inference/aji_encode" 2>/dev/null || true
+         "$TREE/aji-runtime" "$TREE/animejanai/inference/aji_encode" 2>/dev/null || true
 
 mkdir -p "$OUT"
 name="VideoJaNai-v${VER}-linux-x64.tar.zst"
