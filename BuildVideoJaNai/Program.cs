@@ -93,14 +93,16 @@ var trtDebSha256 = new Dictionary<string, string>
 // high-performance GPU instead of DXGI adapter 0, and a "GPU:" line in the engine log. v0.22.1: AMF and
 // QSV encode on the upscaling GPU when it is AMD / Intel (not the first such GPU, an iGPU on laptops).
 // v0.22.2: --probe-encoders marks integrated GPUs (integrated=), which the GPU choice labels and warns about.
+// v0.23.1: loads TensorRT and TensorRT-RTX from the shared pack store (aji-runtime.json beside aji.dll /
+// libaji.so, or the file AJI_RUNTIME_JSON names), with that pack's trtexec and builder kernels.
 // A libaji release opens the PR that moves AjiVersion and ajiSha256Win (.github/workflows/bump-pins.yml,
 // scripts/bump_pins.py libaji <tag>); add its line above by hand.
-const string AjiVersion        = "v0.22.2";
+const string AjiVersion        = "v0.23.1";
 // The aji release publishes no checksums; recorded from the release assets.
 var ajiSha256Win = new Dictionary<string, string>
 {
-    ["aji-windows-x64.zip"]        = "b306b1888a1692bb65d55f66bbb4001eed6d0cc73cfbc5e0f41f11ed39f039af",
-    ["aji-trtrtx-windows-x64.zip"] = "a2616d0b21f1b5300c62047d4783c3dfceee69178a9ea63595deb23b8cef4e95",
+    ["aji-windows-x64.zip"]        = "c433533f5310cd2443cec19bd412a9387fb1bd5e37225904c3d7fb28bfd3ba79",
+    ["aji-trtrtx-windows-x64.zip"] = "ce5ce6bc7d0bd7e5fefaa4ad2e952bd9ea3b4c56490aa66db6c03c5f188eb3e3",
 };
 // 7-Zip "extra" (Windows) / linux-x64 standalone console, from its GitHub release (7-zip.org links
 // there from 26.05 on; its own /a/ folder stops at 26.02). Digests from the release assets.
