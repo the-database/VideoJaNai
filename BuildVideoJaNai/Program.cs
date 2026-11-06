@@ -36,6 +36,10 @@
 //   AJI_RUNTIME_LOCAL      -> a local aji-runtime(.exe), the shared pack store's tool (default: the
 //                             pinned the-database/aji-runtime release)
 //
+// --store (what releases build): the TensorRT packs (runtime, builders, TensorRT-RTX's) are the
+// shared pack store's, so they're slimmed out of the core like every pack but not published; RIFE
+// stays a component pack. TensorRT is still assembled into the tree, for the offline package.
+//
 // Shared pack store: the package also carries aji-runtime(.exe) and pins the shared runtime release
 // (manifest "runtime"), so the updater installs TensorRT, the builder packs and TensorRT-RTX's runtime
 // into the per-user store that other apps share (its store mode), instead of the component packs.
@@ -1085,6 +1089,13 @@ async Task<List<string>> EmitComponentPacks()
             !files.Any(f => File.Exists(Path.Combine(installDirectory, f)) || Directory.Exists(Path.Combine(installDirectory, f))))
         {
             Console.WriteLine($"  component-{name}: nothing to pack in this tree, skipped");
+            continue;
+        }
+        if (args.Contains("--store") && name.StartsWith("trt-", StringComparison.Ordinal))
+        {
+            // the shared pack store's: out of the core, not published
+            packedFiles.AddRange(files.Select(f => f.Replace('\\', '/')));
+            Console.WriteLine($"  component-{name}: the shared pack store's (--store), not published");
             continue;
         }
         var archive = Path.Combine(packsDir, $"component-{name}{plat.PackSuffix}.7z");

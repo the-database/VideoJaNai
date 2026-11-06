@@ -1,7 +1,8 @@
 #!/bin/bash
-# Builds the VideoJaNai AppImage from an assembled linux-x64 core tree plus the base TensorRT runtime
-# pack (an AppImage can't install component packs into its read-only squashfs; AppRun fetches the
-# GPU-matched builder kernels and RIFE into $XDG_DATA_HOME/VideoJaNai instead).
+# Builds the VideoJaNai AppImage from an assembled linux-x64 core tree (an AppImage can't install
+# packs into its read-only squashfs: on first launch AppRun has the image's aji-runtime install
+# TensorRT and this PC's builder kernels into the shared pack store, and fetches RIFE into
+# $XDG_DATA_HOME/VideoJaNai).
 #
 # Usage: build-appimage.sh <tree-dir> <version> [out-dir]
 #
@@ -33,8 +34,9 @@ cp -a "$TREE/." "$APPDIR/"
 # The AppImage updates by replacing the file; no in-place updater.
 rm -f "$APPDIR/VideoJaNaiUpdater"
 install -m755 "$HERE/AppRun" "$APPDIR/AppRun"
+# (trtexec comes from the shared pack store's TensorRT pack, which AppRun installs)
 chmod +x "$APPDIR/VideoJaNai" "$APPDIR/7zz" "$APPDIR/animejanai/inference/aji_encode" \
-         "$APPDIR/animejanai/inference/trtexec"
+         "$APPDIR/aji-runtime"
 
 cp "$HERE/../../logo.png" "$APPDIR/videojanai.png"
 cat > "$APPDIR/videojanai.desktop" <<EOF

@@ -68,7 +68,7 @@ jobs:
     # first archives the complete tree as publish/VideoJaNai-offline-package-<ver>.7z.*. --cli assembles the
     # command line's standalone tree (the slim core without the GUI) as publish/videojanai-cli-v<ver>.
     - name: Assemble package
-      run: ./publish/BuildVideoJaNai.exe ${{ github.event.inputs.release_version }} --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater.exe --packs --offline --cli cli-publish/videojanai.exe
+      run: ./publish/BuildVideoJaNai.exe ${{ github.event.inputs.release_version }} --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater.exe --packs --store --offline --cli cli-publish/videojanai.exe
 
     - name: Install 7zip
       run: choco install 7zip -y
@@ -176,7 +176,7 @@ jobs:
         dotnet publish VideoJaNai.Cli/VideoJaNai.Cli.csproj -c Release -r linux-x64 -p:Version="$VER" -o cli-publish
 
     - name: Assemble package (linux-x64, with packs + offline package + the command line's tree)
-      run: ./publish/BuildVideoJaNai "$VER" --target linux-x64 --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater --packs --offline --cli cli-publish/videojanai
+      run: ./publish/BuildVideoJaNai "$VER" --target linux-x64 --app-dir app-publish --updater updater-publish/VideoJaNaiUpdater --packs --store --offline --cli cli-publish/videojanai
 
     - name: Package videojanai-linux-x64.tar.zst
       run: tar --zstd -C "publish/videojanai-cli-v$VER" -cf videojanai-linux-x64.tar.zst .
@@ -192,7 +192,6 @@ jobs:
         full="appimage-tree/VideoJaNai-v$VER"
         mkdir -p "$full"
         cp -a "publish/VideoJaNai-v$VER/." "$full/"
-        7zz x -snl -y -o"$full" "publish/packs-v$VER/component-trt-runtime-linux-x64.7z"
         installer/linux/build-appimage.sh "$full" "$VER" .
 
     - name: Stage RID-suffixed manifest
