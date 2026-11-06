@@ -14,17 +14,31 @@ namespace VideoJaNai.Core
     public static class AjiProcess
     {
         // Linux: libaji_trt.so's RUNPATH points at system TensorRT/CUDA paths; the bundled runtime
-        // next to it is found through the loader path (inherited by trtexec too). Null on Windows.
+        // next to it is found through the loader path (inherited by trtexec too). With the shared pack
+        // store (aji-runtime.json) the TensorRT runtime is the store's pack: aji_encode links cudart
+        // itself, so the pack's folder goes on the loader path (Linux) or PATH (Windows, where
+        // aji_encode delay-loads cudart). libaji loads the rest by full path and gives trtexec its
+        // builder kernels. Null on Windows without the store.
         public static Dictionary<string, string>? Environment(string inferenceDirectory)
         {
+            var trt = RuntimePacks.Read(inferenceDirectory)?.Trt;
             if (OperatingSystem.IsWindows())
             {
-                return null;
+                if (trt is null)
+                {
+                    return null;
+                }
+                var path = System.Environment.GetEnvironmentVariable("PATH");
+                return new Dictionary<string, string>
+                {
+                    ["PATH"] = string.IsNullOrEmpty(path) ? trt : $"{trt};{path}",
+                };
             }
             var ldPath = System.Environment.GetEnvironmentVariable("LD_LIBRARY_PATH");
+            var dirs = trt is null ? inferenceDirectory : $"{inferenceDirectory}:{trt}";
             return new Dictionary<string, string>
             {
-                ["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(ldPath) ? inferenceDirectory : $"{inferenceDirectory}:{ldPath}",
+                ["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(ldPath) ? dirs : $"{dirs}:{ldPath}",
             };
         }
 
