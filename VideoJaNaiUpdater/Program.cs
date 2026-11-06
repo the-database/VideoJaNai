@@ -14,6 +14,8 @@
 //                         GPUs only (App Settings' chosen GPU, as aji_encode --device ids), or none
 //                         [--check] with --auto: list what it would install, install nothing
 //                         [--include <packs>] with --auto: also these packs (videojanai setup: rife)
+//                         [--exclude <packs>] with --auto: not these packs, even where they'd be
+//                         installed by default (videojanai setup --no-rife: rife)
 //                         [--progress lines] with --auto: also report on stdout for programs, as
 //                         mangajanai setup does (videojanai setup runs this); other text goes to stderr
 //   VideoJaNaiUpdater.exe --recommend    KEY=value hardware summary for the Inno installer
@@ -99,6 +101,10 @@ bool autoCheckOnly = mode == "--auto" && args.Skip(1).Contains("--check");
 // fresh install, so a later --auto would never add it)
 var autoInclude = mode == "--auto" && Array.IndexOf(args, "--include") is int includeAt and >= 0 && includeAt + 1 < args.Length
     ? args[includeAt + 1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase)
+    : [];
+// --auto --exclude rife: packs left out even where a fresh install would preselect them
+var autoExclude = mode == "--auto" && Array.IndexOf(args, "--exclude") is int excludeAt and >= 0 && excludeAt + 1 < args.Length
+    ? args[excludeAt + 1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase)
     : [];
 TextWriter protocolOut = Console.Out;
 if (setupLines)
@@ -1300,13 +1306,13 @@ async Task<int> AutoComponentsAsync()
     // content. Without this, --auto reports "everything is installed" after an upgrade and the old
     // runtime is kept forever; InstallComponentAsync re-checks and still skips genuine no-ops.
     var missing = index.Packs
-        .Where(p => PreselectPack(p, installed, rec) || autoInclude.Contains(p.Name))
+        .Where(p => (PreselectPack(p, installed, rec) || autoInclude.Contains(p.Name)) && !autoExclude.Contains(p.Name))
         .Where(p => !installed.TryGetValue(p.Name, out var recorded) ||
                     (p.Dep is not null && ReadManifestDep(localManifest, p.Dep) is string t &&
                      t != "" && recorded != t) ||
                     !PackContentMatches(p))
         .Select(p => p.Name).ToList();
-    var needed = index.Packs.Where(p => PreselectPack(p, installed, rec) || autoInclude.Contains(p.Name)).ToList();
+    var needed = index.Packs.Where(p => (PreselectPack(p, installed, rec) || autoInclude.Contains(p.Name)) && !autoExclude.Contains(p.Name)).ToList();
     foreach (var p in needed)
     {
         SetupLine($"SETUP_PLAN {p.Name} {p.Bytes} {(missing.Contains(p.Name) ? "download" : "installed")}");
@@ -1591,10 +1597,15 @@ static bool IsLibaji(string rel)
 static string PrivatePath(string f) => Path.Combine("animejanai", "inference", f);
 
 // The files an older version installed for the store's packs: this release's trt-* packs' lists, and
-// files named like the store packs' in the inference folder.
+// files named like the store packs' in the inference folder. Once the store has TensorRT, also every
+// builder kernel in the inference folder: libaji's trtexec loads them from the store's builder packs
+// only (an offline package carries them for every GPU generation).
 IEnumerable<string> PrivatePackFiles(PackIndex index, Func<string, bool> pack) =>
     (index.Replaced ?? []).Where(p => pack(p.Name)).SelectMany(p => p.Files)
         .Concat(index.Packs.Where(p => p.Store && pack(p.Name)).SelectMany(p => p.Files.Select(PrivatePath)))
+        .Concat(pack("trt-runtime") && Directory.Exists(inferenceDir)
+            ? Directory.GetFiles(inferenceDir, "*builder_resource_*").Select(f => PrivatePath(Path.GetFileName(f)))
+            : [])
         .Where(f => !IsLibaji(f)).Distinct(StringComparer.OrdinalIgnoreCase);
 
 bool PrivatePackFilesLeft(PackIndex index)
@@ -1672,11 +1683,11 @@ async Task<int> AutoStoreAsync(PackIndex index, List<string> rec, bool hasNvidia
 {
     var installed = ReadInstalledComponents(index);
     var storeWant = StoreWanted(index);
-    foreach (var p in index.Packs.Where(p => p.Store && (rec.Contains(p.Name) || autoInclude.Contains(p.Name))))
+    foreach (var p in index.Packs.Where(p => p.Store && (rec.Contains(p.Name) || autoInclude.Contains(p.Name)) && !autoExclude.Contains(p.Name)))
     {
         storeWant.Add(p.Name);
     }
-    var ownNeeded = index.Packs.Where(p => !p.Store && (PreselectPack(p, installed, rec) || autoInclude.Contains(p.Name))).ToList();
+    var ownNeeded = index.Packs.Where(p => !p.Store && (PreselectPack(p, installed, rec) || autoInclude.Contains(p.Name)) && !autoExclude.Contains(p.Name)).ToList();
     var ownMissing = ownNeeded
         .Where(p => !installed.TryGetValue(p.Name, out var recorded) ||
                     (p.Dep is not null && ReadManifestDep(localManifest, p.Dep) is string t && t != "" && recorded != t) ||
