@@ -21,7 +21,7 @@ namespace VideoJaNai.Cli
             {
                 InferenceDirectory = inferenceDirectory,
                 AjiEncodePath = Path.Join(inferenceDirectory, Platform.Exe("aji_encode")),
-                TrtexecPath = Path.Join(inferenceDirectory, Platform.Exe("trtexec")),
+                TrtexecPath = RuntimePacks.TrtexecPath(inferenceDirectory),
             };
         }
 
@@ -33,11 +33,12 @@ namespace VideoJaNai.Cli
                 : null;
 
         // A tree's root (where components.json, the updater and animejanai/ are) is usable once its
-        // components are set up: the TensorRT runtime is there, or the updater's hardware setup ran
-        // (a PC without an NVIDIA GPU needs no packs; DirectML ships in the core).
+        // components are set up: the TensorRT runtime is there (in the tree, or the shared pack store's
+        // that aji-runtime.json names), or the updater's hardware setup ran (a PC without an NVIDIA GPU
+        // needs no packs; DirectML ships in the core).
         public static bool IsSetUp(string root) =>
             File.Exists(Path.Join(root, "animejanai", "inference", Platform.Exe("aji_encode"))) &&
-            (File.Exists(Path.Join(root, "animejanai", "inference", Platform.Exe("trtexec"))) ||
+            (File.Exists(RuntimePacks.TrtexecPath(Path.Join(root, "animejanai", "inference"))) ||
              File.Exists(Path.Join(root, "components.json")));
 
         // --aji-dir: an animejanai folder, its inference folder, or a tree root.
@@ -69,7 +70,7 @@ namespace VideoJaNai.Cli
 
         public bool AjiEncodeExists => File.Exists(Paths.AjiEncodePath);
         public bool TensorRtInstalled => File.Exists(Paths.TrtexecPath);
-        public bool TensorRtRtxInstalled => File.Exists(Path.Join(Paths.InferenceDirectory, "aji_trtrtx.dll"));
+        public bool TensorRtRtxInstalled => RuntimePacks.TensorRtRtxInstalled(Paths.InferenceDirectory);
         public bool DirectMlInstalled => File.Exists(Path.Join(Paths.InferenceDirectory, "aji_dml.dll"));
 
         public bool IsGuiInstall => GuiInstallDir is string gui &&

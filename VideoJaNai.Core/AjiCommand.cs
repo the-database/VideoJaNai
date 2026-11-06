@@ -21,7 +21,7 @@ namespace VideoJaNai.Core
             var inference = Path.Join(animeJaNaiDirectory, "inference");
             return new AjiPaths(
                 Path.GetFullPath(Path.Join(inference, Platform.Exe("aji_encode"))),
-                Path.GetFullPath(Path.Join(inference, Platform.Exe("trtexec"))),
+                RuntimePacks.TrtexecPath(inference),
                 inference,
                 Path.Join(animeJaNaiDirectory, "onnx"),
                 Path.Join(animeJaNaiDirectory, "rife"),

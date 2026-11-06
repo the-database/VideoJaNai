@@ -41,7 +41,8 @@ namespace AnimeJaNaiConverterGui.Services
         public string InferenceDirectory => Path.Join(BackendDirectory, "animejanai", "inference");
         public string RifeModelsDirectory => Path.Join(AnimeJaNaiDirectory, "rife");
         public string AjiEncodePath => Path.GetFullPath(Path.Join(InferenceDirectory, Exe("aji_encode")));
-        public string TrtexecPath => Path.GetFullPath(Path.Join(InferenceDirectory, Exe("trtexec")));
+        // the TensorRT pack's trtexec in the shared pack store (aji-runtime.json), else the inference folder's
+        public string TrtexecPath => RuntimePacks.TrtexecPath(InferenceDirectory);
 
         // "aji_encode" -> "aji_encode.exe" on Windows; Linux binaries carry no suffix.
         public static string Exe(string stem) => OperatingSystem.IsWindows() ? stem + ".exe" : stem;
@@ -59,8 +60,9 @@ namespace AnimeJaNaiConverterGui.Services
             (IsTensorRtInstalled() || File.Exists(Path.Join(BackendDirectory, "components.json")));
 
         public bool IsTensorRtInstalled() => File.Exists(TrtexecPath);
-        // the trt-rtx component pack (Windows): aji_trtrtx.dll and the TensorRT-RTX runtime
-        public bool IsTensorRtRtxInstalled() => File.Exists(Path.Join(InferenceDirectory, "aji_trtrtx.dll"));
+        // the trt-rtx component (Windows): aji_trtrtx.dll and the TensorRT-RTX runtime (the store's pack,
+        // or in the inference folder)
+        public bool IsTensorRtRtxInstalled() => RuntimePacks.TensorRtRtxInstalled(InferenceDirectory);
         public bool AreModelsInstalled() => Directory.Exists(ModelsDirectory) && Directory.GetFiles(ModelsDirectory).Length > 0;
         public bool IsFfmpegInstalled() => File.Exists(FfmpegPath);
 
