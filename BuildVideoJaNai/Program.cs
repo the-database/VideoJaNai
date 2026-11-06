@@ -33,6 +33,15 @@
 //   AJI_LOCAL_DIR          -> a directory of aji files copied flat into animejanai/inference (both;
 //                             on Linux: libaji.so, libaji_trt.so, aji_encode + its libav libs;
 //                             on Windows, include the TensorRT-RTX files to get the trt-rtx pack)
+//   AJI_RUNTIME_LOCAL      -> a local aji-runtime(.exe), the shared pack store's tool (default: the
+//                             pinned the-database/aji-runtime release)
+//
+// Shared pack store: the package also carries aji-runtime(.exe) and pins the shared runtime release
+// (manifest "runtime"), so the updater installs TensorRT, the builder packs and TensorRT-RTX's runtime
+// into the per-user store that other apps share (its store mode), instead of the component packs.
+// The component packs are still emitted: older versions' updaters, the AppImage and the offline
+// package use them, and RIFE stays one (it isn't in the shared release). aji_trtrtx.dll stays in the
+// core as well as in the trt-rtx pack, since in store mode only its runtime comes from the store.
 using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.Zip;
 using SevenZipExtractor;
@@ -93,15 +102,30 @@ var trtDebSha256 = new Dictionary<string, string>
 // high-performance GPU instead of DXGI adapter 0, and a "GPU:" line in the engine log. v0.22.1: AMF and
 // QSV encode on the upscaling GPU when it is AMD / Intel (not the first such GPU, an iGPU on laptops).
 // v0.22.2: --probe-encoders marks integrated GPUs (integrated=), which the GPU choice labels and warns about.
+// v0.23.1: loads TensorRT and TensorRT-RTX from the shared pack store (aji-runtime.json beside aji.dll /
+// libaji.so, or the file AJI_RUNTIME_JSON names), with that pack's trtexec and builder kernels.
 // A libaji release opens the PR that moves AjiVersion and ajiSha256Win (.github/workflows/bump-pins.yml,
 // scripts/bump_pins.py libaji <tag>); add its line above by hand.
-const string AjiVersion        = "v0.22.2";
+const string AjiVersion        = "v0.23.1";
 // The aji release publishes no checksums; recorded from the release assets.
 var ajiSha256Win = new Dictionary<string, string>
 {
-    ["aji-windows-x64.zip"]        = "b306b1888a1692bb65d55f66bbb4001eed6d0cc73cfbc5e0f41f11ed39f039af",
-    ["aji-trtrtx-windows-x64.zip"] = "a2616d0b21f1b5300c62047d4783c3dfceee69178a9ea63595deb23b8cef4e95",
+    ["aji-windows-x64.zip"]        = "c433533f5310cd2443cec19bd412a9387fb1bd5e37225904c3d7fb28bfd3ba79",
+    ["aji-trtrtx-windows-x64.zip"] = "ce5ce6bc7d0bd7e5fefaa4ad2e952bd9ea3b4c56490aa66db6c03c5f188eb3e3",
 };
+// The shared runtime packs every libaji app pins (animejanai-inference runtime-<n>): TensorRT, the
+// per-GPU builder packs and TensorRT-RTX's runtime, installed once per user into the shared pack store
+// by aji-runtime (the updater's store mode). The manifest carries the platform's index URL and
+// SHA-256. animejanai-inference's runtime-packs.yml asks bump-pins.yml here for the bump PR.
+const string RuntimeRepo       = "the-database/animejanai-inference";
+const string RuntimeTag        = "runtime-2";
+const string RuntimeIndexSha256Win   = "5b6f0450ba4eed34d6e25dde072ce1298f083d91d142fd858495483e7711aea1";
+const string RuntimeIndexSha256Linux = "d441210f7747b255f17483f7c8b921817ad3f997abab5a1ba5d348b51511ab61";
+// aji-runtime, the store's tool, from its release (the binary in aji-runtime-<platform>.zip/.tar.gz).
+const string AjiRuntimeRepo    = "the-database/aji-runtime";
+const string AjiRuntimeVersion = "v0.1.1";
+const string AjiRuntimeSha256Win   = "a85d7780b72be53e9d7856bbef84322958b8f58322969a399568f448c2eac129";
+const string AjiRuntimeSha256Linux = "a668b13030c57e5a4dd43a4e38fcb33059c47693320891ad84aedf8de6e34ece";
 // 7-Zip "extra" (Windows) / linux-x64 standalone console, from its GitHub release (7-zip.org links
 // there from 26.05 on; its own /a/ folder stops at 26.02). Digests from the release assets.
 const string SevenZipVersion   = "2605";
@@ -619,6 +643,52 @@ void WriteThirdPartyNotices()
     File.WriteAllText(Path.Combine(inferencePath, "THIRD_PARTY_NOTICES.txt"), notice);
 }
 
+// aji-runtime(.exe), the shared pack store's tool, at the install root beside the updater, which runs it.
+async Task InstallAjiRuntime()
+{
+    string exe = plat.Exe("aji-runtime");
+    string dest = Path.Combine(installDirectory, exe);
+    var local = Environment.GetEnvironmentVariable("AJI_RUNTIME_LOCAL");
+    if (!string.IsNullOrEmpty(local))
+    {
+        Console.WriteLine($"Using local aji-runtime: {local}");
+        File.Copy(local, dest, true);
+    }
+    else
+    {
+        string asset = plat.IsWindows ? "aji-runtime-windows-x64.zip" : "aji-runtime-linux-x64.tar.gz";
+        string archive = Path.GetFullPath(asset);
+        Console.WriteLine($"Downloading {asset} {AjiRuntimeVersion}...");
+        await DownloadFileAsync($"https://github.com/{AjiRuntimeRepo}/releases/download/{AjiRuntimeVersion}/{asset}", archive, _ => { });
+        VerifySha256(archive, plat.IsWindows ? AjiRuntimeSha256Win : AjiRuntimeSha256Linux);
+        if (plat.IsWindows)
+        {
+            ExtractZipFiltered(archive, entry => Path.GetFileName(entry) == exe ? dest : null);
+        }
+        else
+        {
+            var unpack = Path.GetFullPath("aji-runtime-unpack");
+            if (Directory.Exists(unpack)) Directory.Delete(unpack, true);
+            Directory.CreateDirectory(unpack);
+            await RunProcess("tar", $"-xzf \"{archive}\" -C \"{unpack}\"");
+            if (Directory.GetFiles(unpack, exe, SearchOption.AllDirectories).FirstOrDefault() is string found)
+            {
+                File.Copy(found, dest, true);
+            }
+            Directory.Delete(unpack, true);
+        }
+        File.Delete(archive);
+        if (!File.Exists(dest))
+        {
+            throw new InvalidOperationException($"{asset} has no {exe}");
+        }
+    }
+    if (!plat.IsWindows)
+    {
+        await RunProcess("chmod", $"+x \"{dest}\"");
+    }
+}
+
 // version.txt + manifest.json at the install root. The updater reads these to know the installed
 // version, decide overlay-vs-full updates (deps compare), and which paths to preserve. VideoJaNai
 // ships no separate overlay asset, so the updater always does a full (slim-core) update; manifest
@@ -644,13 +714,24 @@ void WriteVersionAndManifest()
             ffmpeg = plat.IsWindows ? FfmpegVersion : (string?)null,
             ort_dml = plat.IsWindows ? $"{OrtDmlVersion}+{DirectMLVersion}" : (string?)null,
             sevenzip = SevenZipVersion,
+            aji_runtime = AjiRuntimeVersion,
+            runtime = RuntimeTag,
+        },
+        // The shared runtime packs (the updater's store mode): this platform's index and its pin.
+        runtime = new
+        {
+            tag = RuntimeTag,
+            index_url = $"https://github.com/{RuntimeRepo}/releases/download/{RuntimeTag}/packs-{(plat.IsWindows ? "windows" : "linux")}-x64.json",
+            index_sha256 = plat.IsWindows ? RuntimeIndexSha256Win : RuntimeIndexSha256Linux,
         },
         // Runtime-created user data is never in the shipped package, so a full update's tree-copy
-        // never touches it; these are listed defensively.
+        // never touches it; these are listed defensively. aji-runtime.json is written by the store for
+        // this install.
         user_preserve = new[]
         {
             "animejanai/animejanai.conf",
             "components.json",
+            "animejanai/inference/aji-runtime.json",
         },
     };
 
@@ -778,6 +859,7 @@ async Task Main()
     }
     await InstallRife();
     InstallModels();
+    await InstallAjiRuntime();
 
     // The custom updater ships at the install root next to the app.
     var updater = ArgValue("--updater");
@@ -825,7 +907,7 @@ async Task WriteCliTree(string cliExe)
     if (Directory.Exists(cliDirectory)) Directory.Delete(cliDirectory, true);
     Directory.CreateDirectory(cliDirectory);
     CopyDirectory(Path.Combine(installDirectory, "animejanai"), Path.Combine(cliDirectory, "animejanai"));
-    foreach (var name in new[] { "manifest.json", "version.txt", plat.ArchiveTool, plat.Exe("VideoJaNaiUpdater") })
+    foreach (var name in new[] { "manifest.json", "version.txt", plat.ArchiveTool, plat.Exe("VideoJaNaiUpdater"), plat.Exe("aji-runtime") })
     {
         var src = Path.Combine(installDirectory, name);
         if (!File.Exists(src)) throw new FileNotFoundException($"the command line's tree needs {name} from the package tree", src);
@@ -836,6 +918,7 @@ async Task WriteCliTree(string cliExe)
     if (!plat.IsWindows)
     {
         foreach (var x in new[] { exe, Path.Combine(cliDirectory, "VideoJaNaiUpdater"), Path.Combine(cliDirectory, plat.ArchiveTool),
+                                  Path.Combine(cliDirectory, "aji-runtime"),
                                   Path.Combine(cliDirectory, "animejanai", "inference", "aji_encode") })
         {
             if (File.Exists(x)) await RunProcess("chmod", $"+x \"{x}\"");
@@ -852,7 +935,8 @@ void SlimInstallTree(List<string> packFiles)
 {
     Console.WriteLine("Slimming install tree (component packs ship separately)...");
     long removed = 0;
-    foreach (var rel in packFiles)
+    // aji_trtrtx.dll is in the trt-rtx pack and the core: in store mode only its runtime is a pack.
+    foreach (var rel in packFiles.Where(f => !Path.GetFileName(f).Equals("aji_trtrtx.dll", StringComparison.OrdinalIgnoreCase)))
     {
         var abs = Path.Combine(installDirectory, rel);
         if (!File.Exists(abs)) continue;
