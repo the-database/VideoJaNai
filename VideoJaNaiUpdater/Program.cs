@@ -28,6 +28,21 @@
 // packs.json carries each pack's file list, so removal is deletion. Installed state lives in
 // components.json at the install root (inferred from disk for installs that predate it).
 // Dev override: set VIDEOJANAI_PACKS_DIR to a local directory with packs.json + archives.
+//
+// Shared pack store: when manifest.json pins a shared runtime release ("runtime": its index URL and
+// SHA-256) and aji-runtime(.exe) ships beside this updater, the TensorRT runtime, the builder packs and
+// TensorRT-RTX's runtime live in the per-user pack store instead (%LOCALAPPDATA%\the-database\aji,
+// shared with the other apps; the-database/aji-runtime), as app "videojanai" (the GUI's install) or
+// "videojanai-cli" (the command line's folder). Every change to them is one `aji-runtime ensure`
+// with the install's full set, which also writes animejanai/inference/aji-runtime.json (libaji and
+// the app read it). Files an older version installed into the install folder are taken over by the
+// store (matched by SHA-256) and then deleted here. RIFE stays this release's component pack. The pack
+// names, --components --json, the SETUP_* lines and the exit codes stay the same, so the app, the
+// installer and videojanai setup don't change. The uninstaller runs `aji-runtime unref`. Without the
+// runtime index (offline), an install that hasn't moved to the store keeps its own packs.
+// VIDEOJANAI_RUNTIME_MIRROR=<dir> installs the store packs from a folder holding the runtime
+// release's packs-<platform>.json and archives; AJI_RUNTIME_STORE=<dir> (read by aji-runtime) points
+// the store at a test folder.
 
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -51,6 +66,19 @@ string archiveTool = ReadManifestString(localManifest, "archive_tool", "7za.exe"
 // unsuffixed names. This RID selects our platform's assets from a release that carries both.
 string platformRid = ReadManifestString(localManifest, "platform", "win-x64");
 bool isWinRid = platformRid == "win-x64";
+
+// The shared pack store: the runtime release this package pins, and the tool that manages the store.
+string ajiRuntime = Path.Combine(installDir, OperatingSystem.IsWindows() ? "aji-runtime.exe" : "aji-runtime");
+string? runtimeIndexUrl = ReadManifestNested(localManifest, "runtime", "index_url");
+string? runtimeIndexSha = ReadManifestNested(localManifest, "runtime", "index_sha256");
+string? runtimeMirror = Environment.GetEnvironmentVariable("VIDEOJANAI_RUNTIME_MIRROR") is { Length: > 0 } mirror ? mirror : null;
+bool storeMode = (runtimeIndexUrl is not null && runtimeIndexSha is not null || runtimeMirror is not null) && File.Exists(ajiRuntime);
+// The GUI's install folder (the Avalonia app is there) or the command line's (videojanai setup): one
+// ref each, kept while that program exists.
+bool guiTree = File.Exists(Path.Combine(installDir, "Avalonia.Base.dll"));
+string storeAppId = guiTree ? "videojanai" : "videojanai-cli";
+string storeAppPath = Path.Combine(installDir, guiTree ? playerExe : (OperatingSystem.IsWindows() ? "videojanai.exe" : "videojanai"));
+string inferenceDir = Path.Combine(installDir, "animejanai", "inference");
 
 // NVML ships in the NVIDIA driver as nvml.dll on Windows and libnvidia-ml.so.1 on Linux; remap the
 // DllImport library name on non-Windows so DetectGpu works without per-OS P/Invoke declarations.
@@ -769,7 +797,10 @@ static bool IsNewer(string remote, string local)
 
 // ---- component manager ----------------------------------------------------------------------
 
-async Task<PackIndex> GetPackIndexAsync()
+Task<PackIndex> GetPackIndexAsync() => storeMode ? GetStorePackIndexAsync() : GetReleasePackIndexAsync();
+
+// This release's component packs (packs.json).
+async Task<PackIndex> GetReleasePackIndexAsync()
 {
     string? local = Environment.GetEnvironmentVariable("VIDEOJANAI_PACKS_DIR");
     string json;
@@ -868,9 +899,27 @@ bool PackContentMatches(Pack pack)
     return true;
 }
 
-// Installed state: components.json, else inferred from what's on disk so
-// full installs that predate the manager work out of the box.
+// Installed state: components.json, else inferred from what's on disk so full installs that predate
+// the manager work out of the box. In store mode the trt-* packs are the store's for this install.
 Dictionary<string, string> ReadInstalledComponents(PackIndex index)
+{
+    var installed = ReadPrivateComponents(index);
+    if (storeMode)
+    {
+        foreach (var name in installed.Keys.Where(StorePackName).ToList())
+        {
+            installed.Remove(name);
+        }
+        foreach (var (name, pack) in ReadStorePacks())
+        {
+            installed[name] = pack.Version;
+        }
+    }
+    return installed;
+}
+
+// What the install folder holds (components.json, else what's on disk), whatever the store has.
+Dictionary<string, string> ReadPrivateComponents(PackIndex index)
 {
     string path = Path.Combine(installDir, "components.json");
     var installed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -887,7 +936,7 @@ Dictionary<string, string> ReadInstalledComponents(PackIndex index)
         }
         catch { /* fall through to inference */ }
     }
-    foreach (var pack in index.Packs)
+    foreach (var pack in index.Packs.Where(p => !p.Store).Concat(index.Replaced ?? []))
     {
         // a pack counts as installed when all its files exist
         if (pack.Files.Count > 0 &&
@@ -899,8 +948,14 @@ Dictionary<string, string> ReadInstalledComponents(PackIndex index)
     return installed;
 }
 
+// In store mode only this release's packs are recorded (the store keeps its own); the file also marks
+// that the hardware setup ran.
 void WriteInstalledComponents(Dictionary<string, string> installed)
 {
+    if (storeMode)
+    {
+        installed = installed.Where(kv => !StorePackName(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+    }
     File.WriteAllText(Path.Combine(installDir, "components.json"),
         JsonSerializer.Serialize(new { installed },
             new JsonSerializerOptions { WriteIndented = true }));
@@ -1117,6 +1172,17 @@ async Task<int> InstallComponentAsync(string name)
         Console.WriteLine($"Unknown pack '{name}'. Available: {string.Join(", ", index.Packs.Select(p => p.Name))}");
         return 2;
     }
+    if (pack.Store)
+    {
+        var want = StoreWanted(index);
+        want.Add(pack.Name);
+        int rc = StoreEnsure(index, want).Item1;
+        if (rc == 0)
+        {
+            Console.WriteLine($"{pack.Name} installed.");
+        }
+        return rc;
+    }
     if (pack.Url is null)
     {
         Console.WriteLine($"Pack '{name}' has no downloadable asset on the selected release.");
@@ -1190,6 +1256,18 @@ int RemoveComponent(string name)
         Console.WriteLine($"Unknown pack '{name}'. Available: {string.Join(", ", index.Packs.Select(p => p.Name))}");
         return 2;
     }
+    if (pack.Store)
+    {
+        var want = StoreWanted(index);
+        want.Remove(pack.Name);
+        int rc = want.Count == 0 ? StoreUnref() : StoreEnsure(index, want).Item1;
+        if (rc == 0)
+        {
+            WriteInstalledComponents(ReadInstalledComponents(index));
+            Console.WriteLine($"{pack.Name} removed. Engine caches and models you added are untouched.");
+        }
+        return rc;
+    }
     int gone = 0;
     foreach (var f in pack.Files)
     {
@@ -1212,6 +1290,10 @@ async Task<int> AutoComponentsAsync()
     var index = await GetPackIndexAsync();
     var (hasNvidia, sm, gpu) = DetectGpu(gpuFilter);
     var rec = RecommendedPacks(index, hasNvidia, sm);
+    if (storeMode)
+    {
+        return await AutoStoreAsync(index, rec, hasNvidia, gpu);
+    }
     var installed = ReadInstalledComponents(index);
     // "Needs installing" is not just "absent": a pack already recorded as installed is stale when the
     // dep that governs it moved (a TensorRT/RIFE bump) or when its files on disk are not this pack's
@@ -1286,6 +1368,405 @@ async Task<int> RecommendAsync()
     return 0;
 }
 
+// ---- shared pack store ------------------------------------------------------------------------
+
+// Store mode: TensorRT, the builder packs and TensorRT-RTX's runtime live in the per-user pack store
+// (aji-runtime), from the shared runtime release this package pins. VideoJaNai's own component
+// packs keep the rest (RIFE). Every trt-* pack name is the store's, except TensorRT-RTX: "trt-rtx" was
+// aji_trtrtx.dll and its runtime, and now aji_trtrtx.dll ships in the core and the runtime is the
+// store's "trtrtx-runtime".
+static bool StorePackName(string pack) => pack.StartsWith("trt-", StringComparison.OrdinalIgnoreCase);
+static string StoreName(string pack) => pack == "trt-rtx" ? "trtrtx-runtime" : pack;
+static string VjName(string pack) => pack == "trtrtx-runtime" ? "trt-rtx" : pack;
+
+static string? ReadManifestNested(string manifestPath, string key, string field)
+{
+    try
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        if (doc.RootElement.TryGetProperty(key, out var o) && o.ValueKind == JsonValueKind.Object &&
+            o.TryGetProperty(field, out var v) && v.ValueKind == JsonValueKind.String && v.GetString() is { Length: > 0 } s)
+        {
+            return s;
+        }
+    }
+    catch { /* missing/unreadable manifest */ }
+    return null;
+}
+
+static string Sha256Hex(byte[] data) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(data)).ToLowerInvariant();
+
+string StoreIndexPath() => Path.Combine(runtimeMirror!, $"packs-{(isWinRid ? "windows" : "linux")}-x64.json");
+
+// The component list in store mode: the runtime release's TensorRT, builder and TensorRT-RTX packs
+// (under VideoJaNai's names; Files are paths inside the pack), then this release's own packs that
+// aren't the store's (RIFE). This release's trt-* packs are kept aside (Replaced): their file lists
+// are what an older version installed into the install folder. Without the runtime index (offline),
+// an install that hasn't moved to the store yet keeps using its own release's packs.
+async Task<PackIndex> GetStorePackIndexAsync()
+{
+    List<Pack> store;
+    try
+    {
+        store = await GetStorePacksAsync();
+    }
+    catch (Exception e) when (!File.Exists(Path.Combine(inferenceDir, "aji-runtime.json")))
+    {
+        Console.WriteLine($"The shared runtime packs are unavailable ({e.Message}); using this release's component packs.");
+        storeMode = false;
+        return await GetReleasePackIndexAsync();
+    }
+    PackIndex own;
+    try
+    {
+        own = await GetReleasePackIndexAsync();
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine($"This release's component packs are unavailable ({e.Message}); RIFE can't be installed.");
+        own = new PackIndex(ReadComponentVersion(), []);
+    }
+    return new PackIndex(own.PackageVersion,
+        [.. store, .. own.Packs.Where(p => !StorePackName(p.Name))],
+        own.Packs.Where(p => StorePackName(p.Name)).ToList());
+}
+
+async Task<List<Pack>> GetStorePacksAsync()
+{
+    string json;
+    if (runtimeMirror is not null)
+    {
+        json = File.ReadAllText(StoreIndexPath());
+    }
+    else
+    {
+        using var client = NewClient();
+        byte[] data = await client.GetByteArrayAsync(runtimeIndexUrl);
+        if (Sha256Hex(data) != runtimeIndexSha!.ToLowerInvariant())
+        {
+            throw new InvalidOperationException("the runtime packs' index doesn't match the SHA-256 this version pins");
+        }
+        json = System.Text.Encoding.UTF8.GetString(data);
+    }
+    var packs = new List<Pack>();
+    using var doc = JsonDocument.Parse(json);
+    foreach (var e in doc.RootElement.GetProperty("packs").EnumerateArray())
+    {
+        string kind = e.TryGetProperty("kind", out var k) ? k.GetString() ?? "" : "";
+        if (kind is not ("trt" or "trt-builder" or "trtrtx"))
+        {
+            continue; // DirectML ("private") ships in this app's core; the models are the manga apps'
+        }
+        var files = e.GetProperty("files").EnumerateArray()
+            .Select(f => f.ValueKind == JsonValueKind.Object ? f.GetProperty("path").GetString() ?? "" : f.GetString() ?? "")
+            .Where(f => f.Length > 0).ToList();
+        packs.Add(new Pack(
+            VjName(e.GetProperty("name").GetString() ?? ""),
+            e.GetProperty("asset").GetString() ?? "",
+            e.GetProperty("url").GetString(),
+            e.GetProperty("bytes").GetInt64(),
+            files,
+            null,
+            e.TryGetProperty("installed_bytes", out var ib) ? ib.GetInt64() : 0,
+            Store: true));
+    }
+    return packs;
+}
+
+// aji-runtime show: this install's packs in the store (name -> (version, folder)), under VideoJaNai's
+// names.
+Dictionary<string, (string Version, string Dir)> ReadStorePacks()
+{
+    var packs = new Dictionary<string, (string, string)>(StringComparer.OrdinalIgnoreCase);
+    var (rc, stdout) = RunAjiRuntime(["show", "--app-id", storeAppId], quiet: true);
+    if (rc != 0)
+    {
+        return packs;
+    }
+    try
+    {
+        using var doc = JsonDocument.Parse(stdout);
+        foreach (var p in doc.RootElement.GetProperty("packs").EnumerateArray())
+        {
+            if (p.GetProperty("installed").GetBoolean())
+            {
+                packs[VjName(p.GetProperty("name").GetString() ?? "")] =
+                    (p.GetProperty("version").GetString() ?? "", p.GetProperty("dir").GetString() ?? "");
+            }
+        }
+    }
+    catch { /* unreadable: nothing installed */ }
+    return packs;
+}
+
+// What this install uses from the store now: the store's packs for it, plus the trt-* packs an older
+// version installed into the install folder, which the next ensure moves to the store.
+HashSet<string> StoreWanted(PackIndex index)
+{
+    var want = new HashSet<string>(ReadStorePacks().Keys, StringComparer.OrdinalIgnoreCase);
+    foreach (var name in ReadPrivateComponents(index).Keys)
+    {
+        if (StorePackName(name) && index.Packs.Any(p => p.Store && p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            want.Add(name);
+        }
+    }
+    return want;
+}
+
+// aji-runtime ensure for exactly `want`: writes the ref and animejanai/inference/aji-runtime.json (libaji
+// and the app read it), takes matching files from the inference folder first, then frees what no app
+// uses; afterwards this install's private copies of those packs are deleted. With `check`, only the
+// plan (its AJI_* lines are returned). With setup lines on, download progress goes out as SETUP_*.
+(int, string) StoreEnsure(PackIndex index, HashSet<string> want, bool check = false)
+{
+    string indexArg = runtimeMirror is not null ? StoreIndexPath() : runtimeIndexUrl!;
+    string sha = runtimeMirror is not null ? Sha256Hex(File.ReadAllBytes(indexArg)) : runtimeIndexSha!;
+    // install order as the index lists them
+    var ordered = index.Packs.Where(p => p.Store && want.Contains(p.Name)).Select(p => StoreName(p.Name)).ToList();
+    var arguments = new List<string>
+    {
+        "ensure", "--app-id", storeAppId, "--app-path", storeAppPath, "--app-version", ReadLocalVersion(),
+        "--index", indexArg, "--index-sha256", sha, "--want", string.Join(",", ordered), "--gpus", "none",
+        "--aji-dir", inferenceDir, "--adopt-from", inferenceDir,
+    };
+    if (runtimeMirror is not null)
+    {
+        arguments.AddRange(["--mirror", runtimeMirror]);
+    }
+    if (check || setupLines)
+    {
+        arguments.AddRange(["--progress", "lines"]);
+    }
+    if (check)
+    {
+        arguments.Add("--check");
+        return RunAjiRuntime(arguments, quiet: true);
+    }
+    var shown = new Dictionary<string, long>();
+    var (rc, output) = RunAjiRuntime(arguments, quiet: false, onLine: line =>
+    {
+        var f = line.Split(' ');
+        string Name(string key) => VjName(key.Split('/')[0]);
+        if (f[0] == "AJI_DOWNLOAD" && f.Length == 4 && long.TryParse(f[2], out var got) && long.TryParse(f[3], out var total))
+        {
+            // at most once per percent, as the release packs' downloads report
+            long pct = total > 0 ? got * 100 / total : 0;
+            string name = Name(f[1]);
+            if (!shown.TryGetValue(name, out var last) || last != pct)
+            {
+                shown[name] = pct;
+                SetupLine($"SETUP_DOWNLOAD {name} {got} {total}");
+            }
+        }
+        else if (f[0] == "AJI_EXTRACT" && f.Length == 2)
+        {
+            SetupLine($"SETUP_EXTRACT {Name(f[1])}");
+        }
+    });
+    if (rc != 0)
+    {
+        return (rc, output);
+    }
+    RemovePrivatePackFiles(index);
+    WriteInstalledComponents(ReadInstalledComponents(index));
+    return (0, output);
+}
+
+int StoreUnref()
+{
+    var (rc, _) = RunAjiRuntime(["unref", "--app-id", storeAppId], quiet: false);
+    TryDelete(() => File.Delete(Path.Combine(inferenceDir, "aji-runtime.json")));
+    return rc;
+}
+
+// libaji's own files ship in the core and always stay (aji_trtrtx.dll is in the trt-rtx pack too).
+static bool IsLibaji(string rel)
+{
+    string n = Path.GetFileName(rel).ToLowerInvariant();
+    return (n.StartsWith("aji") && n.EndsWith(".dll")) || n.StartsWith("libaji");
+}
+
+// Where a store pack's file sat in the install folder before the store.
+static string PrivatePath(string f) => Path.Combine("animejanai", "inference", f);
+
+// The files an older version installed for the store's packs: this release's trt-* packs' lists, and
+// files named like the store packs' in the inference folder.
+IEnumerable<string> PrivatePackFiles(PackIndex index, Func<string, bool> pack) =>
+    (index.Replaced ?? []).Where(p => pack(p.Name)).SelectMany(p => p.Files)
+        .Concat(index.Packs.Where(p => p.Store && pack(p.Name)).SelectMany(p => p.Files.Select(PrivatePath)))
+        .Where(f => !IsLibaji(f)).Distinct(StringComparer.OrdinalIgnoreCase);
+
+bool PrivatePackFilesLeft(PackIndex index)
+{
+    var have = ReadStorePacks();
+    return PrivatePackFiles(index, have.ContainsKey).Any(f => File.Exists(Path.Combine(installDir, f)));
+}
+
+// Once the store holds a pack, its copy in the install folder is unused (libaji loads the store's by
+// full path), so it goes.
+void RemovePrivatePackFiles(PackIndex index)
+{
+    var have = ReadStorePacks();
+    int gone = 0;
+    foreach (var f in PrivatePackFiles(index, have.ContainsKey))
+    {
+        string abs = Path.Combine(installDir, f);
+        if (File.Exists(abs) || new FileInfo(abs).LinkTarget is not null)
+        {
+            TryDelete(() => { File.SetAttributes(abs, FileAttributes.Normal); File.Delete(abs); });
+            gone++;
+        }
+    }
+    if (gone > 0)
+    {
+        Console.WriteLine($"Removed {gone} file(s) from the install folder that the shared pack store now holds.");
+    }
+}
+
+// Runs aji-runtime. Its human output (stderr) is passed on line by line, as the app and videojanai
+// setup show this updater's output; `quiet` shows only its errors. stdout (JSON, or AJI_* lines) is
+// returned, and each of its lines goes to onLine as it arrives.
+(int, string) RunAjiRuntime(IEnumerable<string> arguments, bool quiet, Action<string>? onLine = null)
+{
+    var psi = new ProcessStartInfo
+    {
+        FileName = ajiRuntime,
+        UseShellExecute = false,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        CreateNoWindow = true,
+        WorkingDirectory = installDir,
+    };
+    foreach (var a in arguments)
+    {
+        psi.ArgumentList.Add(a);
+    }
+    using var p = Process.Start(psi) ?? throw new InvalidOperationException("failed to start aji-runtime");
+    var stderr = Task.Run(() =>
+    {
+        string? line;
+        while ((line = p.StandardError.ReadLine()) != null)
+        {
+            if (!quiet || line.StartsWith("error:", StringComparison.Ordinal))
+            {
+                Console.WriteLine(line.TrimEnd());
+            }
+        }
+    });
+    var stdout = new System.Text.StringBuilder();
+    string? outLine;
+    while ((outLine = p.StandardOutput.ReadLine()) != null)
+    {
+        stdout.AppendLine(outLine);
+        onLine?.Invoke(outLine);
+    }
+    stderr.Wait();
+    p.WaitForExit();
+    return (p.ExitCode, stdout.ToString());
+}
+
+// --auto in store mode: one ensure for the store's packs (if anything changed), then this release's
+// packs (RIFE) as before. The plan, total and progress lines cover both.
+async Task<int> AutoStoreAsync(PackIndex index, List<string> rec, bool hasNvidia, string gpu)
+{
+    var installed = ReadInstalledComponents(index);
+    var storeWant = StoreWanted(index);
+    foreach (var p in index.Packs.Where(p => p.Store && (rec.Contains(p.Name) || autoInclude.Contains(p.Name))))
+    {
+        storeWant.Add(p.Name);
+    }
+    var ownNeeded = index.Packs.Where(p => !p.Store && (PreselectPack(p, installed, rec) || autoInclude.Contains(p.Name))).ToList();
+    var ownMissing = ownNeeded
+        .Where(p => !installed.TryGetValue(p.Name, out var recorded) ||
+                    (p.Dep is not null && ReadManifestDep(localManifest, p.Dep) is string t && t != "" && recorded != t) ||
+                    !PackContentMatches(p))
+        .ToList();
+
+    // The store's plan for this install: what's there (or adoptable from the install folder) and what
+    // it would download. Up to date only when ensure --check says everything is installed.
+    var plan = new List<(string Name, long Bytes, bool Download)>();
+    long storeBytes = 0;
+    bool storeCurrent;
+    if (storeWant.Count > 0)
+    {
+        var (rc, lines) = StoreEnsure(index, storeWant, check: true);
+        if (rc != 0)
+        {
+            return rc;
+        }
+        bool done = false;
+        foreach (var l in lines.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var f = l.Split(' ');
+            if (f[0] == "AJI_PLAN" && f.Length == 4 && long.TryParse(f[2], out var bytes))
+            {
+                plan.Add((VjName(f[1].Split('/')[0]), bytes, f[3] == "download"));
+            }
+            else if (f[0] == "AJI_TOTAL" && f.Length == 2)
+            {
+                long.TryParse(f[1], out storeBytes);
+            }
+            else if (f[0] == "AJI_DONE")
+            {
+                done = true;
+            }
+        }
+        storeCurrent = done && File.Exists(Path.Combine(inferenceDir, "aji-runtime.json")) && !PrivatePackFilesLeft(index);
+    }
+    else
+    {
+        // nothing wanted from the store: current unless this install still holds a ref there
+        storeCurrent = ReadStorePacks().Count == 0;
+    }
+    foreach (var (name, bytes, download) in plan)
+    {
+        SetupLine($"SETUP_PLAN {name} {bytes} {(download ? "download" : "installed")}");
+    }
+    foreach (var p in ownNeeded)
+    {
+        SetupLine($"SETUP_PLAN {p.Name} {p.Bytes} {(ownMissing.Contains(p) ? "download" : "installed")}");
+    }
+    SetupLine($"SETUP_TOTAL {storeBytes + ownMissing.Sum(p => p.Bytes)}");
+    if (storeCurrent && ownMissing.Count == 0)
+    {
+        WriteInstalledComponents(ReadInstalledComponents(index));
+        Console.WriteLine("Everything the detected hardware needs is already installed.");
+        await ComponentsAsync(index, false);
+        SetupLine("SETUP_DONE");
+        return 0;
+    }
+    if (autoCheckOnly)
+    {
+        var would = plan.Where(p => p.Download).Select(p => $"{p.Name} ({p.Bytes / 1048576} MB)")
+            .Concat(ownMissing.Select(p => $"{p.Name} ({p.Bytes / 1048576} MB)")).ToList();
+        Console.WriteLine($"For {(hasNvidia ? gpu : "this GPU")}, would install: " +
+            (would.Count > 0 ? string.Join(", ", would) : "nothing new (the shared pack store's set changes)"));
+        return 0;
+    }
+    Console.WriteLine($"Installing for {(hasNvidia ? gpu : "this GPU")}: " +
+        string.Join(", ", storeWant.Concat(ownMissing.Select(p => p.Name))));
+    if (!storeCurrent)
+    {
+        int rc = storeWant.Count == 0 ? StoreUnref() : StoreEnsure(index, storeWant).Item1;
+        if (rc != 0)
+        {
+            return rc;
+        }
+    }
+    foreach (var p in ownMissing)
+    {
+        int rc = await InstallComponentAsync(p.Name);
+        if (rc != 0)
+        {
+            return rc;
+        }
+    }
+    WriteInstalledComponents(ReadInstalledComponents(index));
+    SetupLine("SETUP_DONE");
+    return 0;
+}
+
 static HttpClient NewClient()
 {
     var client = new HttpClient();
@@ -1330,6 +1811,10 @@ record Staged(string Root, bool Overlay);
 record Asset(string Name, string Url);
 // Dep: the manifest deps key that governs the pack's content. InstalledBytes: the pack's total size
 // once extracted, to verify what is on disk really is this pack (0 for indexes that predate it).
+// Store: one of the shared runtime release's packs (aji-runtime installs it into the pack store; Files
+// are paths inside the pack).
 record Pack(string Name, string Asset, string? Url, long Bytes, List<string> Files, string? Dep,
-            long InstalledBytes = 0, string? Sha256 = null);
-record PackIndex(string PackageVersion, List<Pack> Packs);
+            long InstalledBytes = 0, string? Sha256 = null, bool Store = false);
+// Replaced (store mode): this release's own packs that the store's replace, for the files an older
+// version installed.
+record PackIndex(string PackageVersion, List<Pack> Packs, List<Pack>? Replaced = null);
