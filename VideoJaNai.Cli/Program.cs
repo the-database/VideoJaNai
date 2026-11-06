@@ -269,10 +269,8 @@ Output:
                           ?? throw new RunException($"no GPU '{t}' (see `videojanai devices`)");
                 args.AddRange(["--gpus", gpu.Vendor == EncoderGroup.Nvidia && gpu.Id != null ? gpu.Id : "none"]);
             }
-            if (!f.NoRife)
-            {
-                args.AddRange(["--include", "rife"]);
-            }
+            // RIFE: wanted, or left out even on a fresh folder (where the updater preselects it)
+            args.AddRange([f.NoRife ? "--exclude" : "--include", "rife"]);
             if (f.Check)
             {
                 args.Add("--check");
