@@ -127,9 +127,9 @@ const string RuntimeIndexSha256Win   = "5b6f0450ba4eed34d6e25dde072ce1298f083d91
 const string RuntimeIndexSha256Linux = "d441210f7747b255f17483f7c8b921817ad3f997abab5a1ba5d348b51511ab61";
 // aji-runtime, the store's tool, from its release (the binary in aji-runtime-<platform>.zip/.tar.gz).
 const string AjiRuntimeRepo    = "the-database/aji-runtime";
-const string AjiRuntimeVersion = "v0.1.1";
-const string AjiRuntimeSha256Win   = "a85d7780b72be53e9d7856bbef84322958b8f58322969a399568f448c2eac129";
-const string AjiRuntimeSha256Linux = "a668b13030c57e5a4dd43a4e38fcb33059c47693320891ad84aedf8de6e34ece";
+const string AjiRuntimeVersion = "v0.2.0";
+const string AjiRuntimeSha256Win   = "dc789dd4febdd4ddbb8f4763667c7fb1a1a87459585b9c845862ecca7243683d";
+const string AjiRuntimeSha256Linux = "4be991f04ebc12ad8f73acccec251538ef6f4cac740313362dafbb844dd79f20";
 // 7-Zip "extra" (Windows) / linux-x64 standalone console, from its GitHub release (7-zip.org links
 // there from 26.05 on; its own /a/ folder stops at 26.02). Digests from the release assets.
 const string SevenZipVersion   = "2605";
