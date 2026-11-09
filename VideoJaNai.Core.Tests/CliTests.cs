@@ -160,7 +160,7 @@ namespace VideoJaNai.Core.Tests
             using var t = new TempDir();
             t.File(Path.Join("in", "a.mkv"));
             t.File(Path.Join("in", "s", "b.mp4"));
-            t.File(Path.Join("in", "s", "c" + Run.PartialMarker + ".mkv"));
+            t.File(Path.Join("in", "s", "c" + BatchPlanning.PartialMarker + ".mkv"));
             t.File(Path.Join("out", "s", "b-animejanai.mkv"));
             var videos = Resolve.PlanVideos([Path.Join(t.Path, "in")], Path.Join(t.Path, "out"), BatchPlan.DefaultFilename, skipExisting: true);
             Assert.Equal(2, videos.Count);
@@ -211,12 +211,6 @@ namespace VideoJaNai.Core.Tests
             var e = Assert.Throws<RunException>(() => Resolve.PlanVideos([Path.Join(t.Path, "in")], Path.Join(t.Path, "out"), BatchPlan.DefaultFilename, true));
             Assert.Contains("would both be written to", e.Message);
             Assert.Throws<RunException>(() => Resolve.PlanVideos([Path.Join(t.Path, "nope")], null, BatchPlan.DefaultFilename, true));
-        }
-
-        [Fact]
-        public void PartialFilesKeepTheContainerExtension()
-        {
-            Assert.Equal(Path.Join("d", "ep-animejanai" + Run.PartialMarker + ".mkv"), Run.PartialPath(Path.Join("d", "ep-animejanai.mkv")));
         }
     }
 }

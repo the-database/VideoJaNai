@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using VideoJaNai.Core;
 using Xunit;
 
@@ -264,6 +265,107 @@ namespace VideoJaNai.Core.Tests
             var found = BatchPlan.FolderVideos(t.Path, recursive: true).Select(v => (Path.GetFileName(v.Path), v.RelativeFolder)).ToList();
             Assert.Equal([("a.mp4", ""), ("b.MKV", ""), ("c.ts", "s1")], found);
             Assert.Equal(2, BatchPlan.FolderVideos(t.Path, recursive: false).Count());
+        }
+    }
+
+    // An encode writes next to its output and the output appears only when aji_encode succeeds, so
+    // a failed or stopped run leaves nothing for skip-existing to keep and replaces nothing.
+    public class PartialOutputTests
+    {
+        [Fact]
+        public void PartialFilesKeepTheContainerExtension()
+        {
+            Assert.Equal(Path.Join("d", "ep-animejanai" + BatchPlanning.PartialMarker + ".mkv"),
+                         PartialOutput.PathFor(Path.Join("d", "ep-animejanai.mkv")));
+        }
+
+        [Fact]
+        public async Task SuccessMovesThePartialFileToTheOutput()
+        {
+            using var t = new TempDir();
+            var output = Path.Join(t.Path, "ep-animejanai.mkv");
+            string? written = null;
+            var result = await PartialOutput.WriteAsync(output, temp =>
+            {
+                written = temp;
+                File.WriteAllText(temp, "new");
+                return Task.FromResult(0);
+            });
+            Assert.Equal(new EncodeResult(0, true), result);
+            Assert.Equal(PartialOutput.PathFor(output), written);
+            Assert.Equal("new", File.ReadAllText(output));
+            Assert.False(File.Exists(written));
+        }
+
+        [Fact]
+        public async Task AFailedEncodeLeavesNoOutputAndDeletesThePartialFile()
+        {
+            using var t = new TempDir();
+            var output = Path.Join(t.Path, "ep-animejanai.mkv");
+            var result = await PartialOutput.WriteAsync(output, temp =>
+            {
+                File.WriteAllText(temp, "half");
+                return Task.FromResult(1);
+            });
+            Assert.False(result.Written);
+            Assert.Equal("aji_encode failed (exit code 1)", result.Failure);
+            Assert.False(File.Exists(output));
+            Assert.False(File.Exists(PartialOutput.PathFor(output)));
+        }
+
+        [Fact]
+        public async Task AFailedEncodeKeepsTheOutputThatWasThere()
+        {
+            using var t = new TempDir();
+            var output = t.File("ep-animejanai.mkv", "old");
+            var result = await PartialOutput.WriteAsync(output, temp =>
+            {
+                File.WriteAllText(temp, "half");
+                return Task.FromResult(-1);
+            });
+            Assert.False(result.Written);
+            Assert.Equal("old", File.ReadAllText(output));
+            Assert.False(File.Exists(PartialOutput.PathFor(output)));
+        }
+
+        [Fact]
+        public async Task ExitZeroWithoutAFileIsNotWritten()
+        {
+            using var t = new TempDir();
+            var output = Path.Join(t.Path, "ep-animejanai.mkv");
+            var result = await PartialOutput.WriteAsync(output, _ => Task.FromResult(0));
+            Assert.False(result.Written);
+            Assert.Equal("aji_encode wrote no output", result.Failure);
+            Assert.False(File.Exists(output));
+        }
+
+        [Fact]
+        public async Task AStoppedEncodeDeletesThePartialFileAndKeepsTheOutput()
+        {
+            using var t = new TempDir();
+            var output = t.File("ep-animejanai.mkv", "old");
+            await Assert.ThrowsAsync<OperationCanceledException>(() => PartialOutput.WriteAsync(output, temp =>
+            {
+                File.WriteAllText(temp, "half");
+                throw new OperationCanceledException();
+            }));
+            Assert.Equal("old", File.ReadAllText(output));
+            Assert.False(File.Exists(PartialOutput.PathFor(output)));
+        }
+    }
+
+    public class SingleFilePlanTests
+    {
+        [Fact]
+        public void AVideoWrittenOverItselfIsAnError()
+        {
+            using var t = new TempDir();
+            var file = t.File("ep.mkv");
+            var plan = BatchPlanning.Plan([file], t.Path, "%filename%.mkv", skipExisting: false);
+            Assert.Contains("would be written over itself", plan.Problem);
+            var ok = BatchPlanning.Plan([file], t.Path, BatchPlan.DefaultFilename, skipExisting: false);
+            Assert.Null(ok.Problem);
+            Assert.Equal(Path.Join(t.Path, "ep-animejanai.mkv"), ok.Videos.Single().Output);
         }
     }
 }
