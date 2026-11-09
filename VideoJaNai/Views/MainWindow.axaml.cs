@@ -482,13 +482,66 @@ namespace VideoJaNai.Views
             }
         }
 
+        private async void MoveStorageButtonClick(object? sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainWindowViewModel vm || vm.Storage is null)
+            {
+                return;
+            }
+            var folders = await GetTopLevel(this)!.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Move the shared runtime to...",
+                AllowMultiple = false,
+            });
+            if (folders.Count < 1 || folders[0].TryGetLocalPath() is not string picked)
+            {
+                return;
+            }
+            var target = StoreLocation.MoveTarget(picked);
+            var gb = vm.StorageBytes() / 1e9;
+            if (await ShowConfirmationDialog("Move the shared runtime?",
+                $"Move the TensorRT runtime and its GPU components ({gb:0.0} GB) that all your JaNai apps share to {target}? Close your other JaNai apps first."))
+            {
+                await vm.MoveStorage(picked);
+            }
+        }
+
+        private async void MoveStorageBackButtonClick(object? sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainWindowViewModel vm || vm.Storage is null)
+            {
+                return;
+            }
+            var gb = vm.StorageBytes() / 1e9;
+            if (await ShowConfirmationDialog("Move the shared runtime back?",
+                $"Move the shared runtime ({gb:0.0} GB) back to {vm.Storage.Root}? Close your other JaNai apps first."))
+            {
+                await vm.MoveStorageBack();
+            }
+        }
+
+        private async void ResetStorageButtonClick(object? sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainWindowViewModel vm || vm.Storage is null)
+            {
+                return;
+            }
+            if (await ShowConfirmationDialog("Reset the shared runtime's location?",
+                $"Stop using {vm.Storage.Folder} and start an empty folder in the default place? This app downloads its components again (a few GB); your other JaNai apps reinstall theirs. Nothing in {vm.Storage.Folder} is deleted."))
+            {
+                await vm.ResetStorage();
+            }
+        }
+
         private async Task<bool> ShowConfirmationDialog(string title, string message)
         {
             var dialog = new Window
             {
                 Title = title,
                 Width = 480,
-                Height = 200,
+                // grows for a longer message
+                MinHeight = 200,
+                SizeToContent = SizeToContent.Height,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 //Icon = Icon, // TODO
                 CanResize = false,

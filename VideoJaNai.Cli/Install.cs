@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using VideoJaNai.Core;
 
@@ -66,6 +67,25 @@ namespace VideoJaNai.Cli
                 return new Install(Path.Join(gui, "animejanai"), conf);
             }
             return new Install(Path.Join(own, "animejanai"), conf);
+        }
+
+        // The shared pack store's folder while it's missing (moved to a drive that isn't connected),
+        // for a tree that uses the store; else null. Nothing in the store loads meanwhile, so a run
+        // stops with StoreMissingText instead of a missing-runtime error (or, on auto, DirectML).
+        public async Task<string?> MissingStoreFolderAsync() =>
+            RuntimePacks.Read(Paths.InferenceDirectory) is null ? null
+            : await MissingStoreFolderAsync(Path.GetDirectoryName(AnimeJaNaiDirectory), ExeDir);
+
+        // aji-runtime: at a tree's root, and next to videojanai.
+        public static async Task<string?> MissingStoreFolderAsync(params string?[] folders) =>
+            folders.OfType<string>().Select(StoreLocation.ExePath).FirstOrDefault(File.Exists) is string exe
+                ? await StoreLocation.MissingFolderAsync(exe)
+                : null;
+
+        public static string StoreMissingText(string folder)
+        {
+            var text = StoreLocation.MissingText(folder);
+            return $"{char.ToLowerInvariant(text[0])}{text[1..]} Reconnect it, or reset the location: run `aji-runtime reset` (next to videojanai), then `videojanai setup`";
         }
 
         public bool AjiEncodeExists => File.Exists(Paths.AjiEncodePath);

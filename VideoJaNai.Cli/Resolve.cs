@@ -103,8 +103,15 @@ namespace VideoJaNai.Cli
             // this PC
             var probeText = await install.ProbeAsync();
             var probe = EncoderProbe.Parse(probeText);
+            var storeMissing = await install.MissingStoreFolderAsync();
             var backend = PickBackend(Pick(x => x.Backend), gui, install, probe);
             var directMl = backend == Backend.DirectMl;
+            // DirectML needs nothing from the store; without that choice, auto would pick it only
+            // because the store's TensorRT can't be found
+            if (storeMissing != null && !(directMl && (Pick(x => x.Backend) == "directml" || gui?.UseDirectMl == true)))
+            {
+                throw new RunException(Install.StoreMissingText(storeMissing));
+            }
             var gpu = PickGpu(Pick(x => x.Device), gui, probe, backend);
             var vendor = GpuChoice.InferenceVendor(probe, directMl, gpu);
             var defaultEncoder = GpuChoice.DefaultEncoder(probe, vendor);
