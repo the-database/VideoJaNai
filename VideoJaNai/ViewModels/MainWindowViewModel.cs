@@ -61,6 +61,7 @@ namespace VideoJaNai.ViewModels
             {
                 if (x)
                 {
+                    await RefreshStorage();
                     await RefreshComponents();
                 }
             });
@@ -502,10 +503,15 @@ namespace VideoJaNai.ViewModels
         }
 
         // After the main window opens: components first (the probe needs aji_encode), then the
-        // encoder probe.
+        // encoder probe. While the shared runtime's folder is missing the component check waits for
+        // the next start: --auto can't install into it, and its failure would block the app.
         public async Task StartupChecks()
         {
-            await CheckAndExtractBackend();
+            await RefreshStorage();
+            if (!StorageMissing)
+            {
+                await CheckAndExtractBackend();
+            }
             await RefreshEncoderProbeAsync();
             _followChoiceInComponents = true;
             await RefreshComponentsIfChoiceChanged();   // what a chosen GPU needs, for validation
@@ -639,6 +645,10 @@ namespace VideoJaNai.ViewModels
             {
                 return (null, Resources.TemporalFixModelMissingText, null);
             }
+            if (StorageNeededButMissing)
+            {
+                return (null, StorageMissingText, null);
+            }
             if (CurrentWorkflow.TensorRtRtxSelected && TensorRtRtxComponentsMissingText() is string rtxMissing)
             {
                 return (null, rtxMissing, null);
@@ -729,6 +739,7 @@ namespace VideoJaNai.ViewModels
             {
                 this.RaiseAndSetIfChanged(ref _componentsBusy, value);
                 this.RaisePropertyChanged(nameof(AllowReinstall));
+                this.RaisePropertyChanged(nameof(AllowStorageChanges));
             }
         }
 
@@ -817,6 +828,7 @@ namespace VideoJaNai.ViewModels
                 this.RaisePropertyChanged(nameof(PreviewEnabled));
                 this.RaisePropertyChanged(nameof(LeftStatus));
                 this.RaisePropertyChanged(nameof(AllowReinstall));
+                this.RaisePropertyChanged(nameof(AllowStorageChanges));
             }
         }
 
@@ -1004,14 +1016,23 @@ namespace VideoJaNai.ViewModels
 
         public async Task RunUpscale()
         {
+            ShowConsole = true;
+            ConsoleQueueClear();
+
+            // the shared runtime's drive may have gone since the settings were checked
+            await RefreshStorage();
+            if (StorageNeededButMissing)
+            {
+                ConsoleQueueEnqueue(StorageMissingText);
+                return;
+            }
+
             _cancellationTokenSource = new CancellationTokenSource();
             var ct = _cancellationTokenSource.Token;
-            ShowConsole = true;
 
             //var task = Task.Run(async () =>
             //{
             ct.ThrowIfCancellationRequested();
-            ConsoleQueueClear();
             BackendFallbackText = string.Empty;
             _preview?.RequestClose();
             Upscaling = true;
@@ -1385,6 +1406,136 @@ namespace VideoJaNai.ViewModels
             ComponentsBusy = false;
             await RefreshComponents();
             BackendChanged();
+        }
+
+        // ---- Storage: where the shared pack store is (App Settings > Storage) -----------------------
+        // The TensorRT runtime, its GPU kernels and TensorRT-RTX's runtime are in the per-user pack
+        // store that every JaNai app shares; aji-runtime (StoreLocation) moves it to another drive,
+        // back, or resets it when that drive is gone for good. Installed copies that use the store
+        // (aji-runtime.json) only: the AppImage has no updater to reinstall with, and a copy from
+        // before the store keeps its packs in the install folder. The models and the TensorRT
+        // engines stay in the install folder.
+
+        public string AjiRuntimePath => StoreLocation.ExePath(_updateManagerService.InstallDir);
+
+        public static bool UsesPackStore(bool installed, string inferenceDirectory) =>
+            installed && File.Exists(RuntimePacks.FilePath(inferenceDirectory));
+
+        private StoreLocation.Info? _storage;
+        [IgnoreDataMember]
+        public StoreLocation.Info? Storage
+        {
+            get => _storage;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _storage, value);
+                this.RaisePropertyChanged(nameof(ShowStorage));
+                this.RaisePropertyChanged(nameof(StorageFolderText));
+                this.RaisePropertyChanged(nameof(StorageMoved));
+                this.RaisePropertyChanged(nameof(StorageMissing));
+                this.RaisePropertyChanged(nameof(StorageText));
+            }
+        }
+
+        public bool ShowStorage => _updateManagerService.IsInstalled && Storage is not null;
+        public string StorageFolderText => Storage?.Folder ?? "";
+        public bool StorageMoved => Storage is { Moved: true, Available: true };
+        public bool StorageMissing => Storage is { Missing: true };
+
+        // A run needs the store for TensorRT and TensorRT-RTX (DirectML ships with the app).
+        public bool StorageNeededButMissing => StorageMissing && CurrentWorkflow?.DirectMlSelected != true;
+
+        public string StorageMissingText =>
+            $"{StoreLocation.MissingText(StorageFolderText)} Reconnect it, or reset the location in App Settings > Storage.";
+
+        public string StorageText => Storage switch
+        {
+            null => "",
+            { Moved: false } => "In the default folder. All your JaNai apps share it.",
+            { Available: true } => $"Moved from {Storage.Root}, which now links here. All your JaNai apps share it.",
+            _ => "This folder isn't available. Is its drive connected? Until it is, upscaling with TensorRT can't start.",
+        };
+
+        private bool _storageBusy;
+        [IgnoreDataMember]
+        public bool StorageBusy
+        {
+            get => _storageBusy;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _storageBusy, value);
+                this.RaisePropertyChanged(nameof(AllowStorageChanges));
+            }
+        }
+
+        public bool AllowStorageChanges => !StorageBusy && AllowReinstall;
+
+        private string _storageStatusText = string.Empty;
+        [IgnoreDataMember]
+        public string StorageStatusText
+        {
+            get => _storageStatusText;
+            set => this.RaiseAndSetIfChanged(ref _storageStatusText, value);
+        }
+
+        public async Task RefreshStorage()
+        {
+            if (!UsesPackStore(_updateManagerService.IsInstalled, _pythonService.InferenceDirectory))
+            {
+                return;
+            }
+            var wasMissing = StorageMissing;
+            Storage = await StoreLocation.GetAsync(AjiRuntimePath);
+            if (wasMissing != StorageMissing)
+            {
+                CurrentWorkflow?.Validate();
+            }
+        }
+
+        // The store's size, for the confirmations.
+        public long StorageBytes() => Storage is { } s ? StoreLocation.Size(s.Folder) : 0;
+
+        public Task MoveStorage(string folder) => ChangeStorage(["move", StoreLocation.MoveTarget(folder)], "Moving the shared runtime");
+
+        public Task MoveStorageBack() => ChangeStorage(["move", "--default"], "Moving the shared runtime back");
+
+        // Reset: the store's folder is gone, so the default folder starts empty and this app's
+        // components are installed again, as Reinstall components does (the other apps reinstall
+        // theirs when they next need them).
+        public async Task ResetStorage()
+        {
+            if (await ChangeStorage(["reset"], "Resetting the storage location") && Storage is { Moved: false })
+            {
+                StorageStatusText = "Reset. Downloading this app's components again...";
+                await ReinstallBackend();
+                StorageStatusText = "Done.";
+            }
+        }
+
+        private async Task<bool> ChangeStorage(string[] args, string doing)
+        {
+            if (!AllowStorageChanges)
+            {
+                return false;
+            }
+            StorageBusy = true;
+            ComponentsBusy = true; // no component installs meanwhile
+            StorageStatusText = $"{doing}...";
+            string? error;
+            try
+            {
+                error = await Task.Run(() => StoreLocation.ChangeAsync(AjiRuntimePath, args, (done, total) =>
+                    StorageStatusText = total > 0 ? $"{doing}: {done / 1e9:0.0} of {total / 1e9:0.0} GB" : $"{doing}..."));
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+            }
+            StorageStatusText = error ?? "Done.";
+            ComponentsBusy = false;
+            StorageBusy = false;
+            await RefreshStorage();
+            return error is null;
         }
 
         public async Task RefreshComponents()
@@ -2777,7 +2928,12 @@ namespace VideoJaNai.ViewModels
                 validationText.Add(problem);
             }
 
-            if (TensorRtRtxSelected && Vm?.TensorRtRtxComponentsMissingText() is string rtxMissing)
+            if (!DirectMlSelected && Vm?.StorageMissing == true)
+            {
+                valid = false;
+                validationText.Add(Vm.StorageMissingText);
+            }
+            else if (TensorRtRtxSelected && Vm?.TensorRtRtxComponentsMissingText() is string rtxMissing)
             {
                 valid = false;
                 validationText.Add(rtxMissing);

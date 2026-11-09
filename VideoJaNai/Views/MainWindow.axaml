@@ -754,6 +754,31 @@
             </StackPanel>
           </Border>
 
+          <!-- Storage: where the shared pack store is -->
+          <StackPanel IsVisible="{Binding ShowStorage}">
+            <DockPanel Margin="0,10,0,0">
+              <TextBlock DockPanel.Dock="Left" FontWeight="Bold" Text="Storage" />
+            </DockPanel>
+            <Border Classes="border">
+              <StackPanel Margin="10" Spacing="10">
+                <TextBlock TextWrapping="Wrap" Text="The TensorRT runtime and its GPU components (a few GB) live in one folder that all your JaNai apps share. Move it to put them on another drive. Close your other JaNai apps first." />
+                <TextBlock FontFamily="Consolas" TextWrapping="Wrap" Text="{Binding StorageFolderText}" />
+                <TextBlock Foreground="Gray" TextWrapping="Wrap" Text="{Binding StorageText}" />
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button Content="Move..." Click="MoveStorageButtonClick" IsEnabled="{Binding AllowStorageChanges}" IsVisible="{Binding !StorageMissing}"
+                          ToolTip.Tip="Move the shared folder to a new or empty folder on another drive. Nothing is downloaded again." />
+                  <Button Content="Move Back to Default" Click="MoveStorageBackButtonClick" IsEnabled="{Binding AllowStorageChanges}" IsVisible="{Binding StorageMoved}"
+                          ToolTip.Tip="Move the shared folder back to its default place. Nothing is downloaded again." />
+                  <Button Content="Try Again" Command="{Binding RefreshStorage}" IsEnabled="{Binding AllowStorageChanges}" IsVisible="{Binding StorageMissing}"
+                          ToolTip.Tip="Check the folder again, for example after connecting its drive." />
+                  <Button Content="Reset to Default" Click="ResetStorageButtonClick" IsEnabled="{Binding AllowStorageChanges}" IsVisible="{Binding StorageMissing}"
+                          ToolTip.Tip="Stop using the missing folder: start an empty one in the default place and download this app's components again." />
+                </StackPanel>
+                <TextBlock Foreground="Gray" FontFamily="Consolas" TextWrapping="Wrap" Text="{Binding StorageStatusText}" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
           <Border Classes="border">
             <ToggleButton DockPanel.Dock="Right" Margin="10,10,0,10" IsChecked="{Binding !RequestShowAppSettings}">
               <StackPanel Orientation="Horizontal">
