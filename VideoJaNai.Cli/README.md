@@ -31,6 +31,12 @@ and the same settings code (`VideoJaNai.Core`), so a workflow runs the same in b
 All you need beforehand is a GPU driver. On Linux, videojanai runs on TensorRT only, so it needs an
 NVIDIA GPU and driver.
 
+The TensorRT runtime and the GPU kernels go into one folder that all your JaNai apps share
+(`%LOCALAPPDATA%\the-database\aji`; on Linux `~/.local/share/the-database/aji`). To put it on
+another drive, close the apps that use it and run `aji-runtime move <folder>` (aji-runtime is next
+to videojanai); `aji-runtime move --default` moves it back. If that drive is gone for good, run
+`aji-runtime reset`, then `videojanai setup`.
+
 On Windows, if you skip setup and VideoJaNai is installed, videojanai uses VideoJaNai's components
 and models. `--aji-dir <folder>` runs another VideoJaNai's `animejanai` folder (or an `aji_encode`
 folder).

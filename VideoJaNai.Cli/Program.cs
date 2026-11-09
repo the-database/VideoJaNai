@@ -252,6 +252,11 @@ Output:
             {
                 throw new RunException($"{Path.GetFileName(updater)} isn't next to videojanai; setup works from the videojanai archive (videojanai-windows-x64.zip / videojanai-linux-x64.tar.zst)");
             }
+            // aji-runtime can't install into a store whose folder is missing
+            if (await Install.MissingStoreFolderAsync(Install.ExeDir) is string missing)
+            {
+                throw new RunException(Install.StoreMissingText(missing));
+            }
             var args = new List<string> { "--auto" };
             var o = f.Options;
             if (o.Backend == "directml")
