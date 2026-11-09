@@ -102,9 +102,10 @@ namespace VideoJaNai.Cli
 
             // this PC
             var probeText = await install.ProbeAsync();
-            var probe = EncoderProbe.Parse(probeText);
+            var nvidia = Nvml.Gpus;
+            var probe = EncoderProbe.Parse(probeText)?.WithNvidia(nvidia);
             var storeMissing = await install.MissingStoreFolderAsync();
-            var backend = PickBackend(Pick(x => x.Backend), gui, install, probe);
+            var backend = PickBackend(Pick(x => x.Backend), gui, install, probe, nvidia);
             var directMl = backend == Backend.DirectMl;
             // DirectML needs nothing from the store; without that choice, auto would pick it only
             // because the store's TensorRT can't be found
@@ -117,8 +118,8 @@ namespace VideoJaNai.Cli
             var defaultEncoder = GpuChoice.DefaultEncoder(probe, vendor);
 
             var job = preset != null
-                ? Presets.Job(preset, wf, backend, gpu?.Id, defaultEncoder, modelsDir)
-                : EncodeJob.FromWorkflow(wf, backend, gpu?.Id, defaultEncoder, modelsDir);
+                ? Presets.Job(preset, wf, backend, GpuChoice.Device(probe, directMl, gpu), defaultEncoder, modelsDir)
+                : EncodeJob.FromWorkflow(wf, backend, GpuChoice.Device(probe, directMl, gpu), defaultEncoder, modelsDir);
 
             Check(job, wf, preset, install, probe);
 
@@ -228,8 +229,24 @@ namespace VideoJaNai.Cli
         }
 
         // Auto: the GUI's choice with --settings; otherwise TensorRT-RTX where it's installed, then
-        // TensorRT on an NVIDIA GPU, then DirectML (Windows).
-        static Backend PickBackend(string? choice, AppState? gui, Install install, EncoderProbe? probe)
+        // TensorRT on an NVIDIA GPU it runs on (`nvidia`: NVML's GPUs), then DirectML (Windows). An
+        // NVIDIA GPU too old for TensorRT counts as none; TensorRT on a PC with only such GPUs stops
+        // here with why, rather than in a failed engine build.
+        internal static Backend PickBackend(string? choice, AppState? gui, Install install, EncoderProbe? probe,
+                                            IReadOnlyList<NvidiaGpu> nvidia)
+        {
+            var backend = PickBackendUnchecked(choice, gui, install, probe, nvidia);
+            if (backend != Backend.DirectMl && TensorRtGpus.TooOldText(nvidia, BackendNames.Label(backend)) is string tooOld)
+            {
+                throw new RunException(tooOld + (Platform.DirectMlAvailable
+                    ? " Use --backend directml."
+                    : " On Linux, VideoJaNai upscales on TensorRT only."));
+            }
+            return backend;
+        }
+
+        static Backend PickBackendUnchecked(string? choice, AppState? gui, Install install, EncoderProbe? probe,
+                                            IReadOnlyList<NvidiaGpu> nvidia)
         {
             switch (choice)
             {
@@ -251,8 +268,9 @@ namespace VideoJaNai.Cli
             {
                 return BackendNames.Resolve(gui.UseDirectMl, gui.UseTensorRtRtx, install.TensorRtRtxInstalled);
             }
-            var nvidia = probe?.Gpus.Any(g => g.Vendor == EncoderGroup.Nvidia) ?? install.TensorRtInstalled;
-            if (nvidia && install.TensorRtInstalled)
+            var tensorRtGpu = probe?.Gpus.Any(g => g.TensorRtCapable)
+                ?? (nvidia.Count > 0 ? nvidia.Any(g => g.TensorRtCapable) : install.TensorRtInstalled);
+            if (tensorRtGpu && install.TensorRtInstalled)
             {
                 return Platform.TensorRtRtxAvailable && install.TensorRtRtxInstalled ? Backend.TensorRtRtx : Backend.TensorRt;
             }
@@ -261,7 +279,7 @@ namespace VideoJaNai.Cli
 
         // A GPU number from `videojanai devices` (the probe's order), its id, or its name (or part
         // of it, when that names one GPU). Auto: the GUI's choice with --settings, else none.
-        static EncoderProbe.Gpu? PickGpu(string? choice, AppState? gui, EncoderProbe? probe, Backend backend)
+        internal static EncoderProbe.Gpu? PickGpu(string? choice, AppState? gui, EncoderProbe? probe, Backend backend)
         {
             var directMl = backend == Backend.DirectMl;
             if (string.IsNullOrWhiteSpace(choice) || choice.Equals("auto", StringComparison.OrdinalIgnoreCase) ||
@@ -292,7 +310,10 @@ namespace VideoJaNai.Cli
             }
             if (!GpuChoice.BackendGpus(probe, directMl).Contains(gpu))
             {
-                throw new RunException($"{gpu.Name} can't run {BackendNames.Label(backend)}: TensorRT needs an NVIDIA GPU (use --backend directml for others)");
+                throw new RunException(gpu.Vendor == EncoderGroup.Nvidia && gpu.Nvidia is NvidiaGpu { TensorRtCapable: false } old
+                    ? $"{TensorRtGpus.TooOldText(old, BackendNames.Label(backend))} " +
+                      (Platform.DirectMlAvailable ? "Use --backend directml for it, or another GPU." : "Choose another GPU.")
+                    : $"{gpu.Name} can't run {BackendNames.Label(backend)}: TensorRT needs an NVIDIA GPU (use --backend directml for others)");
             }
             return gpu;
         }

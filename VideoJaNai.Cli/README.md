@@ -28,8 +28,9 @@ and the same settings code (`VideoJaNai.Core`), so a workflow runs the same in b
    fetches what changed.
 3. Run `videojanai <video>`.
 
-All you need beforehand is a GPU driver. On Linux, videojanai runs on TensorRT only, so it needs an
-NVIDIA GPU and driver.
+All you need beforehand is a GPU driver. TensorRT needs an NVIDIA GeForce RTX 20 / GTX 16 series or
+newer GPU (compute capability 7.5+); older NVIDIA GPUs (GTX 10-series and earlier) run on DirectML,
+as other GPUs do. On Linux, videojanai runs on TensorRT only, so it needs such a GPU and its driver.
 
 The TensorRT runtime and the GPU kernels go into one folder that all your JaNai apps share
 (`%LOCALAPPDATA%\the-database\aji`; on Linux `~/.local/share/the-database/aji`). To put it on
@@ -116,7 +117,7 @@ deinterlacing, temporal fix or interpolation alone.
 ### GPUs and backends
 
 - `--backend auto` (the default) is TensorRT-RTX where it's installed, else TensorRT on an NVIDIA
-  GPU, else DirectML (Windows). `tensorrt`, `tensorrt-rtx` and `directml` pick one. TensorRT-RTX
+  GPU it runs on (RTX 20 / GTX 16 series and newer), else DirectML (Windows). `tensorrt`, `tensorrt-rtx` and `directml` pick one. TensorRT-RTX
   builds engines in seconds instead of minutes, and falls back to TensorRT if it can't start.
 - `--device <n>` picks the GPU by its number from `videojanai devices` (or its name). The default
   is the backend's: CUDA's first GPU on TensorRT, the high-performance GPU on DirectML.
