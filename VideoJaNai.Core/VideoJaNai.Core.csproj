@@ -8,6 +8,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <IsAotCompatible>true</IsAotCompatible>
+    <!-- NVML through function pointers (NvidiaGpus.cs) -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

@@ -77,7 +77,8 @@ Type: filesandordirs; Name: "{app}"
 var
   CompPage: TInputOptionWizardPage;
   GpuName: String;
-  HasNvidia: Boolean;
+  HasNvidia: Boolean;  // an NVIDIA GPU TensorRT runs on (RTX 20 / GTX 16-series or newer)
+  TooOldGpu: String;  // the NVIDIA GPUs too old for TensorRT (GTX 10-series and older), if any
   TrtPacks: String;   // comma-separated, detected at wizard start (best-effort); includes trt-rtx
                       // (TensorRT-RTX, installed next to TensorRT) on RTX 20 / GTX 16-series and newer
   RifePack: String;
@@ -108,6 +109,7 @@ begin
       val := Copy(Lines[i], eq + 1, Length(Lines[i]) - eq);
       if key = 'NVIDIA' then HasNvidia := (val = '1')
       else if key = 'GPU' then GpuName := val
+      else if key = 'NVIDIA_TOO_OLD' then TooOldGpu := val
       else if key = 'TRT_PACKS' then TrtPacks := val
       else if key = 'RIFE' then RifePack := val;
     end;
@@ -121,6 +123,7 @@ var
 begin
   GpuName := '';
   HasNvidia := False;
+  TooOldGpu := '';
   TrtPacks := '';
   RifePack := 'rife';
 
@@ -138,6 +141,9 @@ begin
     trtLabel := 'Upscaling (TensorRT-RTX, with TensorRT as its fallback) - for ' + GpuName
   else if HasNvidia then
     trtLabel := 'Upscaling (TensorRT) - for ' + GpuName
+  else if TooOldGpu <> '' then
+    trtLabel := 'Upscaling (TensorRT) - requires an NVIDIA GeForce RTX 20 / GTX 16 series or newer GPU (your ' +
+                TooOldGpu + ' uses the built-in DirectML engine)'
   else
     trtLabel := 'Upscaling (TensorRT) - requires an NVIDIA GPU (your GPU uses the built-in DirectML engine)';
   CompPage.Add(trtLabel);

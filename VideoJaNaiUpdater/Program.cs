@@ -50,6 +50,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using VideoJaNai.Core;
 using static Downloader;
 
 const string Repo = "the-database/VideoJaNai";
@@ -81,15 +82,6 @@ bool guiTree = File.Exists(Path.Combine(installDir, "Avalonia.Base.dll"));
 string storeAppId = guiTree ? "videojanai" : "videojanai-cli";
 string storeAppPath = Path.Combine(installDir, guiTree ? playerExe : (OperatingSystem.IsWindows() ? "videojanai.exe" : "videojanai"));
 string inferenceDir = Path.Combine(installDir, "animejanai", "inference");
-
-// NVML ships in the NVIDIA driver as nvml.dll on Windows and libnvidia-ml.so.1 on Linux; remap the
-// DllImport library name on non-Windows so DetectGpu works without per-OS P/Invoke declarations.
-if (!OperatingSystem.IsWindows())
-{
-    NativeLibrary.SetDllImportResolver(typeof(Nvml).Assembly, (name, asm, search) =>
-        name == "nvml.dll" ? NativeLibrary.Load("libnvidia-ml.so.1", asm, search)
-                           : IntPtr.Zero);
-}
 
 string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "--check";
 
@@ -975,141 +967,53 @@ string? PackVersionMismatch(PackIndex index)
         : null;
 }
 
-// NVIDIA detection via NVML (ships with the driver); its absence means a non-NVIDIA GPU.
-// Only the TensorRT engine needs downloadable component packs, and they apply to NVIDIA GPUs
-// only; non-NVIDIA GPUs use the built-in DirectML engine, which ships in the base install.
+// NVIDIA detection via NVML (ships with the driver; Nvml in VideoJaNai.Core's NvidiaGpus.cs); its
+// absence means a non-NVIDIA GPU. Only the TensorRT engine needs downloadable component packs, and
+// they apply to NVIDIA GPUs only; non-NVIDIA GPUs use the built-in DirectML engine, which ships in
+// the base install.
 //
 // Every NVIDIA GPU is reported (Sm "sm89, sm120", names joined with " + "): NVML enumerates in PCI
 // order while CUDA picks the fastest GPU first, so recommending only NVML's device 0 left the GPU
 // TensorRT actually builds on without its builder kernels on multi-GPU systems. With `only` (--gpus),
 // just the NVIDIA GPUs among those ids (an empty set: none).
-static (bool HasNvidia, string Sm, string GpuName) DetectGpu(IReadOnlySet<ulong>? only = null)
+//
+// A GPU TensorRT can't run on (compute capability below 7.5, TensorRtGpus.MinComputeCapability:
+// GeForce GTX 10-series and older, Volta) counts as no NVIDIA GPU: it upscales on DirectML, so it
+// gets no TensorRT packs, and next to a newer card only that one counts. TooOld names those GPUs
+// ("NVIDIA GeForce GTX 1080 (compute 6.1)", joined with " + "), for the messages.
+static (bool HasNvidia, string Sm, string GpuName, string TooOld) DetectGpu(IReadOnlySet<ulong>? only = null)
 {
-    if (only is { Count: 0 })
-    {
-        return (false, "", "");
-    }
-    try
-    {
-        if (Nvml.nvmlInit_v2() != 0)
-        {
-            return (false, "", "");
-        }
-        try
-        {
-            if (Nvml.nvmlDeviceGetCount_v2(out uint count) != 0 || count == 0)
-            {
-                return (false, "", "");
-            }
-            var sms = new List<string>();
-            var names = new List<string>();
-            for (uint i = 0; i < count; i++)
-            {
-                if (Nvml.nvmlDeviceGetHandleByIndex_v2(i, out var dev) != 0 ||
-                    (only != null && !only.Any(id => SameGpu(id, PciId(dev)))))
-                {
-                    continue;
-                }
-                Nvml.nvmlDeviceGetCudaComputeCapability(dev, out int major, out int minor);
-                var name = new byte[96];
-                Nvml.nvmlDeviceGetName(dev, name, (uint)name.Length);
-                names.Add(System.Text.Encoding.ASCII.GetString(name).TrimEnd('\0'));
-                var sm = $"sm{major}{minor}";
-                if (!sms.Contains(sm))
-                {
-                    sms.Add(sm);
-                }
-            }
-            return sms.Count == 0
-                ? (false, "", "")
-                : (true, string.Join(", ", sms), string.Join(" + ", names));
-        }
-        finally { Nvml.nvmlShutdown(); }
-    }
-    catch
-    {
-        return (false, "", "");
-    }
+    var gpus = only is { Count: 0 } ? []
+        : Nvml.Detect().Where(g => only == null || only.Any(id => Nvml.SameGpu(id, g.Id))).ToList();
+    var usable = gpus.Where(g => g.TensorRtCapable).ToList();
+    return (usable.Count > 0,
+            string.Join(", ", usable.Select(g => g.Sm).Distinct()),
+            string.Join(" + ", usable.Select(g => g.Name)),
+            string.Join(" + ", gpus.Where(g => !g.TensorRtCapable).Select(g => $"{g.Name} (compute {g.ComputeCapability})")));
 }
 
-// A GPU's id as aji_encode's --device and --probe-encoders give it: its PCI location,
-// (1 << 63) | domain << 32 | bus << 8 | device. 0 if NVML can't say.
-static ulong PciId(IntPtr dev)
-{
-    var info = new Nvml.PciInfo();
-    if (Nvml.nvmlDeviceGetPciInfo_v3(dev, ref info) != 0)
-    {
-        return 0;
-    }
-    return (1UL << 63) | ((ulong)info.Domain << 32) | ((ulong)info.Bus << 8) | (info.Device & 0xff);
-}
+// What the updater says about GPUs too old for TensorRT (DetectGpu's TooOld): alone, or next to a
+// newer NVIDIA GPU (`others`), which TensorRT runs on instead.
+static string TooOldText(string tooOld, bool others = false) =>
+    $"GPU: {tooOld} - {TensorRtGpus.NeedsText("TensorRT")}, so " +
+    (others ? "TensorRT doesn't use it and it gets no TensorRT components"
+     : OperatingSystem.IsWindows() ? "it uses the built-in DirectML engine (no extra components needed)"
+     : "VideoJaNai can't upscale on it (on Linux it has no other engine)");
 
-// Windows reports no PCI domain for DirectML adapters (0), so ids compare without it unless both
-// carry one, as aji_encode compares them.
-static bool SameGpu(ulong a, ulong b)
-{
-    const ulong pci = 1UL << 63, domain = 0x7fffffff00000000UL;
-    if ((a & pci) != 0 && (b & pci) != 0 && ((a & domain) == 0 || (b & domain) == 0))
-    {
-        a &= ~domain;
-        b &= ~domain;
-    }
-    return a == b;
-}
-
-// Hardware-matched packs only. RIFE is a user choice, not a recommendation: it is preselected on
-// installs that have never managed components, and once the user has made any component decision
-// their choice stands. trt-rtx (TensorRT-RTX, Windows only) is recommended when a GPU is one it is
-// the default for (TensorRtRtxDefaultGpu), next to the TensorRT packs: TensorRT stays installed, as
-// TensorRT-RTX's fallback and for cudart, which aji_trtrtx.dll needs. Other NVIDIA GPUs can still
-// install it from App Settings. Once installed it counts as installed, so --auto keeps it current
-// (its dep is aji: it is refreshed whenever the aji release changes).
-List<string> RecommendedPacks(PackIndex index, bool hasNvidia, string sm)
-{
-    var rec = new List<string>();
-    if (hasNvidia)
-    {
-        rec.Add("trt-runtime");
-        var sms = sm.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        // per GPU generation: the exact pack if published, else the PTX fallback pack
-        foreach (var s in sms)
-        {
-            var pack = index.Packs.Any(p => p.Name == $"trt-{s}") ? $"trt-{s}" : "trt-ptx";
-            if (!rec.Contains(pack))
-            {
-                rec.Add(pack);
-            }
-        }
-        if (sms.Any(TensorRtRtxDefaultGpu) && index.Packs.Any(p => p.Name == "trt-rtx"))
-        {
-            rec.Add("trt-rtx");
-        }
-    }
-    return rec;
-}
-
-// Whether TensorRT-RTX is the default backend for a GPU, by its "sm<major><minor>" compute
-// capability (the CUDA minor is one digit: sm86 = 8.6, sm120 = 12.0). TensorRT-RTX 1.7's support
-// matrix lists 7.5, 8.6, 8.9, 12.0 and 12.1, so: sm75 (GTX 16 / RTX 20-series), sm86 (RTX 30),
-// sm89 (RTX 40) and sm120 and newer (RTX 50 and later); not the data-center parts it doesn't list
-// (sm80 A100, sm90 H100, sm100/sm103 B200/B300, sm110 Thor). Turing is included although
-// TensorRT-RTX supports neither FP32 GEMMs nor 3D convolutions there: VideoJaNai's models (the
-// AnimeJaNai SPAN models, temporalfix, RIFE) use neither, and libaji falls back to TensorRT for a
-// model that does.
-static bool TensorRtRtxDefaultGpu(string sm)
-{
-    var digits = sm.Trim();
-    if (digits.StartsWith("sm", StringComparison.OrdinalIgnoreCase))
-    {
-        digits = digits[2..];
-    }
-    if (digits.Length < 2 || !digits.All(char.IsAsciiDigit) || !int.TryParse(digits[..^1], out int major))
-    {
-        return false;
-    }
-    int minor = digits[^1] - '0';
-    return (major == 7 && minor == 5) || (major == 8 && (minor == 6 || minor == 9)) || major >= 12;
-}
+// Hardware-matched packs only (TensorRtGpus.RecommendedPacks: the runtime, each GPU generation's
+// builder pack, else the PTX fallback, and trt-rtx where it's the default). RIFE is a user choice,
+// not a recommendation: it is preselected on installs that have never managed components, and once
+// the user has made any component decision their choice stands. trt-rtx (TensorRT-RTX, Windows
+// only) is recommended when a GPU is one it is the default for (TensorRtGpus.TensorRtRtxDefault),
+// next to the TensorRT packs: TensorRT stays installed, as TensorRT-RTX's fallback and for cudart,
+// which aji_trtrtx.dll needs. Other NVIDIA GPUs can still install it from App Settings. Once
+// installed it counts as installed, so --auto keeps it current (its dep is aji: it is refreshed
+// whenever the aji release changes).
+List<string> RecommendedPacks(PackIndex index, bool hasNvidia, string sm) =>
+    hasNvidia
+        ? TensorRtGpus.RecommendedPacks(sm.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                                        name => index.Packs.Any(p => p.Name == name))
+        : [];
 
 bool ComponentsNeverManaged() => !File.Exists(Path.Combine(installDir, "components.json"));
 
@@ -1121,18 +1025,21 @@ async Task ComponentsAsync(PackIndex? prefetched, bool json = false)
 {
     var index = prefetched ?? await GetPackIndexAsync();
     var installed = ReadInstalledComponents(index);
-    var (hasNvidia, sm, gpu) = DetectGpu(gpuFilter);
+    var (hasNvidia, sm, gpu, tooOld) = DetectGpu(gpuFilter);
     var rec = RecommendedPacks(index, hasNvidia, sm);
     if (json)
     {
         // consumed by VideoJaNai's in-app component manager; keep keys stable. gpu: the GPUs the
-        // recommendations are for (--gpus); nvidia_present: whether this PC has an NVIDIA GPU at all.
+        // recommendations are for (--gpus); nvidia_present: whether this PC has an NVIDIA GPU
+        // TensorRT runs on at all; nvidia_too_old: the NVIDIA GPUs (of gpu's) TensorRT can't run on,
+        // which count as no NVIDIA GPU ("" when none).
         Console.WriteLine(JsonSerializer.Serialize(new
         {
             package_version = index.PackageVersion,
             version_mismatch = PackVersionMismatch(index),
             gpu = new { nvidia = hasNvidia, sm, name = gpu },
             nvidia_present = gpuFilter is null ? hasNvidia : DetectGpu(null).HasNvidia,
+            nvidia_too_old = tooOld,
             packs = index.Packs.Select(p => new
             {
                 name = p.Name,
@@ -1151,7 +1058,12 @@ async Task ComponentsAsync(PackIndex? prefetched, bool json = false)
     }
     Console.WriteLine(hasNvidia
         ? $"GPU: {gpu} ({sm}) - {(rec.Contains("trt-rtx") ? "TensorRT-RTX recommended, with TensorRT as its fallback" : "TensorRT recommended")}"
+        : tooOld != "" ? TooOldText(tooOld)
         : "GPU: no NVIDIA device detected - using the built-in DirectML engine (no extra components needed)");
+    if (hasNvidia && tooOld != "")
+    {
+        Console.WriteLine(TooOldText(tooOld, others: true));
+    }
     Console.WriteLine($"Recommended packs: {string.Join(", ", rec)}");
     Console.WriteLine();
     foreach (var pack in index.Packs)
@@ -1294,8 +1206,12 @@ int RemoveComponent(string name)
 async Task<int> AutoComponentsAsync()
 {
     var index = await GetPackIndexAsync();
-    var (hasNvidia, sm, gpu) = DetectGpu(gpuFilter);
+    var (hasNvidia, sm, gpu, tooOld) = DetectGpu(gpuFilter);
     var rec = RecommendedPacks(index, hasNvidia, sm);
+    if (!hasNvidia && tooOld != "")
+    {
+        Console.WriteLine(TooOldText(tooOld));
+    }
     if (storeMode)
     {
         return await AutoStoreAsync(index, rec, hasNvidia, gpu);
@@ -1350,9 +1266,11 @@ async Task<int> AutoComponentsAsync()
 // generic TensorRT toggle.
 async Task<int> RecommendAsync()
 {
-    var (hasNvidia, sm, gpu) = DetectGpu();
+    var (hasNvidia, sm, gpu, tooOld) = DetectGpu();
+    // NVIDIA: an NVIDIA GPU TensorRT runs on; NVIDIA_TOO_OLD: the ones it can't (DetectGpu's TooOld)
     Console.WriteLine($"NVIDIA={(hasNvidia ? 1 : 0)}");
     Console.WriteLine($"GPU={gpu}");
+    Console.WriteLine($"NVIDIA_TOO_OLD={tooOld}");
     string trtPacks = "";
     string rife = "rife";
     try
@@ -1783,37 +1701,6 @@ static HttpClient NewClient()
     var client = new HttpClient();
     client.DefaultRequestHeaders.UserAgent.ParseAdd("VideoJaNaiUpdater");
     return client;
-}
-
-static class Nvml
-{
-    [System.Runtime.InteropServices.DllImport("nvml.dll")]
-    public static extern int nvmlInit_v2();
-    [System.Runtime.InteropServices.DllImport("nvml.dll")]
-    public static extern int nvmlShutdown();
-    [System.Runtime.InteropServices.DllImport("nvml.dll")]
-    public static extern int nvmlDeviceGetCount_v2(out uint deviceCount);
-    [System.Runtime.InteropServices.DllImport("nvml.dll")]
-    public static extern int nvmlDeviceGetHandleByIndex_v2(uint index, out IntPtr device);
-    [System.Runtime.InteropServices.DllImport("nvml.dll")]
-    public static extern int nvmlDeviceGetCudaComputeCapability(IntPtr device, out int major, out int minor);
-    [System.Runtime.InteropServices.DllImport("nvml.dll")]
-    public static extern int nvmlDeviceGetName(IntPtr device, byte[] name, uint length);
-    [System.Runtime.InteropServices.DllImport("nvml.dll")]
-    public static extern int nvmlDeviceGetPciInfo_v3(IntPtr device, ref PciInfo pci);
-
-    // nvmlPciInfo_t
-    [StructLayout(LayoutKind.Sequential)]
-    public struct PciInfo
-    {
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)] public byte[] BusIdLegacy;
-        public uint Domain;
-        public uint Bus;
-        public uint Device;
-        public uint PciDeviceId;
-        public uint PciSubSystemId;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)] public byte[] BusId;
-    }
 }
 
 record Release(string Tag, List<Asset> Assets);

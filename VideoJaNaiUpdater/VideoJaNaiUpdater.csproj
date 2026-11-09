@@ -9,6 +9,12 @@
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- NVIDIA GPU detection and which GPUs TensorRT runs on, shared with the app and the CLI -->
+    <Compile Include="..\VideoJaNai.Core\NvidiaGpus.cs" Link="NvidiaGpus.cs" />
+  </ItemGroup>
 
 </Project>

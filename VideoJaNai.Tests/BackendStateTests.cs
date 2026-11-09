@@ -242,5 +242,49 @@ namespace VideoJaNai.Tests
             Assert.False(vm.UseTensorRtRtx);
             Assert.Equal(Backend.TensorRt, Selected(vm));
         }
+
+        // NVIDIA GPUs too old for TensorRT (below compute capability 7.5, the-database/VideoJaNai#70)
+        // count as no NVIDIA GPU: a fresh state takes DirectML there, and a saved TensorRT choice says
+        // why it can't run instead of failing in the engine build.
+        static readonly VideoJaNai.Core.NvidiaGpu Gtx1080 = new("NVIDIA GeForce GTX 1080", 6, 1);
+        static readonly VideoJaNai.Core.NvidiaGpu Rtx3080 = new("NVIDIA GeForce RTX 3080", 8, 6);
+
+        static MainWindowViewModel LoadOn(string json, params VideoJaNai.Core.NvidiaGpu[] gpus)
+        {
+            var vm = (MainWindowViewModel)JsonConvert.DeserializeObject<object>(json, NewtonsoftJsonSuspensionDriver.Settings)!;
+            vm.NvidiaGpus = gpus;
+            foreach (var wf in vm.Workflows)
+            {
+                wf.Vm = vm;
+            }
+            vm.MigrateBackend();
+            return vm;
+        }
+
+        [Fact]
+        public void AnOldNvidiaGpuGetsDirectMl()
+        {
+            Assert.Equal(OnThisOs(Backend.DirectMl), Selected(LoadOn(State(null, false), Gtx1080)));
+            Assert.Equal(Backend.TensorRt, Selected(LoadOn(State(null, false), Gtx1080, Rtx3080), rtxInstalled: false));
+            Assert.Equal(Backend.TensorRt, Selected(LoadOn(State(null, false)), rtxInstalled: false));   // no NVIDIA GPU: as before
+
+            // a saved TensorRT choice stands, and says why it can't run
+            var saved = LoadOn(State("false", false), Gtx1080);
+            Assert.Equal(Backend.TensorRt, Selected(saved, rtxInstalled: false));
+            using (FakePythonService.WithoutTensorRtRtx())
+            {
+                var why = saved.TensorRtGpuProblemText();
+                Assert.NotNull(why);
+                Assert.StartsWith("TensorRT needs an NVIDIA GeForce RTX 20 / GTX 16 series or newer GPU (compute capability 7.5+); " +
+                                  "NVIDIA GeForce GTX 1080 is compute 6.1.", why);
+                Assert.EndsWith(OperatingSystem.IsWindows() ? "Select DirectML in App Settings." : "TensorRT only.", why);
+            }
+            if (OperatingSystem.IsWindows())
+            {
+                saved.SetBackendDirectMl();
+                Assert.Null(saved.TensorRtGpuProblemText());
+            }
+            Assert.Null(LoadOn(State("false", false), Gtx1080, Rtx3080).TensorRtGpuProblemText());
+        }
     }
 }
