@@ -8,11 +8,12 @@ namespace VideoJaNai.Core
     public static class GpuChoice
     {
         // The GPUs the backend can upscale on: every GPU on DirectML, the NVIDIA ones on TensorRT
-        // and TensorRT-RTX. Only GPUs with an id, so none from an aji_encode without --device.
-        // Graphics cards first, integrated graphics last (otherwise in the probe's order): Windows
-        // and Direct3D tell those apart, but not which of two graphics cards upscales faster.
+        // and TensorRT-RTX (not those too old for it: EncoderProbe.Gpu.TensorRtCapable). Only GPUs
+        // with an id, so none from an aji_encode without --device. Graphics cards first, integrated
+        // graphics last (otherwise in the probe's order): Windows and Direct3D tell those apart, but
+        // not which of two graphics cards upscales faster.
         public static IReadOnlyList<EncoderProbe.Gpu> BackendGpus(EncoderProbe? probe, bool directMl) =>
-            probe?.Gpus.Where(g => g.Id != null && (directMl || g.Vendor == EncoderGroup.Nvidia))
+            probe?.Gpus.Where(g => g.Id != null && (directMl || g.TensorRtCapable))
                 .OrderBy(g => g.Integrated == true).ToList()
             ?? [];
 
@@ -32,6 +33,16 @@ namespace VideoJaNai.Core
                 ? (probe?.DefaultGpu is EncoderProbe.Gpu d && gpus.Contains(d) ? d : null)
                 : (gpus.Count == 1 ? gpus[0] : null);
         }
+
+        // aji_encode's --device: the chosen GPU, else none (Auto). On TensorRT, Auto lets CUDA pick its
+        // fastest GPU, which could be one too old for TensorRT next to a newer card: then the one GPU
+        // TensorRT can run on is named. (With several of those it stays CUDA's pick, as
+        // before; App Settings can choose one.)
+        public static string? Device(EncoderProbe? probe, bool directMl, EncoderProbe.Gpu? chosen) =>
+            chosen?.Id
+            ?? (!directMl && probe != null && probe.Gpus.Any(g => g.Vendor == EncoderGroup.Nvidia && !g.TensorRtCapable) &&
+                BackendGpus(probe, directMl) is [var only]
+                    ? only.Id : null);
 
         // The vendor of the GPU that does the upscale: the chosen one, else Auto's, which is an
         // NVIDIA card on TensorRT and the probe's default GPU on DirectML (null when it can't tell).

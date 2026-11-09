@@ -78,7 +78,28 @@ stamp="$DATA/aji-runtime.stamp"
 target="${APPIMAGE:-$HERE/AppRun}"
 need_trt=0
 need_rife=0
-if nvidia-smi -L >/dev/null 2>&1 && [ -x "$HERE/aji-runtime" ] && [ -n "$url" ] && [ -n "$sha" ] &&
+# TensorRT needs an NVIDIA GPU of compute capability 7.5+ (GeForce RTX 20 / GTX 16 series or newer;
+# VideoJaNai.Core's TensorRtGpus.MinComputeCapability). A PC whose NVIDIA GPUs are all older gets no
+# TensorRT install, since it can't run there (the app says why). A driver that can't report
+# compute_cap counts its GPUs as new enough, as before.
+TRT_MIN_COMPUTE=75
+trt_gpu() {
+    caps="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null)" || return 0
+    [ -n "$caps" ] || return 0
+    found=1
+    set -f
+    for c in $caps; do
+        major="${c%%.*}"
+        minor="${c#*.}"
+        case "$major$minor" in
+            ''|*[!0-9]*) found=0 ;;
+            *) [ $((major * 10 + minor)) -lt $TRT_MIN_COMPUTE ] || found=0 ;;
+        esac
+    done
+    set +f
+    return $found
+}
+if nvidia-smi -L >/dev/null 2>&1 && trt_gpu && [ -x "$HERE/aji-runtime" ] && [ -n "$url" ] && [ -n "$sha" ] &&
    { [ ! -f "$AJI_RUNTIME_JSON" ] || [ "$(cat "$stamp" 2>/dev/null)" != "$ver" ]; }; then
     need_trt=1
 fi
