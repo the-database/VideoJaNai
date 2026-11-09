@@ -10,12 +10,10 @@ using VideoJaNai.Core;
 namespace VideoJaNai.Cli
 {
     // A planned run: the conf once, then per video an engine prebuild (TensorRT) and the encode,
-    // into a temporary file next to the output that becomes the output when aji_encode succeeds,
-    // so a stopped or failed encode never leaves a file that skip-existing would keep.
+    // into a temporary file next to the output that becomes the output when aji_encode succeeds
+    // (PartialOutput), so a stopped or failed encode never leaves a file that skip-existing would keep.
     public static class Run
     {
-        public const string PartialMarker = BatchPlanning.PartialMarker;
-
         public static async Task<int> ExecuteAsync(RunPlan plan, Report report, CancellationToken ct)
         {
             var start = Stopwatch.StartNew();
@@ -49,25 +47,23 @@ namespace VideoJaNai.Cli
                     report.VideoStart(n, plan.Videos.Count, v);
                     var took = Stopwatch.StartNew();
                     var observer = new Observer(report, plan.Job.AllModels.Any());
-                    var temp = PartialPath(v.Output);
                     try
                     {
                         Directory.CreateDirectory(Path.GetDirectoryName(v.Output)!);
-                        var rc = await runner.BuildEngineAsync(plan.Job, v.Input, observer, ct);
-                        if (rc == 0)
+                        var result = new EncodeResult(await runner.BuildEngineAsync(plan.Job, v.Input, observer, ct), false);
+                        if (result.ExitCode == 0)
                         {
-                            rc = await runner.EncodeAsync(plan.Job, v.Input, temp, observer, null, ct);
+                            result = await runner.EncodeToOutputAsync(plan.Job, v.Input, v.Output, observer, null, ct);
                         }
-                        if (rc == 0 && File.Exists(temp))
+                        if (result.Written)
                         {
-                            File.Move(temp, v.Output, overwrite: true);
                             written++;
                             report.VideoDone(n, plan.Videos.Count, v, took.Elapsed);
                         }
                         else
                         {
                             failed++;
-                            report.VideoError(n, plan.Videos.Count, v, Observer.Failure(rc), observer.Tail);
+                            report.VideoError(n, plan.Videos.Count, v, result.Failure, observer.Tail);
                         }
                     }
                     catch (OperationCanceledException)
@@ -79,10 +75,6 @@ namespace VideoJaNai.Cli
                         failed++;
                         report.VideoError(n, plan.Videos.Count, v, e.Message, observer.Tail);
                     }
-                    finally
-                    {
-                        TryDelete(temp);
-                    }
                 }
             }
             finally
@@ -92,11 +84,6 @@ namespace VideoJaNai.Cli
             report.Done(written, skipped, failed, start.Elapsed);
             return failed > 0 ? 1 : 0;
         }
-
-        // ep01-animejanai.mkv -> ep01-animejanai.videojanai-partial.mkv (the extension still picks
-        // the container)
-        public static string PartialPath(string output) =>
-            Path.Join(Path.GetDirectoryName(output), Path.GetFileNameWithoutExtension(output) + PartialMarker + Path.GetExtension(output));
 
         static void TryDelete(string path)
         {
@@ -128,9 +115,6 @@ namespace VideoJaNai.Cli
                     }
                 }
             }
-
-            public static string Failure(int rc) =>
-                rc == 0 ? "aji_encode wrote no output" : $"aji_encode failed (exit code {rc})";
 
             public void Command(string text) => report.AjiLog(text);
 
