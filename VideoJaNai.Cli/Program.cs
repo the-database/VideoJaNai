@@ -196,14 +196,14 @@ Output:
             {
                 throw new RunException($"aji_encode not found in {install.Paths.InferenceDirectory}; run `videojanai setup`");
             }
-            var probe = EncoderProbe.Parse(await install.ProbeAsync(fresh: true))
+            var probe = EncoderProbe.Parse(await install.ProbeAsync(fresh: true))?.WithNvidia(Nvml.Gpus)
                         ?? throw new RunException("this aji_encode can't list GPUs (--probe-encoders); update VideoJaNai");
             Console.Out.WriteLine("GPUs (the number is what --device takes):");
             for (var i = 0; i < probe.Gpus.Count; i++)
             {
                 var g = probe.Gpus[i];
                 var backends = new List<string>();
-                if (g.Vendor == EncoderGroup.Nvidia)
+                if (g.TensorRtCapable)
                 {
                     backends.Add("TensorRT");
                     if (Platform.TensorRtRtxAvailable)
@@ -224,8 +224,13 @@ Output:
                 {
                     tags.Add("integrated");
                 }
+                if (g.Vendor == EncoderGroup.Nvidia && !g.TensorRtCapable && g.Nvidia is NvidiaGpu old)
+                {
+                    // TensorRT needs compute capability 7.5+ (GeForce RTX 20 / GTX 16 series or newer)
+                    tags.Add($"too old for TensorRT: compute {old.ComputeCapability}, it needs {TensorRtGpus.MinText}");
+                }
                 var tagText = tags.Count > 0 ? $" ({string.Join(", ", tags)})" : "";
-                Console.Out.WriteLine($"  {i}  {EncoderProbe.Label(probe.Gpus, g)}{tagText}: {string.Join(", ", backends)}");
+                Console.Out.WriteLine($"  {i}  {EncoderProbe.Label(probe.Gpus, g)}{tagText}: {(backends.Count > 0 ? string.Join(", ", backends) : "none")}");
             }
             if (probe.Gpus.Count == 0)
             {
@@ -266,13 +271,13 @@ Output:
             else if (!string.IsNullOrWhiteSpace(o.Device) && !o.Device.Equals("auto", StringComparison.OrdinalIgnoreCase))
             {
                 var install = Install.Find(null);
-                var probe = EncoderProbe.Parse(await install.ProbeAsync())
+                var probe = EncoderProbe.Parse(await install.ProbeAsync())?.WithNvidia(Nvml.Gpus)
                             ?? throw new RunException("can't pick a GPU: aji_encode can't list them");
                 var t = o.Device.Trim();
                 var gpu = (int.TryParse(t, out var n) && n >= 0 && n < probe.Gpus.Count ? probe.Gpus[n] : null)
                           ?? probe.Gpus.FirstOrDefault(g => g.Id == t || g.Name.Contains(t, StringComparison.OrdinalIgnoreCase))
                           ?? throw new RunException($"no GPU '{t}' (see `videojanai devices`)");
-                args.AddRange(["--gpus", gpu.Vendor == EncoderGroup.Nvidia && gpu.Id != null ? gpu.Id : "none"]);
+                args.AddRange(["--gpus", gpu.TensorRtCapable && gpu.Id != null ? gpu.Id : "none"]);
             }
             // RIFE: wanted, or left out even on a fresh folder (where the updater preselects it)
             args.AddRange([f.NoRife ? "--exclude" : "--include", "rife"]);

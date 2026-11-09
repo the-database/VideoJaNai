@@ -110,10 +110,18 @@ namespace VideoJaNai.Core
     // default=1 is the GPU DirectML runs on without --device. id= is what --device takes (the
     // card's PCI address); aji_encode before animejanai-inference 0.22.0 prints no id= and lists
     // GPUs on Windows only. integrated=1 marks integrated graphics (0.22.2+; null when unknown).
+    // The probe doesn't say an NVIDIA GPU's compute capability: WithNvidia adds NVML's view of each.
     public sealed class EncoderProbe
     {
+        // Nvidia: NVML's view of this GPU (WithNvidia), null when not known.
         public sealed record Gpu(EncoderGroup? Vendor, bool IsDefault, string Name, string? Id = null,
-                                 bool? Integrated = null);
+                                 bool? Integrated = null, NvidiaGpu? Nvidia = null)
+        {
+            // An NVIDIA GPU TensorRT and TensorRT-RTX can run on: not one older than compute
+            // capability 7.5 (TensorRtGpus), which counts as a non-NVIDIA GPU there. An NVIDIA GPU
+            // whose compute capability isn't known counts as one TensorRT runs on, as before.
+            public bool TensorRtCapable => Vendor == EncoderGroup.Nvidia && Nvidia?.TensorRtCapable != false;
+        }
 
         public IReadOnlyList<Gpu> Gpus { get; }
         private readonly Dictionary<string, (bool Bit8, bool Bit10)> _encoders;
@@ -167,6 +175,23 @@ namespace VideoJaNai.Core
                 .Where(kv => kv.Length == 2)
                 .GroupBy(kv => kv[0])
                 .ToDictionary(g => g.Key, g => g.First()[1], StringComparer.Ordinal);
+
+        // The probe with each NVIDIA GPU matched to NVML's (`nvidia`, normally Nvml.Gpus) by its PCI
+        // id, else by name, for its compute capability.
+        public EncoderProbe WithNvidia(IReadOnlyList<NvidiaGpu> nvidia)
+        {
+            var gpus = Gpus.Select(g =>
+            {
+                if (g.Vendor != EncoderGroup.Nvidia || nvidia.Count == 0)
+                {
+                    return g;
+                }
+                var match = (ulong.TryParse(g.Id, out var id) ? nvidia.FirstOrDefault(n => n.Id != 0 && Nvml.SameGpu(n.Id, id)) : null)
+                            ?? nvidia.FirstOrDefault(n => n.Name == g.Name);
+                return g with { Nvidia = match };
+            }).ToList();
+            return new EncoderProbe(gpus, _encoders);
+        }
 
         // Whether the probe tested this encoder; untested ones (software encoders, codecs it
         // doesn't list) are assumed to work.

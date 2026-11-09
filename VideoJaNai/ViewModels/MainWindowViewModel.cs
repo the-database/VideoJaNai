@@ -212,9 +212,11 @@ namespace VideoJaNai.ViewModels
         }
 
         // Settings saved before the backend became app-wide: keep what the selected workflow used.
+        // Nothing chosen yet on a PC whose NVIDIA GPUs are all too old for TensorRT: DirectML.
         public void MigrateBackend()
         {
-            UseDirectMl ??= CurrentWorkflow?.LegacyDirectMlSelected ?? false;
+            UseDirectMl ??= CurrentWorkflow?.LegacyDirectMlSelected == true ||
+                            (UpscaleWorkflow.DirectMlAvailable && TensorRtGpus.TooOldText(NvidiaGpus) != null);
         }
 
         private string _validationText = string.Empty;
@@ -316,9 +318,38 @@ namespace VideoJaNai.ViewModels
             set
             {
                 this.RaiseAndSetIfChanged(ref _encoderProbeOutput, value);
-                _encoderProbe = EncoderProbe.Parse(value);
+                _encoderProbe = EncoderProbe.Parse(value)?.WithNvidia(NvidiaGpus);
                 EncodersChanged();
             }
+        }
+
+        // This PC's NVIDIA GPUs as NVML reports them, with their compute capability (the probe doesn't
+        // say it): which of them TensorRT can run on. Tests set it.
+        private IReadOnlyList<NvidiaGpu>? _nvidiaGpus;
+        [IgnoreDataMember]
+        public IReadOnlyList<NvidiaGpu> NvidiaGpus
+        {
+            get => _nvidiaGpus ??= Nvml.Gpus;
+            set
+            {
+                _nvidiaGpus = value;
+                _encoderProbe = EncoderProbe.Parse(EncoderProbeOutput)?.WithNvidia(value);
+                EncodersChanged();
+            }
+        }
+
+        // Why the NVIDIA backend can't run on this PC: it has NVIDIA GPUs, all too old for TensorRT and
+        // TensorRT-RTX (TensorRtGpus.MinComputeCapability). Null otherwise, also on DirectML.
+        public string? TensorRtGpuProblemText()
+        {
+            if (DirectMlBackendSelected ||
+                TensorRtGpus.TooOldText(NvidiaGpus, TensorRtRtxBackendSelected ? "TensorRT-RTX" : "TensorRT") is not string tooOld)
+            {
+                return null;
+            }
+            return tooOld + (UpscaleWorkflow.DirectMlAvailable
+                ? " Select DirectML in App Settings."
+                : " On Linux, VideoJaNai upscales on TensorRT only.");
         }
 
         private EncoderProbe? _encoderProbe;
@@ -659,6 +690,10 @@ namespace VideoJaNai.ViewModels
             if (CurrentWorkflow.TensorRtRtxSelected && TensorRtRtxComponentsMissingText() is string rtxMissing)
             {
                 return (null, rtxMissing, null);
+            }
+            if (TensorRtGpuProblemText() is string tooOld)
+            {
+                return (null, tooOld, null);
             }
             if (CurrentWorkflow.TensorRtSelected && !TensorRtInstalled)
             {
@@ -1007,7 +1042,8 @@ namespace VideoJaNai.ViewModels
             var backend = wf.DirectMlSelected ? Backend.DirectMl
                         : wf.TensorRtRtxSelected ? Backend.TensorRtRtx
                         : Backend.TensorRt;
-            return EncodeJob.FromWorkflow(wf.ToSettings(), backend, ChosenGpu?.Id, DefaultEncoderPreset, ModelsDirectory);
+            return EncodeJob.FromWorkflow(wf.ToSettings(), backend, GpuChoice.Device(_encoderProbe, wf.DirectMlSelected, ChosenGpu),
+                                          DefaultEncoderPreset, ModelsDirectory);
         }
 
         // The conf aji_encode runs with (libaji's config_version=2 schema), with the workflow's models
@@ -1588,15 +1624,20 @@ namespace VideoJaNai.ViewModels
                     return;
                 }
                 var root = Newtonsoft.Json.Linq.JObject.Parse(json);
-                // gpu: the NVIDIA GPUs the packs are for (every one, or the chosen one);
-                // nvidia_present: whether this PC has one at all (older updaters: same as gpu.nvidia)
+                // gpu: the NVIDIA GPUs the packs are for (every one, or the chosen one), only those
+                // TensorRT runs on; nvidia_present: whether this PC has one at all (older updaters:
+                // same as gpu.nvidia); nvidia_too_old: the NVIDIA GPUs too old for TensorRT, which
+                // count as none ("NVIDIA GeForce GTX 1080 (compute 6.1)"; older updaters: absent)
                 var gpu = root["gpu"];
                 bool nvidia = (bool?)gpu?["nvidia"] ?? false;
                 bool nvidiaPresent = (bool?)root["nvidia_present"] ?? nvidia;
                 var gpuName = (string?)gpu?["name"] ?? "";
                 var sm = (string?)gpu?["sm"] ?? "";
+                var tooOld = (string?)root["nvidia_too_old"] ?? "";
                 GpuStatusText = nvidia ? $"{gpuName} ({sm})"
                     : ChosenGpu is EncoderProbe.Gpu chosen && DirectMlBackendSelected ? $"{chosen.Name}, on DirectML: no components needed."
+                    : tooOld != "" ? $"{tooOld}: {TensorRtGpus.NeedsText("TensorRT")}, so " +
+                                     (UpscaleWorkflow.DirectMlAvailable ? "it uses the built-in DirectML engine." : "it can't upscale here.")
                     : "No NVIDIA GPU detected — using the built-in DirectML engine.";
 
                 var items = new AvaloniaList<ComponentItem>();
@@ -2971,6 +3012,11 @@ namespace VideoJaNai.ViewModels
             {
                 valid = false;
                 validationText.Add(Vm.StorageMissingText);
+            }
+            else if (!DirectMlSelected && Vm?.TensorRtGpuProblemText() is string tooOld)
+            {
+                valid = false;
+                validationText.Add(tooOld);
             }
             else if (TensorRtRtxSelected && Vm?.TensorRtRtxComponentsMissingText() is string rtxMissing)
             {
