@@ -627,7 +627,14 @@ namespace VideoJaNai.ViewModels
                                string.IsNullOrWhiteSpace(CurrentWorkflow.OutputFolderPath) ? null : CurrentWorkflow.OutputFolderPath,
                                CurrentWorkflow.OutputFilename, skipExisting: !CurrentWorkflow.OverwriteExistingVideos);
 
-        // Why folder mode can't run as set up (from the last CheckInputs), else null.
+        // Single-file mode's video and its output, planned the same way. Problem: the output would be
+        // written over the video.
+        internal PlanResult PlanFile() =>
+            BatchPlanning.Plan([CurrentWorkflow!.InputFilePath],
+                               string.IsNullOrWhiteSpace(CurrentWorkflow.OutputFolderPath) ? null : CurrentWorkflow.OutputFolderPath,
+                               CurrentWorkflow.OutputFilename, skipExisting: !CurrentWorkflow.OverwriteExistingVideos);
+
+        // Why the run can't go ahead as set up (from the last CheckInputs), else null.
         public string? InputPlanProblem { get; private set; }
 
         private (PreviewSession? session, string? error, string? title) StartPreviewSession()
@@ -919,9 +926,14 @@ namespace VideoJaNai.ViewModels
                     StringBuilder status = new();
                     var skipFiles = 0;
 
-                    var outputFilePath = Path.Join(
-                                                    Path.GetFullPath(CurrentWorkflow.OutputFolderPath),
-                                                    CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(CurrentWorkflow.InputFilePath)));
+                    // planned as folder mode plans, so an output that would replace the video is caught
+                    var plan = PlanFile();
+                    InputPlanProblem = plan.Problem;
+                    if (plan.Videos.Count == 0)
+                    {
+                        return 0;
+                    }
+                    var outputFilePath = plan.Videos[0].Output;
 
                     if (File.Exists(outputFilePath))
                     {
@@ -1002,16 +1014,17 @@ namespace VideoJaNai.ViewModels
         // copied into the models folder, where aji resolves them by name.
         public void SetupAnimeJaNaiConfSlot1() => AjiConf.Write(CurrentJob(), Paths);
 
-        public async Task CheckEngines(string inputFilePath)
+        // 0 when there is nothing to build; otherwise aji_encode --build-only's exit code.
+        public async Task<int> CheckEngines(string inputFilePath)
         {
             // TensorRT and TensorRT-RTX build/cache engines on first use (TensorRT-RTX in about a
             // second, so prebuilding it costs little); DirectML needs no prebuild.
             if (!CurrentWorkflow.TensorRtSelected)
             {
-                return;
+                return 0;
             }
 
-            await GenerateEngine(inputFilePath);
+            return await GenerateEngine(inputFilePath);
         }
 
         public async Task RunUpscale()
@@ -1027,6 +1040,15 @@ namespace VideoJaNai.ViewModels
                 return;
             }
 
+            // the video, or the folder's videos and its subfolders' (the output keeps the subfolders);
+            // outputs that exist are skipped unless overwriting, as the status bar says
+            var plan = CurrentWorkflow.SelectedTabIndex == 0 ? PlanFile() : PlanFolder();
+            if (plan.Problem != null)
+            {
+                ConsoleQueueEnqueue($"{plan.Problem}.");
+                return;
+            }
+
             _cancellationTokenSource = new CancellationTokenSource();
             var ct = _cancellationTokenSource.Token;
 
@@ -1038,35 +1060,26 @@ namespace VideoJaNai.ViewModels
             Upscaling = true;
             SetupAnimeJaNaiConfSlot1();
 
-            if (CurrentWorkflow.SelectedTabIndex == 0)
+            int attempted = 0, failed = 0;
+            foreach (var video in plan.Videos)
             {
                 ct.ThrowIfCancellationRequested();
-                await CheckEngines(CurrentWorkflow.InputFilePath);
-                ct.ThrowIfCancellationRequested();
-                var outputFilePath = Path.Join(
-                            Path.GetFullPath(CurrentWorkflow.OutputFolderPath),
-                            CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(CurrentWorkflow.InputFilePath)));
-                await RunUpscaleSingle(CurrentWorkflow.InputFilePath, outputFilePath);
+                if (video.Action == PlanAction.SkipExisting)
+                {
+                    ConsoleQueueEnqueue($"Skipping {video.Input}: {video.Output} already exists.");
+                    continue;
+                }
+                attempted++;
+                if (await UpscaleVideo(video, ct) is string failure)
+                {
+                    failed++;
+                    ConsoleQueueEnqueue($"{video.Input} was not upscaled: {failure}.");
+                }
                 ct.ThrowIfCancellationRequested();
             }
-            else
+            if (failed > 0 && attempted > 1)
             {
-                // the folder's videos and its subfolders' (the output keeps the subfolders); outputs that
-                // exist are skipped unless overwriting, as the status bar says
-                foreach (var video in PlanFolder().Videos)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    if (video.Action == PlanAction.SkipExisting)
-                    {
-                        ConsoleQueueEnqueue($"Skipping {video.Input}: {video.Output} already exists.");
-                        continue;
-                    }
-                    await CheckEngines(video.Input);
-                    ct.ThrowIfCancellationRequested();
-                    Directory.CreateDirectory(Path.GetDirectoryName(video.Output)!);
-                    await RunUpscaleSingle(video.Input, video.Output);
-                    ct.ThrowIfCancellationRequested();
-                }
+                ConsoleQueueEnqueue($"{failed} of {attempted} videos were not upscaled.");
             }
 
             CurrentWorkflow.Valid = true;
@@ -1121,13 +1134,38 @@ namespace VideoJaNai.ViewModels
 
         }
 
-        public async Task RunUpscaleSingle(string inputFilePath, string outputFilePath)
+        // One video: the engine prebuild (TensorRT), then the encode. Null when the output was written,
+        // else why not; a failed or stopped encode leaves no output (and an output that was there
+        // stays as it was).
+        private async Task<string?> UpscaleVideo(PlannedVideo video, CancellationToken ct)
         {
-            using var observer = new RunObserver(this);
-            await new EncodeRunner(Paths).EncodeAsync(CurrentJob(), inputFilePath, outputFilePath, observer, PreviewPath);
+            try
+            {
+                var rc = await CheckEngines(video.Input);
+                ct.ThrowIfCancellationRequested();
+                if (rc != 0)
+                {
+                    return $"the TensorRT engine could not be generated (exit code {rc})";
+                }
+                Directory.CreateDirectory(Path.GetDirectoryName(video.Output)!);
+                var result = await RunUpscaleSingle(video.Input, video.Output, ct);
+                return result.Written ? null : result.Failure;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            {
+                return e.Message.TrimEnd('.');
+            }
         }
 
-        public async Task GenerateEngine(string inputFilePath)
+        // Encodes into a partial file next to the output, which becomes the output only when
+        // aji_encode succeeds (PartialOutput).
+        public async Task<EncodeResult> RunUpscaleSingle(string inputFilePath, string outputFilePath, CancellationToken ct = default)
+        {
+            using var observer = new RunObserver(this);
+            return await new EncodeRunner(Paths).EncodeToOutputAsync(CurrentJob(), inputFilePath, outputFilePath, observer, PreviewPath, ct);
+        }
+
+        public async Task<int> GenerateEngine(string inputFilePath)
         {
             // CheckEngines decides when (EncodeRunner.BuildEngineAsync's rule), so build here whatever
             // the backend
@@ -1135,20 +1173,21 @@ namespace VideoJaNai.ViewModels
             var args = BuildAjiEncodeArgs(inputFilePath, null, AjiMode.BuildOnly);
             var engine = job.Backend == Backend.TensorRtRtx ? "TensorRT-RTX" : "TensorRT";
             ConsoleQueueEnqueue($"Generating {engine} engine with command: {_pythonService.AjiEncodePath} {args}");
-            await RunAjiEncode(args, resetProgress: false);
+            return await RunAjiEncode(args, resetProgress: false);
         }
 
         internal string BuildAjiEncodeArgs(string inputFilePath, string? outputFilePath, AjiMode mode) =>
             AjiArgs.Build(CurrentJob(), Paths, inputFilePath, outputFilePath, mode, mode == AjiMode.Encode ? PreviewPath : null);
 
-        public async Task RunAjiEncode(string arguments, bool resetProgress)
+        // aji_encode's exit code
+        public async Task<int> RunAjiEncode(string arguments, bool resetProgress)
         {
             if (resetProgress)
             {
                 ResetProgress();
             }
             using var observer = new RunObserver(this);
-            await AjiProcess.RunAsync(Paths, arguments, observer.Stdout, observer.Stderr, observer.Started);
+            return await AjiProcess.RunAsync(Paths, arguments, observer.Stdout, observer.Stderr, observer.Started);
         }
 
         // aji_encode's output during a run: every line to error.log (in the state folder: the working

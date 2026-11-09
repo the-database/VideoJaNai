@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -51,7 +52,65 @@ namespace VideoJaNai.Core
             return await Run(args, observer, ct);
         }
 
+        // EncodeAsync into the output's partial file, which becomes the output only when the encode
+        // succeeds (see PartialOutput).
+        public Task<EncodeResult> EncodeToOutputAsync(EncodeJob job, string input, string output, IEncodeObserver observer,
+                                                      string? previewPath = null, CancellationToken ct = default) =>
+            PartialOutput.WriteAsync(output, temp => EncodeAsync(job, input, temp, observer, previewPath, ct));
+
         private Task<int> Run(string args, IEncodeObserver observer, CancellationToken ct) =>
             AjiProcess.RunAsync(Paths, args, observer.Stdout, observer.Stderr, observer.Started, ct);
+    }
+
+    // An encode's exit code and whether its output was written.
+    public readonly record struct EncodeResult(int ExitCode, bool Written)
+    {
+        // why the output wasn't written
+        public string Failure => ExitCode == 0 ? "aji_encode wrote no output" : $"aji_encode failed (exit code {ExitCode})";
+    }
+
+    // An encode writes a temporary file next to its output, which becomes the output only when
+    // aji_encode exits 0 having written it, so a stopped or failed encode never leaves a half-written
+    // file (which skip-existing would then keep) and never replaces an output that was there.
+    public static class PartialOutput
+    {
+        // ep01-animejanai.mkv -> ep01-animejanai.videojanai-partial.mkv (the extension still picks
+        // the container)
+        public static string PathFor(string output) =>
+            Path.Join(Path.GetDirectoryName(output), Path.GetFileNameWithoutExtension(output) + BatchPlanning.PartialMarker + Path.GetExtension(output));
+
+        // write(the partial path) -> its exit code; the partial file is moved to output on success
+        // and deleted otherwise (also when write throws, cancelled included). Moving it can throw
+        // (the output open elsewhere, say).
+        public static async Task<EncodeResult> WriteAsync(string output, Func<string, Task<int>> write)
+        {
+            var temp = PathFor(output);
+            try
+            {
+                var rc = await write(temp);
+                if (rc == 0 && File.Exists(temp))
+                {
+                    File.Move(temp, output, overwrite: true);
+                    return new EncodeResult(rc, true);
+                }
+                return new EncodeResult(rc, false);
+            }
+            finally
+            {
+                TryDelete(temp);
+            }
+        }
+
+        private static void TryDelete(string path)
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception)
+            {
+                // a leftover temporary file is harmless
+            }
+        }
     }
 }
