@@ -55,7 +55,7 @@ namespace VideoJaNai.Core
 
     public static class BatchPlanning
     {
-        // The command line's temporary output (see the CLI's Run): never an input.
+        // A run's temporary output (see PartialOutput): never an input.
         public const string PartialMarker = ".videojanai-partial";
 
         // Inputs -> videos, as the GUI's folder mode and the command line both plan them: a file as
