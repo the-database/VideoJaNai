@@ -217,8 +217,8 @@
           <StackPanel IsVisible="{Binding Upscaling}" Margin="20,0,20,5">
             <Image Source="{Binding PreviewImage}" MaxHeight="270" HorizontalAlignment="Left" Margin="0,0,0,8" Stretch="Uniform"
                    IsVisible="{Binding ShowPreview}" />
-            <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressValue}" Height="18" />
-            <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="Gray" Text="{Binding ProgressText}" />
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressValue}" IsIndeterminate="{Binding EngineBuilding}" Height="18" />
+            <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="Gray" TextWrapping="Wrap" Text="{Binding ProgressText}" />
           </StackPanel>
 
           <StackPanel IsVisible="{Binding ShowConsole}" >
