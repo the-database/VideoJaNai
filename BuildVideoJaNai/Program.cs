@@ -108,14 +108,16 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.22.2: --probe-encoders marks integrated GPUs (integrated=), which the GPU choice labels and warns about.
 // v0.23.1: loads TensorRT and TensorRT-RTX from the shared pack store (aji-runtime.json beside aji.dll /
 // libaji.so, or the file AJI_RUNTIME_JSON names), with that pack's trtexec and builder kernels.
-// A libaji release opens the PR that moves AjiVersion and ajiSha256Win (.github/workflows/bump-pins.yml,
+// A libaji release opens the PR that moves AjiVersion and ajiSha256 (.github/workflows/bump-pins.yml,
 // scripts/bump_pins.py libaji <tag>); add its line above by hand.
 const string AjiVersion        = "v0.25.0";
-// The aji release publishes no checksums; recorded from the release assets.
-var ajiSha256Win = new Dictionary<string, string>
+// The aji release publishes no checksums; recorded from the release assets (both platforms').
+var ajiSha256 = new Dictionary<string, string>
 {
-    ["aji-windows-x64.zip"]        = "0c946356e515edb0f1365287650d5ad3cb9a460a6eca385912aa502e6e165ab3",
-    ["aji-trtrtx-windows-x64.zip"] = "815bb3efc2644631ae05e609e7b421ac08613e16132a141ea0fbb0a5b6d866c9",
+    ["aji-windows-x64.zip"]          = "0c946356e515edb0f1365287650d5ad3cb9a460a6eca385912aa502e6e165ab3",
+    ["aji-trtrtx-windows-x64.zip"]   = "815bb3efc2644631ae05e609e7b421ac08613e16132a141ea0fbb0a5b6d866c9",
+    ["aji-linux-x64.tar.zst"]        = "7c4e33eac46ef07af016a304dfde0f14c25ff3017fcec96e80d9797fc6f800b1",
+    ["aji-encode-linux-x64.tar.zst"] = "01953bbfb25a5eb76b69571957d65136bf06307c983a2cbe6e9cd613d776f49b",
 };
 // The shared runtime packs every libaji app pins (animejanai-inference runtime-<n>): TensorRT, the
 // per-GPU builder packs and TensorRT-RTX's runtime, installed once per user into the shared pack store
@@ -140,6 +142,7 @@ const string SevenZipSha256Linux = "22cf82fcc6eb7474f1d5bb4f02c0f8ebd573a718089d
 // outputs are bit-identical to set 1 and TensorRT engines carry over (cached by file name).
 const string RifeModelsVersion = "models-rife-fp16-2";
 const string RifeModelsAsset   = "rife-fp16-2.7z";
+const string RifeModelsSha256  = "85fa8aa7408f82636f53a3179998e021708746ff85c7468ae11a0d3157af1451";  // scripts/bump_pins.py rife-models <tag>
 // gyan.dev ffmpeg shared build (Windows; the DLLs aji_encode links). Must match the ffmpeg major the
 // aji release's aji_encode.exe was built against (aji v0.12.0: 9.0.2 -> avcodec-63.dll).
 const string FfmpegVersion     = "9.0.2";
@@ -449,10 +452,7 @@ async Task InstallAji()
             targetPath = Path.GetFullPath(asset);
             temp = true;
             await DownloadFileAsync(downloadUrl, targetPath, p => Console.WriteLine($"Downloading {asset} ({p}%)..."));
-            if (plat.IsWindows)
-            {
-                VerifySha256(targetPath, ajiSha256Win[asset]);
-            }
+            VerifySha256(targetPath, ajiSha256[asset]);
         }
 
         if (plat.IsWindows)
@@ -552,6 +552,7 @@ async Task InstallRife()
     var downloadUrl = $"https://github.com/the-database/animejanai-inference/releases/download/{RifeModelsVersion}/{RifeModelsAsset}";
     var targetPath = Path.GetFullPath("rife-fp16.7z");
     await DownloadFileAsync(downloadUrl, targetPath, p => Console.WriteLine($"Downloading RIFE fp16 models ({p}%)..."));
+    VerifySha256(targetPath, RifeModelsSha256);
 
     Directory.CreateDirectory(rifePath);
     // SevenZipExtractor wraps the Windows 7z.dll; on Linux use the bundled 7zz console.
