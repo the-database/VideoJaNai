@@ -92,6 +92,37 @@ namespace VideoJaNai.Tests
             }
         }
 
+        // "Finish videos with damaged frames" is saved with the workflow; a workflow saved before it
+        // existed loads with it off.
+        [Fact]
+        public void FinishDamagedVideosIsSavedAndOffInOlderWorkflows()
+        {
+            var vm = CreateVm();
+            Assert.False(vm.CurrentWorkflow!.FinishDamagedVideos);
+            vm.CurrentWorkflow.FinishDamagedVideos = true;
+            var path = Path.Combine(Path.GetTempPath(), $"vjn-test-{Path.GetRandomFileName()}.json");
+            try
+            {
+                vm.WriteCurrentWorkflowToFile(path);
+                var saved = File.ReadAllText(path);
+                Assert.Contains("\"FinishDamagedVideos\": true", saved);
+
+                vm.ResetCurrentWorkflow();
+                vm.ReadWorkflowFileToCurrentWorkflow(path);
+                Assert.True(vm.CurrentWorkflow!.FinishDamagedVideos);
+                Assert.True(vm.CurrentJob().ContinueOnDamage);
+
+                File.WriteAllText(path, saved.Replace("\"FinishDamagedVideos\": true,", ""));
+                vm.ReadWorkflowFileToCurrentWorkflow(path);
+                Assert.False(vm.CurrentWorkflow!.FinishDamagedVideos);
+                Assert.False(vm.CurrentJob().ContinueOnDamage);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
         [Fact]
         public void ExpandAndCollapseAllSections()
         {

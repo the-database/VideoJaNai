@@ -126,6 +126,12 @@
   <data name="AllowOverwriteLabel" xml:space="preserve">
     <value>Allow Videos in Output Path to be Overwritten</value>
   </data>
+  <data name="FinishDamagedVideosLabel" xml:space="preserve">
+    <value>Finish videos with damaged frames</value>
+  </data>
+  <data name="FinishDamagedVideosDescription" xml:space="preserve">
+    <value>TV recordings and incomplete downloads can have damaged frames. Unchecked: the video fails, and the error says where the damage is. Checked: it is finished, and the damaged spots are listed.</value>
+  </data>
   <data name="AppNotInstalledText" xml:space="preserve">
     <value>App is not installed; auto update settings unavailable.</value>
   </data>

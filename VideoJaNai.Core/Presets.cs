@@ -65,6 +65,7 @@ namespace VideoJaNai.Core
             OutputFilename = wf.OutputFilename,
             OutputFolderPath = wf.OutputFolderPath,
             OverwriteExistingVideos = wf.OverwriteExistingVideos,
+            FinishDamagedVideos = wf.FinishDamagedVideos,
             FfmpegVideoSettings = wf.FfmpegVideoSettings,
             Deinterlace = wf.Deinterlace,
             SquarePixels = wf.SquarePixels,

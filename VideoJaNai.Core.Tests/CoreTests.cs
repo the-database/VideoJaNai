@@ -133,6 +133,26 @@ namespace VideoJaNai.Core.Tests
         }
 
         [Fact]
+        public void OnDamageContinueIsPassedOnlyWhenOnAndOnlyToAnEncode()
+        {
+            var paths = AjiPaths.ForAnimeJaNaiFolder("/x/animejanai", "/tmp/c.conf");
+            var off = new EncodeJob { Overwrite = true };
+            var on = off with { ContinueOnDamage = true };
+            Assert.DoesNotContain("--on-damage", AjiArgs.Build(off, paths, "/in/a.mkv", "/out/a.mkv", AjiMode.Encode));
+            Assert.Contains("--overwrite --on-damage continue --progress line", AjiArgs.Build(on, paths, "/in/a.mkv", "/out/a.mkv", AjiMode.Encode));
+            Assert.DoesNotContain("--on-damage", AjiArgs.Build(on, paths, "/in/a.mkv", null, AjiMode.Preview));
+        }
+
+        [Fact]
+        public void TheWorkflowSaysWhetherDamagedVideosAreFinished()
+        {
+            Assert.False(EncodeJob.FromWorkflow(new WorkflowSettings(), Backend.TensorRt, null, EncoderPresets.NvencHevc, "").ContinueOnDamage);
+            var wf = new WorkflowSettings { FinishDamagedVideos = true };
+            Assert.True(EncodeJob.FromWorkflow(wf, Backend.TensorRt, null, EncoderPresets.NvencHevc, "").ContinueOnDamage);
+            Assert.True(Presets.Job("balanced", wf, Backend.TensorRt, null, EncoderPresets.NvencHevc, "").ContinueOnDamage);
+        }
+
+        [Fact]
         public void FfmpegSettingsSplitIntoCodecAndQualityWithoutTheMuxerOption()
         {
             Assert.Equal(("hevc_nvenc", "-preset p7 -profile:v main10 -b:v 50M"), AjiArgs.SplitFfmpegSettings(EncoderPresets.FfmpegHevcNvenc));
@@ -258,8 +278,103 @@ namespace VideoJaNai.Core.Tests
         }
     }
 
+    public class DamageTests
+    {
+        [Theory]
+        [InlineData("DAMAGE t=754.500 frame=18093", 754.5, 18093L)]
+        [InlineData("DAMAGE t=0.000 frame=0", 0.0, 0L)]
+        [InlineData("DAMAGE t=12.345 frame=-1", 12.345, null)]
+        [InlineData("DAMAGE frame=7 t=3.250", 3.25, 7L)]
+        public void DamageLinesParse(string line, double seconds, long? frame)
+        {
+            Assert.True(DamageSpot.IsDamageLine(line));
+            Assert.Equal(new DamageSpot((decimal)seconds, frame), DamageSpot.Parse(line));
+        }
+
+        [Theory]
+        [InlineData("PROGRESS phase=encode frame=32 total=320 fps=0.00 pct=10")]
+        [InlineData("DAMAGED t=1.000 frame=1")]
+        [InlineData("DAMAGE frame=12")]
+        [InlineData("[aji:1] DAMAGE t=1.000 frame=1")]
+        public void OtherLinesAreNotDamage(string line) => Assert.Null(DamageSpot.Parse(line));
+
+        [Theory]
+        [InlineData(754.5, false, "12:34")]
+        [InlineData(754.5, true, "12:34.5")]
+        [InlineData(754.99, true, "12:34.9")]
+        [InlineData(59.999, false, "0:59")]
+        [InlineData(3723.25, false, "1:02:03")]
+        [InlineData(3723.25, true, "1:02:03.2")]
+        [InlineData(0, true, "0:00.0")]
+        public void TimesAreMinutesAndSecondsRoundedDown(double seconds, bool tenths, string text) =>
+            Assert.Equal(text, new DamageSpot((decimal)seconds, null).Time(tenths));
+
+        [Fact]
+        public void TheFailureNamesTheSpot()
+        {
+            var at = new EncodeResult(1, false) { Damage = [new DamageSpot(754.5M, 18093)], StoppedOnDamage = true };
+            Assert.Equal("damaged video at 12:34.5 (frame 18093)", at.Failure);
+            Assert.Null(at.FinishedWithDamage);
+            var noFrame = at with { Damage = [new DamageSpot(754.5M, null)] };
+            Assert.Equal("damaged video at 12:34.5", noFrame.Failure);
+            // finishing (--on-damage continue) and then failing for another reason isn't the damage
+            Assert.Equal("aji_encode failed (exit code 1)", (at with { StoppedOnDamage = false }).Failure);
+        }
+
+        [Fact]
+        public void AFinishedVideoListsItsDamagedSpots()
+        {
+            var three = new EncodeResult(0, true) { Damage = [new(754.5M, 18093), new(755.1M, 18108), new(2462M, 59029)] };
+            Assert.Equal("Finished with 3 damaged frames (12:34, 12:35, 41:02)", three.FinishedWithDamage);
+            Assert.Equal("Finished with 1 damaged frame (0:05)", (three with { Damage = [new(5.2M, 125)] }).FinishedWithDamage);
+            Assert.Null(new EncodeResult(0, true).FinishedWithDamage);
+            Assert.Null(default(EncodeResult).FinishedWithDamage);
+        }
+
+        [Fact]
+        public void TheListStopsAfterFiveTimesAndRepeatsNone()
+        {
+            // two frames in one second are one time in the list
+            DamageSpot[] spots = [new(60.1M, 1), new(60.5M, 2), new(61M, 3), new(62M, 4), new(63M, 5), new(64M, 6), new(65M, 7), new(66M, 8)];
+            Assert.Equal("Finished with 8 damaged frames (1:00, 1:01, 1:02, 1:03, 1:04 and 2 more)", DamageText.Finished(spots));
+        }
+    }
+
+    // A fake aji_encode in t that counts its runs (one line per run in runs.txt) and keeps its
+    // arguments (the last run's in args.txt), prints `lines`, writes the file `writes` (when given:
+    // the partial file of an output, to succeed) and exits with `exitCode`.
+    public static class FakeAjiEncode
+    {
+        public static AjiPaths Create(TempDir t, int exitCode, string? writes, params string[] lines)
+        {
+            var runs = Path.Join(t.Path, "runs.txt");
+            var args = Path.Join(t.Path, "args.txt");
+            string script;
+            if (OperatingSystem.IsWindows())
+            {
+                string[] write = writes is null ? [] : [$"echo x>\"{writes}\""];
+                script = t.File("aji_encode.cmd", string.Join("\r\n",
+                    ["@echo off", $"echo run>>\"{runs}\"", $"echo %* >\"{args}\"", .. lines.Select(l => $"echo {l}"), .. write, $"exit /b {exitCode}"]));
+            }
+            else
+            {
+                string[] write = writes is null ? [] : [$"echo x > '{writes}'"];
+                script = t.File("aji_encode", string.Join("\n",
+                    ["#!/bin/sh", $"echo run >> '{runs}'", $"echo \"$*\" > '{args}'", .. lines.Select(l => $"echo '{l}'"), .. write, $"exit {exitCode}"]));
+                File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+            return new AjiPaths(script, Path.Join(t.Path, "trtexec"), t.Path, Path.Join(t.Path, "onnx"),
+                                Path.Join(t.Path, "rife"), Path.Join(t.Path, "animejanai.conf"));
+        }
+
+        public static int Runs(TempDir t) =>
+            File.Exists(Path.Join(t.Path, "runs.txt")) ? File.ReadAllLines(Path.Join(t.Path, "runs.txt")).Length : 0;
+
+        public static string Args(TempDir t) => File.ReadAllText(Path.Join(t.Path, "args.txt")).Trim();
+    }
+
     // One aji_encode per video, which prepares the engine itself (there is no separate engine build
-    // run), with a fake aji_encode that prints PROGRESS lines and exits.
+    // run), with a fake aji_encode that prints PROGRESS (and DAMAGE) lines and exits.
     public class EncodeRunnerTests
     {
         private sealed class Lines : IEncodeObserver
@@ -272,29 +387,9 @@ namespace VideoJaNai.Core.Tests
             public void Stderr(string line) { }
         }
 
-        // a fake aji_encode in t that counts its runs (one line per run in runs.txt), prints `lines`
-        // and exits with `exitCode`
-        private static AjiPaths FakeAji(TempDir t, int exitCode, params string[] lines)
-        {
-            var runs = Path.Join(t.Path, "runs.txt");
-            string script;
-            if (OperatingSystem.IsWindows())
-            {
-                script = t.File("aji_encode.cmd", string.Join("\r\n",
-                    ["@echo off", $"echo run>>\"{runs}\"", .. lines.Select(l => $"echo {l}"), $"exit /b {exitCode}"]));
-            }
-            else
-            {
-                script = t.File("aji_encode", string.Join("\n",
-                    ["#!/bin/sh", $"echo run >> '{runs}'", .. lines.Select(l => $"echo '{l}'"), $"exit {exitCode}"]));
-                File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            }
-            return new AjiPaths(script, Path.Join(t.Path, "trtexec"), t.Path, Path.Join(t.Path, "onnx"),
-                                Path.Join(t.Path, "rife"), Path.Join(t.Path, "animejanai.conf"));
-        }
+        private static AjiPaths FakeAji(TempDir t, int exitCode, params string[] lines) => FakeAjiEncode.Create(t, exitCode, null, lines);
 
-        private static int Runs(TempDir t) =>
-            File.Exists(Path.Join(t.Path, "runs.txt")) ? File.ReadAllLines(Path.Join(t.Path, "runs.txt")).Length : 0;
+        private static int Runs(TempDir t) => FakeAjiEncode.Runs(t);
 
         [Fact]
         public async Task ATensorRtEncodeRunsAjiEncodeOnce()
@@ -337,6 +432,73 @@ namespace VideoJaNai.Core.Tests
                 Path.Join(t.Path, "in.mkv"), Path.Join(t.Path, "out.mkv"), new Lines(), ct: TestContext.Current.CancellationToken);
             Assert.False(result.EngineFailed);
             Assert.Equal("aji_encode failed (exit code 1)", result.Failure);
+        }
+
+        static readonly string[] Damaged =
+        [
+            "PROGRESS phase=build_engine frame=0 total=0 fps=0.00 pct=0",
+            "PROGRESS phase=build_engine frame=0 total=0 fps=0.00 pct=100",
+            "PROGRESS phase=encode frame=18080 total=64000 fps=0.00 pct=28",
+            "DAMAGE t=754.500 frame=18093",
+        ];
+
+        [Fact]
+        public async Task AnEncodeThatStopsAtDamageSaysWhere()
+        {
+            using var t = new TempDir();
+            var paths = FakeAji(t, 1, Damaged);
+            var lines = new Lines();
+            var result = await new EncodeRunner(paths).EncodeToOutputAsync(new EncodeJob { Backend = Backend.TensorRt },
+                Path.Join(t.Path, "in.mkv"), Path.Join(t.Path, "out.mkv"), lines, ct: TestContext.Current.CancellationToken);
+            Assert.DoesNotContain("--on-damage", FakeAjiEncode.Args(t));
+            Assert.False(result.Written);
+            Assert.True(result.StoppedOnDamage);
+            Assert.Equal([new DamageSpot(754.5M, 18093)], result.Damage);
+            Assert.Equal("damaged video at 12:34.5 (frame 18093)", result.Failure);
+            // the observer still sees the line (the log)
+            Assert.Contains("DAMAGE t=754.500 frame=18093", lines.Stdout);
+        }
+
+        [Fact]
+        public async Task AnEncodeThatContinuesListsTheDamage()
+        {
+            using var t = new TempDir();
+            var output = Path.Join(t.Path, "out.mkv");
+            var paths = FakeAjiEncode.Create(t, 0, PartialOutput.PathFor(output),
+                [.. Damaged, "DAMAGE t=755.100 frame=18108", "DAMAGE t=2462.000 frame=-1",
+                 "PROGRESS phase=encode frame=64000 total=64000 fps=0.00 pct=100"]);
+            var result = await new EncodeRunner(paths).EncodeToOutputAsync(new EncodeJob { Backend = Backend.TensorRt, ContinueOnDamage = true },
+                Path.Join(t.Path, "in.mkv"), output, new Lines(), ct: TestContext.Current.CancellationToken);
+            Assert.EndsWith("--on-damage continue --progress line", FakeAjiEncode.Args(t));
+            Assert.True(result.Written);
+            Assert.True(File.Exists(output));
+            Assert.False(result.StoppedOnDamage);
+            Assert.Equal([new DamageSpot(754.5M, 18093), new DamageSpot(755.1M, 18108), new DamageSpot(2462M, null)], result.Damage);
+            Assert.Equal("Finished with 3 damaged frames (12:34, 12:35, 41:02)", result.FinishedWithDamage);
+        }
+
+        [Fact]
+        public async Task AnEncodeThatContinuesAndThenFailsIsNotStoppedAtTheDamage()
+        {
+            using var t = new TempDir();
+            var paths = FakeAji(t, 1, Damaged);
+            var result = await new EncodeRunner(paths).EncodeToOutputAsync(new EncodeJob { Backend = Backend.TensorRt, ContinueOnDamage = true },
+                Path.Join(t.Path, "in.mkv"), Path.Join(t.Path, "out.mkv"), new Lines(), ct: TestContext.Current.CancellationToken);
+            Assert.False(result.StoppedOnDamage);
+            Assert.Single(result.Damage);
+            Assert.Equal("aji_encode failed (exit code 1)", result.Failure);
+        }
+
+        [Fact]
+        public async Task AnEncodeWithoutDamageReportsNone()
+        {
+            using var t = new TempDir();
+            var output = Path.Join(t.Path, "out.mkv");
+            var paths = FakeAjiEncode.Create(t, 0, PartialOutput.PathFor(output), "PROGRESS phase=encode frame=10 total=10 fps=0.00 pct=100");
+            var result = await new EncodeRunner(paths).EncodeToOutputAsync(new EncodeJob { Backend = Backend.TensorRt, ContinueOnDamage = true },
+                Path.Join(t.Path, "in.mkv"), output, new Lines(), ct: TestContext.Current.CancellationToken);
+            Assert.Equal(new EncodeResult(0, true), result);
+            Assert.Null(result.FinishedWithDamage);
         }
     }
 

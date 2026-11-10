@@ -73,6 +73,9 @@ namespace VideoJaNai.Core
         public int? FinalResizeHeight { get; init; } = 0;
         public int? FinalResizeFactor { get; init; } = 100;
         public bool Overwrite { get; init; }
+        // aji_encode --on-damage continue: finish a video with damaged frames (listing them) instead
+        // of stopping at the first. Passed only when on, so an aji_encode without the option still runs.
+        public bool ContinueOnDamage { get; init; }
 
         public IEnumerable<ModelStep> AllModels => Chains.SelectMany(c => c.Models);
 
@@ -118,6 +121,7 @@ namespace VideoJaNai.Core
                 FinalResizeHeight = wf.FinalResizeHeight ?? 0,
                 FinalResizeFactor = wf.FinalResizeFactor ?? 100,
                 Overwrite = wf.OverwriteExistingVideos,
+                ContinueOnDamage = wf.FinishDamagedVideos,
             };
         }
     }

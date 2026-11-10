@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -22,7 +23,8 @@ namespace VideoJaNai.Core
     // once (Prepare), then each video is encoded by one aji_encode. aji_encode prepares the engines
     // before the first frame (TensorRT builds one on first use for a model and size, which can take
     // minutes, and loads it from its cache after that), reporting it as PROGRESS phase=build_engine
-    // lines (pct=0, then pct=100) ahead of the encode's own.
+    // lines (pct=0, then pct=100) ahead of the encode's own. Damaged spots in the source come as
+    // DAMAGE lines (see DamageSpot), collected into the result.
     public sealed class EncodeRunner(AjiPaths paths)
     {
         public AjiPaths Paths { get; } = paths;
@@ -43,19 +45,46 @@ namespace VideoJaNai.Core
         public async Task<EncodeResult> EncodeToOutputAsync(EncodeJob job, string input, string output, IEncodeObserver observer,
                                                             string? previewPath = null, CancellationToken ct = default)
         {
-            var watch = new EngineWatch(observer);
+            var watch = new RunWatch(observer);
             var result = await PartialOutput.WriteAsync(output, temp => EncodeAsync(job, input, temp, watch, previewPath, ct));
-            return result.Written ? result : result with { EngineFailed = watch.Progress.PreparingEngine && watch.Progress.Percent < 100 };
+            if (!result.Written)
+            {
+                result = result with { EngineFailed = watch.Progress.PreparingEngine && watch.Progress.Percent < 100 };
+            }
+            var damage = watch.Damage;
+            if (damage.Count > 0)
+            {
+                // --on-damage fail: aji_encode stopped at the (first) damaged spot
+                result = result with
+                {
+                    Damage = damage,
+                    StoppedOnDamage = !job.ContinueOnDamage && !result.Written && result.ExitCode != 0 && !result.EngineFailed,
+                };
+            }
+            return result;
         }
 
         private Task<int> Run(string args, IEncodeObserver observer, CancellationToken ct) =>
             AjiProcess.RunAsync(Paths, args, observer.Stdout, observer.Stderr, observer.Started, ct);
 
-        // The observer, with its own read of the progress lines: whether aji_encode stopped while it
-        // was still preparing the engines.
-        private sealed class EngineWatch(IEncodeObserver inner) : IEncodeObserver
+        // The observer, with its own read of the output lines: whether aji_encode stopped while it
+        // was still preparing the engines, and the damaged spots it reported.
+        private sealed class RunWatch(IEncodeObserver inner) : IEncodeObserver
         {
+            private readonly List<DamageSpot> _damage = [];
+
             public AjiProgress Progress { get; } = new();
+
+            public IReadOnlyList<DamageSpot> Damage
+            {
+                get
+                {
+                    lock (_damage)
+                    {
+                        return [.. _damage];
+                    }
+                }
+            }
 
             public void Command(string text) => inner.Command(text);
             public void EncodeStarting(string input, string output) => inner.EncodeStarting(input, output);
@@ -65,19 +94,42 @@ namespace VideoJaNai.Core
             public void Stdout(string line)
             {
                 Progress.Handle(line);
+                if (DamageSpot.Parse(line) is DamageSpot spot)
+                {
+                    lock (_damage)
+                    {
+                        _damage.Add(spot);
+                    }
+                }
                 inner.Stdout(line);
             }
         }
     }
 
-    // An encode's exit code, whether its output was written, and whether aji_encode stopped while
-    // preparing the engines (a failed TensorRT engine build, say).
+    // An encode's exit code, whether its output was written, whether aji_encode stopped while
+    // preparing the engines (a failed TensorRT engine build, say), and the damaged spots it
+    // reported in the source (StoppedOnDamage: it stopped at one, --on-damage fail).
     public readonly record struct EncodeResult(int ExitCode, bool Written, bool EngineFailed = false)
     {
+        private readonly IReadOnlyList<DamageSpot>? _damage;
+
+        public IReadOnlyList<DamageSpot> Damage
+        {
+            get => _damage ?? [];
+            init => _damage = value;
+        }
+
+        public bool StoppedOnDamage { get; init; }
+
         // why the output wasn't written
         public string Failure => ExitCode == 0 ? "aji_encode wrote no output"
                                : EngineFailed ? $"the engine could not be prepared (exit code {ExitCode})"
+                               : StoppedOnDamage ? $"damaged video at {Damage[0].Where}"
                                : $"aji_encode failed (exit code {ExitCode})";
+
+        // "Finished with 3 damaged frames (12:34, 12:35, 41:02)" for a written video with damaged
+        // spots (--on-damage continue), else null
+        public string? FinishedWithDamage => Written && Damage.Count > 0 ? DamageText.Finished(Damage) : null;
     }
 
     // An encode writes a temporary file next to its output, which becomes the output only when
