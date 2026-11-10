@@ -41,6 +41,9 @@ Inputs and output:
                             %filename%-animejanai.mkv); the extension picks the container
   --suffix <text>           or just what's added: ep01.mkv -> ep01<text>.mkv
   --skip-existing           keep outputs that exist (default)    --overwrite   redo them
+  --stop-on-damage          a video with damaged frames (TV recordings, incomplete downloads)
+                            fails, saying where (default)
+  --keep-damaged            finish it instead, and list the damaged places
   -c, --config <file>       settings file to use    --no-config   ignore any settings file
 
 Upscaling (one of; default: --preset balanced):

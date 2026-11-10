@@ -89,6 +89,7 @@ namespace VideoJaNai.Core
                 OutputFilename = Str(w, "OutputFilename") ?? d.OutputFilename,
                 OutputFolderPath = Str(w, "OutputFolderPath") ?? d.OutputFolderPath,
                 OverwriteExistingVideos = Bool(w, "OverwriteExistingVideos") ?? d.OverwriteExistingVideos,
+                FinishDamagedVideos = Bool(w, "FinishDamagedVideos") ?? d.FinishDamagedVideos,
                 FfmpegVideoSettings = Str(w, "FfmpegVideoSettings") ?? d.FfmpegVideoSettings,
                 Deinterlace = Str(w, "Deinterlace") ?? d.Deinterlace,
                 SquarePixels = Str(w, "SquarePixels") ?? d.SquarePixels,

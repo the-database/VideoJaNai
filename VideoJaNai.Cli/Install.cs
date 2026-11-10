@@ -26,6 +26,13 @@ namespace VideoJaNai.Cli
             };
         }
 
+        // an install running this aji_encode (tests)
+        internal Install(AjiPaths paths)
+        {
+            AnimeJaNaiDirectory = Path.GetDirectoryName(paths.InferenceDirectory) ?? paths.InferenceDirectory;
+            Paths = paths;
+        }
+
         public static string ExeDir => AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, '/');
 
         public static string? GuiInstallDir =>

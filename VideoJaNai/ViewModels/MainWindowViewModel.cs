@@ -1115,6 +1115,7 @@ namespace VideoJaNai.ViewModels
             }, TimeSpan.FromSeconds(1));
 
             int attempted = 0, failed = 0;
+            var damaged = new List<string>();
             foreach (var video in plan.Videos)
             {
                 ct.ThrowIfCancellationRequested();
@@ -1124,16 +1125,34 @@ namespace VideoJaNai.ViewModels
                     continue;
                 }
                 attempted++;
-                if (await UpscaleVideo(video, ct) is string failure)
+                var (failure, stoppedOnDamage, finishedWithDamage) = await UpscaleVideo(video, ct);
+                if (failure != null)
                 {
                     failed++;
                     ConsoleQueueEnqueue($"{video.Input} was not upscaled: {failure}.");
+                    if (stoppedOnDamage)
+                    {
+                        ConsoleQueueEnqueue($"To finish it anyway, check \"{Resources.FinishDamagedVideosLabel}\" in Output.");
+                    }
+                }
+                else if (finishedWithDamage != null)
+                {
+                    damaged.Add($"{video.Input}: {finishedWithDamage}.");
+                    ConsoleQueueEnqueue(damaged[^1]);
                 }
                 ct.ThrowIfCancellationRequested();
             }
             if (failed > 0 && attempted > 1)
             {
                 ConsoleQueueEnqueue($"{failed} of {attempted} videos were not upscaled.");
+            }
+            if (damaged.Count > 0 && attempted > 1)
+            {
+                ConsoleQueueEnqueue($"{damaged.Count} of {attempted} videos finished with damage:");
+                foreach (var line in damaged)
+                {
+                    ConsoleQueueEnqueue($"  {line}");
+                }
             }
 
             CurrentWorkflow.Valid = true;
@@ -1189,20 +1208,21 @@ namespace VideoJaNai.ViewModels
 
         }
 
-        // One video, by one aji_encode (which prepares the engine first). Null when the output was
-        // written, else why not; a failed or stopped encode leaves no output (and an output that was
-        // there stays as it was).
-        private async Task<string?> UpscaleVideo(PlannedVideo video, CancellationToken ct)
+        // One video, by one aji_encode (which prepares the engine first). Failure: null when the
+        // output was written, else why not (StoppedOnDamage: at damage); a failed or stopped
+        // encode leaves no output (and an output that was there stays as it was).
+        // FinishedWithDamage: written, with the damaged places listed.
+        private async Task<(string? Failure, bool StoppedOnDamage, string? FinishedWithDamage)> UpscaleVideo(PlannedVideo video, CancellationToken ct)
         {
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(video.Output)!);
                 var result = await RunUpscaleSingle(video.Input, video.Output, ct);
-                return result.Written ? null : result.Failure;
+                return result.Written ? (null, false, result.FinishedWithDamage) : (result.Failure, result.StoppedOnDamage, null);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
             {
-                return e.Message.TrimEnd('.');
+                return (e.Message.TrimEnd('.'), false, null);
             }
         }
 
@@ -2141,6 +2161,7 @@ namespace VideoJaNai.ViewModels
             OutputFilename = OutputFilename,
             OutputFolderPath = OutputFolderPath,
             OverwriteExistingVideos = OverwriteExistingVideos,
+            FinishDamagedVideos = FinishDamagedVideos,
             FfmpegVideoSettings = FfmpegVideoSettings,
             Deinterlace = Deinterlace,
             SquarePixels = SquarePixels,
@@ -2602,6 +2623,16 @@ namespace VideoJaNai.ViewModels
                 this.RaiseAndSetIfChanged(ref _overwriteExistingVideos, value);
 
             }
+        }
+
+        // Finish a video with damaged frames (aji_encode --on-damage continue), listing them, instead
+        // of failing it at the first. Off in states saved before it existed.
+        private bool _finishDamagedVideos;
+        [DataMember]
+        public bool FinishDamagedVideos
+        {
+            get => _finishDamagedVideos;
+            set => this.RaiseAndSetIfChanged(ref _finishDamagedVideos, value);
         }
 
         private AvaloniaList<UpscaleModel> _upscaleSettings = new();

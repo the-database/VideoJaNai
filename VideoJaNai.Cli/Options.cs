@@ -15,6 +15,7 @@ namespace VideoJaNai.Cli
         public string? Filename;
         public string? Suffix;
         public bool? SkipExisting;
+        public bool? KeepDamaged;             // finish videos with damaged frames (else they fail)
 
         public string? Preset;
         public List<string> Models { get; } = [];
