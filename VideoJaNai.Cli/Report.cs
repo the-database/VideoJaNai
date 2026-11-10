@@ -160,7 +160,7 @@ namespace VideoJaNai.Cli
         private string Status(AjiProgress p)
         {
             var elapsed = Duration(DateTime.UtcNow - _videoStart);
-            if (p.Phase == "build_engine")
+            if (p.PreparingEngine)
             {
                 return $"{_prefix}preparing the engine (a first run per model and size builds it)  {elapsed}";
             }

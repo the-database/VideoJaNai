@@ -12,7 +12,7 @@ using Xunit;
 namespace VideoJaNai.Tests
 {
     // What the GUI hands aji_encode for a workflow: the conf it writes and the command line, for
-    // each mode (encode, engine prebuild, preview session). Pinned in Golden/*.txt, so moving the
+    // each mode (encode, preview session). Pinned in Golden/*.txt, so moving the
     // policy into VideoJaNai.Core (shared with the videojanai CLI) can't change a byte of it.
     // VIDEOJANAI_UPDATE_GOLDEN=1 rewrites the files (only do that for an intended change).
     public class EncodeCommandGoldenTests : IDisposable
@@ -105,7 +105,7 @@ namespace VideoJaNai.Tests
             {
                 var cli = EncodeJob.FromWorkflow(wf, gui.Backend, gui.Device, vm.DefaultEncoderPreset, vm.ModelsDirectory);
                 Assert.Equal(AjiConf.Build(gui), AjiConf.Build(cli));
-                foreach (var mode in new[] { AjiMode.Encode, AjiMode.BuildOnly, AjiMode.Preview })
+                foreach (var mode in new[] { AjiMode.Encode, AjiMode.Preview })
                 {
                     Assert.Equal(AjiArgs.Build(gui, vm.Paths, input, output, mode), AjiArgs.Build(cli, vm.Paths, input, output, mode));
                 }
@@ -120,8 +120,6 @@ namespace VideoJaNai.Tests
             parts.Add(File.ReadAllText(Path.Join(_root, "animejanai", "animejanai.conf")).TrimEnd());
             parts.Add("== encode");
             parts.Add(vm.BuildAjiEncodeArgs(input, output, AjiMode.Encode));
-            parts.Add("== build-only");
-            parts.Add(vm.BuildAjiEncodeArgs(input, null, AjiMode.BuildOnly));
             parts.Add("== preview");
             parts.Add(vm.BuildAjiEncodeArgs(input, null, AjiMode.Preview));
             var text = string.Join("\n", parts).Replace("\r\n", "\n");

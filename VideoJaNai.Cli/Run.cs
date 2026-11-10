@@ -9,7 +9,7 @@ using VideoJaNai.Core;
 
 namespace VideoJaNai.Cli
 {
-    // A planned run: the conf once, then per video an engine prebuild (TensorRT) and the encode,
+    // A planned run: the conf once, then per video the encode (which prepares the engines first),
     // into a temporary file next to the output that becomes the output when aji_encode succeeds
     // (PartialOutput), so a stopped or failed encode never leaves a file that skip-existing would keep.
     public static class Run
@@ -50,11 +50,7 @@ namespace VideoJaNai.Cli
                     try
                     {
                         Directory.CreateDirectory(Path.GetDirectoryName(v.Output)!);
-                        var result = new EncodeResult(await runner.BuildEngineAsync(plan.Job, v.Input, observer, ct), false);
-                        if (result.ExitCode == 0)
-                        {
-                            result = await runner.EncodeToOutputAsync(plan.Job, v.Input, v.Output, observer, null, ct);
-                        }
+                        var result = await runner.EncodeToOutputAsync(plan.Job, v.Input, v.Output, observer, null, ct);
                         if (result.Written)
                         {
                             written++;
