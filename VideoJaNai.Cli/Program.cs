@@ -43,7 +43,7 @@ Inputs and output:
   --skip-existing           keep outputs that exist (default)    --overwrite   redo them
   --stop-on-damage          a video with damaged frames (TV recordings, incomplete downloads)
                             fails, saying where (default)
-  --keep-damaged            finish it instead, and list the damaged spots
+  --keep-damaged            finish it instead, and list the damaged places
   -c, --config <file>       settings file to use    --no-config   ignore any settings file
 
 Upscaling (one of; default: --preset balanced):

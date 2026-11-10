@@ -54,12 +54,16 @@ namespace VideoJaNai.Core
             var damage = watch.Damage;
             if (damage.Count > 0)
             {
-                // --on-damage fail: aji_encode stopped at the (first) damaged spot
+                // --on-damage fail: aji_encode stopped at the (first) damaged place
                 result = result with
                 {
                     Damage = damage,
                     StoppedOnDamage = !job.ContinueOnDamage && !result.Written && result.ExitCode != 0 && !result.EngineFailed,
                 };
+            }
+            if (!result.Written && watch.ReadError is string readError)
+            {
+                result = result with { ReadError = readError };
             }
             return result;
         }
@@ -68,10 +72,13 @@ namespace VideoJaNai.Core
             AjiProcess.RunAsync(Paths, args, observer.Stdout, observer.Stderr, observer.Started, ct);
 
         // The observer, with its own read of the output lines: whether aji_encode stopped while it
-        // was still preparing the engines, and the damaged spots it reported.
+        // was still preparing the engines, the damaged places it reported, and a failed read of the
+        // input ("reading the input failed after 0:09.5: I/O error", which fails in both modes).
         private sealed class RunWatch(IEncodeObserver inner) : IEncodeObserver
         {
+            private const string ReadFailed = "reading the input failed";
             private readonly List<DamageSpot> _damage = [];
+            private string? _readError;
 
             public AjiProgress Progress { get; } = new();
 
@@ -88,8 +95,30 @@ namespace VideoJaNai.Core
 
             public void Command(string text) => inner.Command(text);
             public void EncodeStarting(string input, string output) => inner.EncodeStarting(input, output);
-            public void Stderr(string line) => inner.Stderr(line);
+            public string? ReadError
+            {
+                get
+                {
+                    lock (_damage)
+                    {
+                        return _readError;
+                    }
+                }
+            }
+
             public void Started(Process process) => inner.Started(process);
+
+            public void Stderr(string line)
+            {
+                if (line.StartsWith(ReadFailed, StringComparison.Ordinal))
+                {
+                    lock (_damage)
+                    {
+                        _readError ??= line.TrimEnd('.');
+                    }
+                }
+                inner.Stderr(line);
+            }
 
             public void Stdout(string line)
             {
@@ -107,8 +136,9 @@ namespace VideoJaNai.Core
     }
 
     // An encode's exit code, whether its output was written, whether aji_encode stopped while
-    // preparing the engines (a failed TensorRT engine build, say), and the damaged spots it
-    // reported in the source (StoppedOnDamage: it stopped at one, --on-damage fail).
+    // preparing the engines (a failed TensorRT engine build, say), the damaged places it reported
+    // in the source (StoppedOnDamage: it stopped at one, --on-damage fail), and its message when it
+    // failed reading the input.
     public readonly record struct EncodeResult(int ExitCode, bool Written, bool EngineFailed = false)
     {
         private readonly IReadOnlyList<DamageSpot>? _damage;
@@ -121,14 +151,18 @@ namespace VideoJaNai.Core
 
         public bool StoppedOnDamage { get; init; }
 
+        // "reading the input failed after 0:09.5: I/O error"
+        public string? ReadError { get; init; }
+
         // why the output wasn't written
         public string Failure => ExitCode == 0 ? "aji_encode wrote no output"
                                : EngineFailed ? $"the engine could not be prepared (exit code {ExitCode})"
                                : StoppedOnDamage ? $"damaged video at {Damage[0].Where}"
+                               : ReadError is string readError ? readError
                                : $"aji_encode failed (exit code {ExitCode})";
 
-        // "Finished with 3 damaged frames (12:34, 12:35, 41:02)" for a written video with damaged
-        // spots (--on-damage continue), else null
+        // "Finished with damage in 3 places (12:34, 12:35, 41:02)" for a written video with damage
+        // (--on-damage continue), else null
         public string? FinishedWithDamage => Written && Damage.Count > 0 ? DamageText.Finished(Damage) : null;
     }
 

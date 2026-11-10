@@ -38,8 +38,8 @@ suffix =
 ; Keep results that already exist instead of redoing them (yes or no; default yes).
 skip_existing =
 ; TV recordings and incomplete downloads can have damaged frames. no (default): such a video
-; fails, and the error says where the damage is. yes: it is finished, and the damaged spots are
-; listed.
+; fails, and the error says where the damage is. yes: it is finished, and the damaged places
+; are listed.
 keep_damaged =
 
 [upscale]

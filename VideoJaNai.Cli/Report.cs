@@ -18,7 +18,7 @@ namespace VideoJaNai.Cli
     //     VIDEO_DONE <n> <of> <output>
     //     VIDEO_ERROR <n> <of> <message>
     //     NOTE <text>                          worth showing (no chain for the size, a video
-    //                                          finished with damaged frames: "<input>: Finished with ...")
+    //                                          finished with damage: "<input>: Finished with damage in ...")
     //     BACKEND_FALLBACK <message>           libaji's TensorRT-RTX -> TensorRT fallback
     //     DONE <written> <skipped> <failed>
     //   aji_encode's log goes to stderr in this mode (its DAMAGE lines too).
@@ -34,7 +34,7 @@ namespace VideoJaNai.Cli
         public abstract void Note(string text);
         public abstract void Fallback(string message);
         public abstract void AjiLog(string line);
-        // damaged: of the written videos, those finished with damaged frames
+        // damaged: of the written videos, those finished with damage
         public abstract void Done(int written, int skipped, int failed, int damaged, TimeSpan took);
 
         public static string Duration(TimeSpan d)
@@ -222,7 +222,7 @@ namespace VideoJaNai.Cli
             var msg = $"Done: {written} written in {Duration(took)}";
             if (damaged > 0)
             {
-                msg += $" ({damaged} with damaged frames, see the notes above)";
+                msg += $" ({damaged} with damage, see the notes above)";
             }
             if (skipped > 0)
             {

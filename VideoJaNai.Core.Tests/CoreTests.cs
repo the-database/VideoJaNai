@@ -301,12 +301,14 @@ namespace VideoJaNai.Core.Tests
         [Theory]
         [InlineData(754.5, false, "12:34")]
         [InlineData(754.5, true, "12:34.5")]
-        [InlineData(754.99, true, "12:34.9")]
-        [InlineData(59.999, false, "0:59")]
+        [InlineData(754.94, false, "12:34")]
+        [InlineData(754.99, true, "12:35.0")]
+        [InlineData(9.993, true, "0:10.0")]
+        [InlineData(9.993, false, "0:10")]
         [InlineData(3723.25, false, "1:02:03")]
-        [InlineData(3723.25, true, "1:02:03.2")]
+        [InlineData(3723.25, true, "1:02:03.3")]
         [InlineData(0, true, "0:00.0")]
-        public void TimesAreMinutesAndSecondsRoundedDown(double seconds, bool tenths, string text) =>
+        public void TimesAreRoundedToTheTenthAsAjiEncodeDoes(double seconds, bool tenths, string text) =>
             Assert.Equal(text, new DamageSpot((decimal)seconds, null).Time(tenths));
 
         [Fact]
@@ -322,30 +324,40 @@ namespace VideoJaNai.Core.Tests
         }
 
         [Fact]
-        public void AFinishedVideoListsItsDamagedSpots()
+        public void AFinishedVideoListsItsDamagedPlaces()
         {
-            var three = new EncodeResult(0, true) { Damage = [new(754.5M, 18093), new(755.1M, 18108), new(2462M, 59029)] };
-            Assert.Equal("Finished with 3 damaged frames (12:34, 12:35, 41:02)", three.FinishedWithDamage);
-            Assert.Equal("Finished with 1 damaged frame (0:05)", (three with { Damage = [new(5.2M, 125)] }).FinishedWithDamage);
+            var three = new EncodeResult(0, true) { Damage = [new(754.5M, 18093), new(755.6M, 18120), new(2462M, 59029)] };
+            Assert.Equal("Finished with damage in 3 places (12:34, 12:35, 41:02)", three.FinishedWithDamage);
+            Assert.Equal("Finished with damage in 1 place (0:05)", (three with { Damage = [new(5.2M, 125)] }).FinishedWithDamage);
             Assert.Null(new EncodeResult(0, true).FinishedWithDamage);
             Assert.Null(default(EncodeResult).FinishedWithDamage);
         }
 
         [Fact]
-        public void TheListStopsAfterFiveTimesAndRepeatsNone()
+        public void TheListStopsAfterFivePlaces()
         {
-            // two frames in one second are one time in the list
-            DamageSpot[] spots = [new(60.1M, 1), new(60.5M, 2), new(61M, 3), new(62M, 4), new(63M, 5), new(64M, 6), new(65M, 7), new(66M, 8)];
-            Assert.Equal("Finished with 8 damaged frames (1:00, 1:01, 1:02, 1:03, 1:04 and 2 more)", DamageText.Finished(spots));
+            DamageSpot[] spots = [new(60.1M, 1), new(61.5M, 2), new(62M, 3), new(63M, 4), new(64M, 5), new(65M, 6), new(66M, 7)];
+            Assert.Equal("Finished with damage in 7 places (1:00, 1:01, 1:02, 1:03, 1:04 and 2 more)", DamageText.Finished(spots));
+        }
+
+        [Fact]
+        public void AReadErrorIsTheFailure()
+        {
+            var read = new EncodeResult(1, false) { ReadError = "reading the input failed after 0:09.5: I/O error" };
+            Assert.Equal("reading the input failed after 0:09.5: I/O error", read.Failure);
         }
     }
 
     // A fake aji_encode in t that counts its runs (one line per run in runs.txt) and keeps its
-    // arguments (the last run's in args.txt), prints `lines`, writes the file `writes` (when given:
-    // the partial file of an output, to succeed) and exits with `exitCode`.
+    // arguments (the last run's in args.txt), prints `lines` (stdout) and `stderr`, writes the file
+    // `writes` (when given: the partial file of an output, to succeed) and exits with `exitCode`.
     public static class FakeAjiEncode
     {
-        public static AjiPaths Create(TempDir t, int exitCode, string? writes, params string[] lines)
+        public static AjiPaths Create(TempDir t, int exitCode, string? writes, params string[] lines) =>
+            Create(t, exitCode, writes, [], lines);
+
+        // also prints `stderr` on stderr, after `lines`
+        public static AjiPaths Create(TempDir t, int exitCode, string? writes, string[] stderr, string[] lines)
         {
             var runs = Path.Join(t.Path, "runs.txt");
             var args = Path.Join(t.Path, "args.txt");
@@ -354,13 +366,15 @@ namespace VideoJaNai.Core.Tests
             {
                 string[] write = writes is null ? [] : [$"echo x>\"{writes}\""];
                 script = t.File("aji_encode.cmd", string.Join("\r\n",
-                    ["@echo off", $"echo run>>\"{runs}\"", $"echo %* >\"{args}\"", .. lines.Select(l => $"echo {l}"), .. write, $"exit /b {exitCode}"]));
+                    ["@echo off", $"echo run>>\"{runs}\"", $"echo %* >\"{args}\"", .. lines.Select(l => $"echo {l}"),
+                     .. stderr.Select(l => $"1>&2 echo {l}"), .. write, $"exit /b {exitCode}"]));
             }
             else
             {
                 string[] write = writes is null ? [] : [$"echo x > '{writes}'"];
                 script = t.File("aji_encode", string.Join("\n",
-                    ["#!/bin/sh", $"echo run >> '{runs}'", $"echo \"$*\" > '{args}'", .. lines.Select(l => $"echo '{l}'"), .. write, $"exit {exitCode}"]));
+                    ["#!/bin/sh", $"echo run >> '{runs}'", $"echo \"$*\" > '{args}'", .. lines.Select(l => $"echo '{l}'"),
+                     .. stderr.Select(l => $"echo '{l}' >&2"), .. write, $"exit {exitCode}"]));
                 File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
             }
             return new AjiPaths(script, Path.Join(t.Path, "trtexec"), t.Path, Path.Join(t.Path, "onnx"),
@@ -474,7 +488,7 @@ namespace VideoJaNai.Core.Tests
             Assert.True(File.Exists(output));
             Assert.False(result.StoppedOnDamage);
             Assert.Equal([new DamageSpot(754.5M, 18093), new DamageSpot(755.1M, 18108), new DamageSpot(2462M, null)], result.Damage);
-            Assert.Equal("Finished with 3 damaged frames (12:34, 12:35, 41:02)", result.FinishedWithDamage);
+            Assert.Equal("Finished with damage in 3 places (12:34, 12:35, 41:02)", result.FinishedWithDamage);
         }
 
         [Fact]
@@ -487,6 +501,21 @@ namespace VideoJaNai.Core.Tests
             Assert.False(result.StoppedOnDamage);
             Assert.Single(result.Damage);
             Assert.Equal("aji_encode failed (exit code 1)", result.Failure);
+        }
+
+        [Fact]
+        public async Task AFailedReadIsTheFailureInBothModes()
+        {
+            foreach (var keep in new[] { false, true })
+            {
+                using var t = new TempDir();
+                var paths = FakeAjiEncode.Create(t, 1, null, stderr: ["reading the input failed after 0:09.5: I/O error"],
+                                                 lines: ["PROGRESS phase=encode frame=228 total=1000 fps=0.00 pct=22"]);
+                var result = await new EncodeRunner(paths).EncodeToOutputAsync(new EncodeJob { Backend = Backend.TensorRt, ContinueOnDamage = keep },
+                    Path.Join(t.Path, "in.mkv"), Path.Join(t.Path, "out.mkv"), new Lines(), ct: TestContext.Current.CancellationToken);
+                Assert.False(result.StoppedOnDamage);
+                Assert.Equal("reading the input failed after 0:09.5: I/O error", result.Failure);
+            }
         }
 
         [Fact]
