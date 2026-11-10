@@ -16,7 +16,7 @@ on:
       source:
         description: Which upstream to re-pin
         type: choice
-        options: [libaji, runtime-packs, aji-runtime]
+        options: [libaji, runtime-packs, aji-runtime, rife-models]
       tag:
         description: 'animejanai-inference release tag, e.g. v0.22.2'
         required: true

@@ -2,16 +2,17 @@
 """Re-pin a release VideoJaNai packages: scripts/bump_pins.py <source> <tag>.
 
 Sources:
-  libaji          the-database/animejanai-inference release: AjiVersion and the Windows assets'
-                  SHA-256s (ajiSha256Win) in BuildVideoJaNai/Program.cs
+  libaji          the-database/animejanai-inference release: AjiVersion and its assets' SHA-256s
+                  (ajiSha256, both platforms) in BuildVideoJaNai/Program.cs
   runtime-packs   the shared runtime packs, a the-database/animejanai-inference runtime-<n> release:
                   RuntimeTag and the platforms' index SHA-256s (RuntimeIndexSha256Win/Linux)
   aji-runtime     the-database/aji-runtime release (the pack store's tool): AjiRuntimeVersion,
                   AjiRuntimeSha256Win/Linux
+  rife-models     a the-database/animejanai-inference models-rife-* release (by hand; no upstream
+                  workflow sends it): RifeModelsVersion, RifeModelsAsset (its one .7z), RifeModelsSha256
 
 .github/workflows/bump-pins.yml runs this when animejanai-inference sends a repository_dispatch,
-then opens a PR; it also runs by hand. Each pinned asset is downloaded to record its SHA-256, and
-the unpinned Linux assets are checked to exist. --out DIR writes the PR title and body. Standard
+then opens a PR; it also runs by hand. Each pinned asset is downloaded to record its SHA-256. --out DIR writes the PR title and body. Standard
 library only.
 """
 import argparse
@@ -183,12 +184,11 @@ def bump_libaji(tag, changes, allow_downgrade):
     f = File("BuildVideoJaNai/Program.cs", changes)
     guard_downgrade("AjiVersion", f.get("AjiVersion", AJI_VERSION), tag, allow_downgrade)
     rel = release("the-database/animejanai-inference", tag)
-    for name in ("aji-linux-x64.tar.zst", "aji-encode-linux-x64.tar.zst"):
-        asset(rel, name)
     f.set("AjiVersion", AJI_VERSION, tag)
-    for name in ("aji-windows-x64.zip", "aji-trtrtx-windows-x64.zip"):
+    for name in ("aji-windows-x64.zip", "aji-trtrtx-windows-x64.zip",
+                 "aji-linux-x64.tar.zst", "aji-encode-linux-x64.tar.zst"):
         sha, _ = digest(asset(rel, name))
-        f.set(f"ajiSha256Win {name}", rf'\["{re.escape(name)}"\]\s*=\s*"([0-9a-f]{{64}})"', sha)
+        f.set(f"ajiSha256 {name}", rf'\["{re.escape(name)}"\]\s*=\s*"([0-9a-f]{{64}})"', sha)
     notes = (
         f"Pins [libaji {tag}]({rel['html_url']}). Add a line for it to the release history in the "
         "comment above `AjiVersion` (what VideoJaNai gets from it). A change to `aji_encode`'s "
@@ -247,7 +247,29 @@ def bump_aji_runtime(tag, changes, allow_downgrade):
     return [f], f"Bump aji-runtime to {tag}", notes
 
 
-SOURCES = {"libaji": bump_libaji, "runtime-packs": bump_runtime, "aji-runtime": bump_aji_runtime}
+def bump_rife(tag, changes, allow_downgrade):
+    if not re.fullmatch(r"models-rife-[A-Za-z0-9._-]+", tag):
+        raise Fail(f"{tag} isn't a RIFE model release tag (models-rife-<set>)")
+    f = File("BuildVideoJaNai/Program.cs", changes)
+    guard_downgrade("RifeModelsVersion", f.get("RifeModelsVersion", const("RifeModelsVersion")), tag, allow_downgrade)
+    rel = release("the-database/animejanai-inference", tag)
+    archives = [a["name"] for a in rel["assets"] if a["name"].endswith(".7z")]
+    if len(archives) != 1:
+        raise Fail(f"{tag} should carry one .7z model archive, found {len(archives)}")
+    f.set("RifeModelsVersion", const("RifeModelsVersion"), tag)
+    f.set("RifeModelsAsset", const("RifeModelsAsset"), archives[0])
+    sha, _ = digest(asset(rel, archives[0]))
+    f.set("RifeModelsSha256", const("RifeModelsSha256", SHA), sha)
+    notes = (
+        f"Pins the RIFE models [{tag}]({rel['html_url']}). Update the comment above `RifeModelsVersion` "
+        "by hand. New file names mean new TensorRT engines on first use. To test it, build with "
+        "`BuildVideoJaNai` and upscale a clip with RIFE on."
+    )
+    return [f], f"Bump the RIFE models to {tag}", notes
+
+
+SOURCES = {"libaji": bump_libaji, "runtime-packs": bump_runtime, "aji-runtime": bump_aji_runtime,
+           "rife-models": bump_rife}
 
 if __name__ == "__main__":
     run(SOURCES, "VideoJaNai")
