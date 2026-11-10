@@ -577,12 +577,17 @@
                 <TextBox Grid.Column="2" x:Name="OutputFolderNameTextBox" Margin="0,0,5,0" Text="{Binding CurrentWorkflow.OutputFolderPath}" HorizontalAlignment="Stretch" DragDrop.AllowDrop="True" />
                 <Button Grid.Column="3" Content="{x:Static lang:Resources.SelectFolderButtonText}" Click="OpenOutputFolderButtonClick" />
               </Grid>
-              <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+              <Grid ColumnDefinitions="Auto,Auto,*,Auto" RowDefinitions="Auto,Auto">
                 <ContentControl Classes="hint" Grid.Column="0" Content="{x:Static lang:Resources.OutputFilenameLabel}" ToolTip.Tip="{x:Static lang:Resources.OutputFilenameDescription}" />
                 <TextBox Grid.Column="2" Margin="0,0,15,0" Text="{Binding CurrentWorkflow.OutputFilename}" HorizontalAlignment="Stretch" />
                 <StackPanel Grid.Column="3" Orientation="Horizontal">
                   <ContentControl Classes="hint" ToolTip.Tip="{x:Static lang:Resources.AllowOverwriteDescription}">
                     <CheckBox IsChecked="{Binding CurrentWorkflow.OverwriteExistingVideos}" Content="{x:Static lang:Resources.AllowOverwriteLabel}" />
+                  </ContentControl>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="3" Orientation="Horizontal">
+                  <ContentControl Classes="hint" ToolTip.Tip="{x:Static lang:Resources.FinishDamagedVideosDescription}">
+                    <CheckBox IsChecked="{Binding CurrentWorkflow.FinishDamagedVideos}" Content="{x:Static lang:Resources.FinishDamagedVideosLabel}" />
                   </ContentControl>
                 </StackPanel>
               </Grid>

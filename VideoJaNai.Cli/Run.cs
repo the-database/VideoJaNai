@@ -12,6 +12,8 @@ namespace VideoJaNai.Cli
     // A planned run: the conf once, then per video the encode (which prepares the engines first),
     // into a temporary file next to the output that becomes the output when aji_encode succeeds
     // (PartialOutput), so a stopped or failed encode never leaves a file that skip-existing would keep.
+    // A video with damaged frames fails at the first damage (where it is, in the error), or with
+    // --keep-damaged is finished with a note listing the damaged places.
     public static class Run
     {
         public static async Task<int> ExecuteAsync(RunPlan plan, Report report, CancellationToken ct)
@@ -30,7 +32,7 @@ namespace VideoJaNai.Cli
             {
                 runner.Prepare(plan.Job);
             }
-            int written = 0, skipped = 0, failed = 0;
+            int written = 0, skipped = 0, failed = 0, damaged = 0;
             try
             {
                 for (var i = 0; i < plan.Videos.Count; i++)
@@ -55,11 +57,17 @@ namespace VideoJaNai.Cli
                         {
                             written++;
                             report.VideoDone(n, plan.Videos.Count, v, took.Elapsed);
+                            if (result.FinishedWithDamage is string damage)
+                            {
+                                damaged++;
+                                report.Note($"{v.Input}: {damage}");
+                            }
                         }
                         else
                         {
                             failed++;
-                            report.VideoError(n, plan.Videos.Count, v, result.Failure, observer.Tail);
+                            var message = result.StoppedOnDamage ? $"{result.Failure}; --keep-damaged finishes it anyway" : result.Failure;
+                            report.VideoError(n, plan.Videos.Count, v, message, observer.Tail);
                         }
                     }
                     catch (OperationCanceledException)
@@ -77,7 +85,7 @@ namespace VideoJaNai.Cli
             {
                 TryDelete(plan.Install.Paths.ConfPath);
             }
-            report.Done(written, skipped, failed, start.Elapsed);
+            report.Done(written, skipped, failed, damaged, start.Elapsed);
             return failed > 0 ? 1 : 0;
         }
 

@@ -88,6 +88,24 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Finish videos with damaged frames.
+        /// </summary>
+        public static string FinishDamagedVideosLabel {
+            get {
+                return ResourceManager.GetString("FinishDamagedVideosLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to TV recordings and incomplete downloads can have damaged frames. Unchecked: the video fails, and the error says where the damage is. Checked: it is finished, and the damaged places are listed..
+        /// </summary>
+        public static string FinishDamagedVideosDescription {
+            get {
+                return ResourceManager.GetString("FinishDamagedVideosDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to App is not installed; auto update settings unavailable..
         /// </summary>
         public static string AppNotInstalledText {
