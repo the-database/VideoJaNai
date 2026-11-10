@@ -243,6 +243,101 @@ namespace VideoJaNai.Core.Tests
             Assert.Equal("", p.Phase);
             Assert.Equal(0, p.Percent);
         }
+
+        [Fact]
+        public void TheEngineIsBeingPreparedUntilTheEncodeStarts()
+        {
+            var p = new AjiProgress();
+            Assert.False(p.PreparingEngine);
+            p.Handle("PROGRESS phase=build_engine frame=0 total=0 fps=0.00 pct=0");
+            Assert.True(p.PreparingEngine);
+            p.Handle("PROGRESS phase=build_engine frame=0 total=0 fps=0.00 pct=100");
+            Assert.True(p.PreparingEngine);
+            p.Handle("PROGRESS phase=encode frame=32 total=320 fps=0.00 pct=10");
+            Assert.False(p.PreparingEngine);
+        }
+    }
+
+    // One aji_encode per video, which prepares the engine itself (there is no separate engine build
+    // run), with a fake aji_encode that prints PROGRESS lines and exits.
+    public class EncodeRunnerTests
+    {
+        private sealed class Lines : IEncodeObserver
+        {
+            public readonly System.Collections.Concurrent.ConcurrentQueue<string> Stdout = new();
+            public int Commands;
+            public void Command(string text) => Commands++;
+            public void EncodeStarting(string input, string output) { }
+            void IEncodeObserver.Stdout(string line) => Stdout.Enqueue(line);
+            public void Stderr(string line) { }
+        }
+
+        // a fake aji_encode in t that counts its runs (one line per run in runs.txt), prints `lines`
+        // and exits with `exitCode`
+        private static AjiPaths FakeAji(TempDir t, int exitCode, params string[] lines)
+        {
+            var runs = Path.Join(t.Path, "runs.txt");
+            string script;
+            if (OperatingSystem.IsWindows())
+            {
+                script = t.File("aji_encode.cmd", string.Join("\r\n",
+                    ["@echo off", $"echo run>>\"{runs}\"", .. lines.Select(l => $"echo {l}"), $"exit /b {exitCode}"]));
+            }
+            else
+            {
+                script = t.File("aji_encode", string.Join("\n",
+                    ["#!/bin/sh", $"echo run >> '{runs}'", .. lines.Select(l => $"echo '{l}'"), $"exit {exitCode}"]));
+                File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+            return new AjiPaths(script, Path.Join(t.Path, "trtexec"), t.Path, Path.Join(t.Path, "onnx"),
+                                Path.Join(t.Path, "rife"), Path.Join(t.Path, "animejanai.conf"));
+        }
+
+        private static int Runs(TempDir t) =>
+            File.Exists(Path.Join(t.Path, "runs.txt")) ? File.ReadAllLines(Path.Join(t.Path, "runs.txt")).Length : 0;
+
+        [Fact]
+        public async Task ATensorRtEncodeRunsAjiEncodeOnce()
+        {
+            using var t = new TempDir();
+            var paths = FakeAji(t, 0,
+                "PROGRESS phase=build_engine frame=0 total=0 fps=0.00 pct=0",
+                "PROGRESS phase=build_engine frame=0 total=0 fps=0.00 pct=100",
+                "PROGRESS phase=encode frame=10 total=10 fps=0.00 pct=100");
+            var lines = new Lines();
+            var result = await new EncodeRunner(paths).EncodeToOutputAsync(new EncodeJob { Backend = Backend.TensorRt },
+                Path.Join(t.Path, "in.mkv"), Path.Join(t.Path, "out.mkv"), lines, ct: TestContext.Current.CancellationToken);
+            Assert.Equal(1, Runs(t));
+            Assert.Equal(1, lines.Commands);
+            Assert.Equal(3, lines.Stdout.Count(AjiProgress.IsProgressLine));
+            // the fake writes no file
+            Assert.Equal(new EncodeResult(0, false), result);
+        }
+
+        [Fact]
+        public async Task AnEncodeThatStopsWhilePreparingTheEngineSaysSo()
+        {
+            using var t = new TempDir();
+            var paths = FakeAji(t, 1, "PROGRESS phase=build_engine frame=0 total=0 fps=0.00 pct=0");
+            var result = await new EncodeRunner(paths).EncodeToOutputAsync(new EncodeJob { Backend = Backend.TensorRt },
+                Path.Join(t.Path, "in.mkv"), Path.Join(t.Path, "out.mkv"), new Lines(), ct: TestContext.Current.CancellationToken);
+            Assert.Equal(1, Runs(t));
+            Assert.True(result.EngineFailed);
+            Assert.Equal("the engine could not be prepared (exit code 1)", result.Failure);
+        }
+
+        [Fact]
+        public async Task AnEncodeThatFailsAfterTheEngineIsReadyIsAnEncodeFailure()
+        {
+            using var t = new TempDir();
+            var paths = FakeAji(t, 1,
+                "PROGRESS phase=build_engine frame=0 total=0 fps=0.00 pct=0",
+                "PROGRESS phase=build_engine frame=0 total=0 fps=0.00 pct=100");
+            var result = await new EncodeRunner(paths).EncodeToOutputAsync(new EncodeJob { Backend = Backend.TensorRt },
+                Path.Join(t.Path, "in.mkv"), Path.Join(t.Path, "out.mkv"), new Lines(), ct: TestContext.Current.CancellationToken);
+            Assert.False(result.EngineFailed);
+            Assert.Equal("aji_encode failed (exit code 1)", result.Failure);
+        }
     }
 
     public class BatchPlanTests

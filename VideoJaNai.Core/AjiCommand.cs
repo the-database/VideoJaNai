@@ -29,7 +29,7 @@ namespace VideoJaNai.Core
         }
     }
 
-    public enum AjiMode { Encode, BuildOnly, Preview }
+    public enum AjiMode { Encode, Preview }
 
     // The libaji conf for a job: libaji's config_version=2 schema (see AnimeJaNaiConfEditor), slot 1.
     // No backend_path, per-chain final_resize or per-chain TensorRT settings in this schema.
@@ -151,52 +151,45 @@ namespace VideoJaNai.Core
                 sb.Append(English, $"--square-pixels {job.SquarePixels} ");
             }
 
-            if (mode == AjiMode.BuildOnly)
+            // The preview session takes the encode's settings too: the output format and the final
+            // resize change the frames it shows, and the encoder is validated against them.
+            if (mode == AjiMode.Encode)
             {
-                sb.Append("--build-only ");
+                sb.Append(English, $"--output \"{outputFilePath}\" ");
+            }
+
+            var (vcodec, vquality) = SplitFfmpegSettings(job.FfmpegVideoSettings);
+            sb.Append(English, $"--vcodec {vcodec} ");
+            if (mode == AjiMode.Encode && !string.IsNullOrWhiteSpace(vquality))
+            {
+                sb.Append(English, $"--vquality \"{vquality}\" ");
+            }
+
+            sb.Append(English, $"--pix-fmt {job.PixFmt} ");
+
+            // final_resize has no conf field in the engine; aji_encode takes it directly.
+            if (job.FinalResizeHeight is int frh && frh > 0)
+            {
+                sb.Append(English, $"--final-resize-height {frh} ");
+            }
+            else if (job.FinalResizeFactor is int frf && frf > 0 && frf != 100)
+            {
+                sb.Append(English, $"--final-resize-factor {frf} ");
+            }
+
+            if (mode == AjiMode.Preview)
+            {
+                sb.Append("--preview-session ");
             }
             else
             {
-                // The preview session takes the encode's settings too: the output format and the
-                // final resize change the frames it shows, and the encoder is validated against them.
-                if (mode == AjiMode.Encode)
+                if (job.Overwrite)
                 {
-                    sb.Append(English, $"--output \"{outputFilePath}\" ");
+                    sb.Append("--overwrite ");
                 }
-
-                var (vcodec, vquality) = SplitFfmpegSettings(job.FfmpegVideoSettings);
-                sb.Append(English, $"--vcodec {vcodec} ");
-                if (mode == AjiMode.Encode && !string.IsNullOrWhiteSpace(vquality))
+                if (previewPath != null)
                 {
-                    sb.Append(English, $"--vquality \"{vquality}\" ");
-                }
-
-                sb.Append(English, $"--pix-fmt {job.PixFmt} ");
-
-                // final_resize has no conf field in the engine; aji_encode takes it directly.
-                if (job.FinalResizeHeight is int frh && frh > 0)
-                {
-                    sb.Append(English, $"--final-resize-height {frh} ");
-                }
-                else if (job.FinalResizeFactor is int frf && frf > 0 && frf != 100)
-                {
-                    sb.Append(English, $"--final-resize-factor {frf} ");
-                }
-
-                if (mode == AjiMode.Preview)
-                {
-                    sb.Append("--preview-session ");
-                }
-                else
-                {
-                    if (job.Overwrite)
-                    {
-                        sb.Append("--overwrite ");
-                    }
-                    if (previewPath != null)
-                    {
-                        sb.Append(English, $"--preview \"{previewPath}\" ");
-                    }
+                    sb.Append(English, $"--preview \"{previewPath}\" ");
                 }
             }
 
