@@ -11,7 +11,7 @@ namespace VideoJaNai.Core
     {
         // the command about to run, as the console shows it ("Upscaling with command: ...")
         void Command(string text);
-        // an encode (not an engine prebuild) is starting: progress starts over
+        // an encode is starting: progress starts over
         void EncodeStarting(string input, string output);
         void Stdout(string line);
         void Stderr(string line);
@@ -19,29 +19,15 @@ namespace VideoJaNai.Core
     }
 
     // One run of a job over inputs, as the GUI and the command line both do it: the conf is written
-    // once (Prepare), then per video the TensorRT engine is prebuilt (TensorRT builds engines on first
-    // use, which can take minutes, so it gets its own step; TensorRT-RTX builds in about a second and
-    // DirectML needs none) and the video is encoded.
+    // once (Prepare), then each video is encoded by one aji_encode. aji_encode prepares the engines
+    // before the first frame (TensorRT builds one on first use for a model and size, which can take
+    // minutes, and loads it from its cache after that), reporting it as PROGRESS phase=build_engine
+    // lines (pct=0, then pct=100) ahead of the encode's own.
     public sealed class EncodeRunner(AjiPaths paths)
     {
         public AjiPaths Paths { get; } = paths;
 
         public void Prepare(EncodeJob job) => AjiConf.Write(job, Paths);
-
-        public static bool NeedsEnginePrebuild(EncodeJob job) => job.Backend == Backend.TensorRt;
-
-        // 0 when there is nothing to build; otherwise aji_encode --build-only's exit code.
-        public async Task<int> BuildEngineAsync(EncodeJob job, string input, IEncodeObserver observer, CancellationToken ct = default)
-        {
-            if (!NeedsEnginePrebuild(job))
-            {
-                return 0;
-            }
-            var args = AjiArgs.Build(job, Paths, input, null, AjiMode.BuildOnly);
-            var engine = job.Backend == Backend.TensorRtRtx ? "TensorRT-RTX" : "TensorRT";
-            observer.Command($"Generating {engine} engine with command: {Paths.AjiEncodePath} {args}");
-            return await Run(args, observer, ct);
-        }
 
         public async Task<int> EncodeAsync(EncodeJob job, string input, string output, IEncodeObserver observer,
                                            string? previewPath = null, CancellationToken ct = default)
@@ -54,19 +40,44 @@ namespace VideoJaNai.Core
 
         // EncodeAsync into the output's partial file, which becomes the output only when the encode
         // succeeds (see PartialOutput).
-        public Task<EncodeResult> EncodeToOutputAsync(EncodeJob job, string input, string output, IEncodeObserver observer,
-                                                      string? previewPath = null, CancellationToken ct = default) =>
-            PartialOutput.WriteAsync(output, temp => EncodeAsync(job, input, temp, observer, previewPath, ct));
+        public async Task<EncodeResult> EncodeToOutputAsync(EncodeJob job, string input, string output, IEncodeObserver observer,
+                                                            string? previewPath = null, CancellationToken ct = default)
+        {
+            var watch = new EngineWatch(observer);
+            var result = await PartialOutput.WriteAsync(output, temp => EncodeAsync(job, input, temp, watch, previewPath, ct));
+            return result.Written ? result : result with { EngineFailed = watch.Progress.PreparingEngine && watch.Progress.Percent < 100 };
+        }
 
         private Task<int> Run(string args, IEncodeObserver observer, CancellationToken ct) =>
             AjiProcess.RunAsync(Paths, args, observer.Stdout, observer.Stderr, observer.Started, ct);
+
+        // The observer, with its own read of the progress lines: whether aji_encode stopped while it
+        // was still preparing the engines.
+        private sealed class EngineWatch(IEncodeObserver inner) : IEncodeObserver
+        {
+            public AjiProgress Progress { get; } = new();
+
+            public void Command(string text) => inner.Command(text);
+            public void EncodeStarting(string input, string output) => inner.EncodeStarting(input, output);
+            public void Stderr(string line) => inner.Stderr(line);
+            public void Started(Process process) => inner.Started(process);
+
+            public void Stdout(string line)
+            {
+                Progress.Handle(line);
+                inner.Stdout(line);
+            }
+        }
     }
 
-    // An encode's exit code and whether its output was written.
-    public readonly record struct EncodeResult(int ExitCode, bool Written)
+    // An encode's exit code, whether its output was written, and whether aji_encode stopped while
+    // preparing the engines (a failed TensorRT engine build, say).
+    public readonly record struct EncodeResult(int ExitCode, bool Written, bool EngineFailed = false)
     {
         // why the output wasn't written
-        public string Failure => ExitCode == 0 ? "aji_encode wrote no output" : $"aji_encode failed (exit code {ExitCode})";
+        public string Failure => ExitCode == 0 ? "aji_encode wrote no output"
+                               : EngineFailed ? $"the engine could not be prepared (exit code {ExitCode})"
+                               : $"aji_encode failed (exit code {ExitCode})";
     }
 
     // An encode writes a temporary file next to its output, which becomes the output only when

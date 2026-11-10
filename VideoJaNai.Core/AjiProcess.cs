@@ -144,6 +144,9 @@ namespace VideoJaNai.Core
         private DateTime _lastFpsTime;
 
         public string Phase { get; private set; } = string.Empty;
+        // aji_encode is preparing the engines (building a TensorRT engine, the first time for a model
+        // and size), before the first frame: pct=0 when it starts, pct=100 when they are ready.
+        public bool PreparingEngine => Phase == "build_engine";
         public double Percent { get; private set; }
         public long Frame { get; private set; }
         public long TotalFrames { get; private set; }

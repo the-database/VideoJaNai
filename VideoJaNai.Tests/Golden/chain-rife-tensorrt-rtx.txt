@@ -25,7 +25,5 @@ chain_1_rife_ensemble=yes
 chain_1_rife_before_upscale=no
 == encode
 --input "C:/in/dvd.vob" --conf "<root>/animejanai/animejanai.conf" --slot 1 --model-dir "<root>/animejanai/onnx" --rife-model-dir "<root>/animejanai/rife" --trtexec "<root>/animejanai/inference/trtexec" --backend tensorrt-rtx --deinterlace ivtc --square-pixels before --output "C:/out/dvd.mkv" --vcodec libx265 --vquality "-crf 16 -preset slow -x265-params "sao=0:bframes=8:psy-rd=1.5:psy-rdoq=2:aq-mode=3:ref=6"" --pix-fmt yuv444p10 --final-resize-height 1440 --preview "<tmp>/videojanai-preview-<pid>.jpg" --progress line
-== build-only
---input "C:/in/dvd.vob" --conf "<root>/animejanai/animejanai.conf" --slot 1 --model-dir "<root>/animejanai/onnx" --rife-model-dir "<root>/animejanai/rife" --trtexec "<root>/animejanai/inference/trtexec" --backend tensorrt-rtx --deinterlace ivtc --square-pixels before --build-only --progress line
 == preview
 --input "C:/in/dvd.vob" --conf "<root>/animejanai/animejanai.conf" --slot 1 --model-dir "<root>/animejanai/onnx" --rife-model-dir "<root>/animejanai/rife" --trtexec "<root>/animejanai/inference/trtexec" --backend tensorrt-rtx --deinterlace ivtc --square-pixels before --vcodec libx265 --pix-fmt yuv444p10 --final-resize-height 1440 --preview-session --progress line

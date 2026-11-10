@@ -96,6 +96,22 @@ namespace VideoJaNai.ViewModels
             set => this.RaiseAndSetIfChanged(ref _progressPhase, value);
         }
 
+        // aji_encode is preparing the TensorRT (or TensorRT-RTX) engine before the first frame: the
+        // progress bar runs indeterminate and the text says so, with the time it has taken so far
+        // (a first build can take minutes; a cached engine loads in about a second).
+        private bool _engineBuilding;
+        [IgnoreDataMember]
+        public bool EngineBuilding
+        {
+            get => _engineBuilding;
+            set => this.RaiseAndSetIfChanged(ref _engineBuilding, value);
+        }
+
+        // set per run: the text while the engine is prepared (null on DirectML, which has no engine
+        // to build), and when the current build started
+        private string? _engineBuildText;
+        private long _engineBuildStart;
+
         // Editable-combo suggestions for the TensorRT engine-settings UI (mirrors AnimeJaNaiConfEditor).
         public string[] CommonResolutions { get; } =
             ["0x0", "640x360", "640x480", "720x480", "768x576", "960x540", "1024x576", "1280x720", "1440x1080", "1920x1080"];
@@ -1050,19 +1066,6 @@ namespace VideoJaNai.ViewModels
         // copied into the models folder, where aji resolves them by name.
         public void SetupAnimeJaNaiConfSlot1() => AjiConf.Write(CurrentJob(), Paths);
 
-        // 0 when there is nothing to build; otherwise aji_encode --build-only's exit code.
-        public async Task<int> CheckEngines(string inputFilePath)
-        {
-            // TensorRT and TensorRT-RTX build/cache engines on first use (TensorRT-RTX in about a
-            // second, so prebuilding it costs little); DirectML needs no prebuild.
-            if (!CurrentWorkflow.TensorRtSelected)
-            {
-                return 0;
-            }
-
-            return await GenerateEngine(inputFilePath);
-        }
-
         public async Task RunUpscale()
         {
             ShowConsole = true;
@@ -1095,6 +1098,21 @@ namespace VideoJaNai.ViewModels
             _preview?.RequestClose();
             Upscaling = true;
             SetupAnimeJaNaiConfSlot1();
+            _engineBuildText = CurrentJob().Backend switch
+            {
+                Backend.TensorRt => Resources.PreviewBuildingEngineText,
+                Backend.TensorRtRtx => Resources.PreviewBuildingEngineTextTensorRtRtx,
+                _ => null,
+            };
+            // the build's elapsed time, while there is one (progress lines only mark its start and end)
+            using var engineBuildTimer = DispatcherTimer.Run(() =>
+            {
+                if (EngineBuilding)
+                {
+                    ShowEngineBuildText();
+                }
+                return true;
+            }, TimeSpan.FromSeconds(1));
 
             int attempted = 0, failed = 0;
             foreach (var video in plan.Videos)
@@ -1136,6 +1154,7 @@ namespace VideoJaNai.ViewModels
             {
                 _cancellationTokenSource.Dispose();
                 Upscaling = false;
+                EngineBuilding = false;
                 CurrentWorkflow.Validate();
                 try
                 {
@@ -1170,19 +1189,13 @@ namespace VideoJaNai.ViewModels
 
         }
 
-        // One video: the engine prebuild (TensorRT), then the encode. Null when the output was written,
-        // else why not; a failed or stopped encode leaves no output (and an output that was there
-        // stays as it was).
+        // One video, by one aji_encode (which prepares the engine first). Null when the output was
+        // written, else why not; a failed or stopped encode leaves no output (and an output that was
+        // there stays as it was).
         private async Task<string?> UpscaleVideo(PlannedVideo video, CancellationToken ct)
         {
             try
             {
-                var rc = await CheckEngines(video.Input);
-                ct.ThrowIfCancellationRequested();
-                if (rc != 0)
-                {
-                    return $"the TensorRT engine could not be generated (exit code {rc})";
-                }
                 Directory.CreateDirectory(Path.GetDirectoryName(video.Output)!);
                 var result = await RunUpscaleSingle(video.Input, video.Output, ct);
                 return result.Written ? null : result.Failure;
@@ -1201,30 +1214,8 @@ namespace VideoJaNai.ViewModels
             return await new EncodeRunner(Paths).EncodeToOutputAsync(CurrentJob(), inputFilePath, outputFilePath, observer, PreviewPath, ct);
         }
 
-        public async Task<int> GenerateEngine(string inputFilePath)
-        {
-            // CheckEngines decides when (EncodeRunner.BuildEngineAsync's rule), so build here whatever
-            // the backend
-            var job = CurrentJob();
-            var args = BuildAjiEncodeArgs(inputFilePath, null, AjiMode.BuildOnly);
-            var engine = job.Backend == Backend.TensorRtRtx ? "TensorRT-RTX" : "TensorRT";
-            ConsoleQueueEnqueue($"Generating {engine} engine with command: {_pythonService.AjiEncodePath} {args}");
-            return await RunAjiEncode(args, resetProgress: false);
-        }
-
         internal string BuildAjiEncodeArgs(string inputFilePath, string? outputFilePath, AjiMode mode) =>
             AjiArgs.Build(CurrentJob(), Paths, inputFilePath, outputFilePath, mode, mode == AjiMode.Encode ? PreviewPath : null);
-
-        // aji_encode's exit code
-        public async Task<int> RunAjiEncode(string arguments, bool resetProgress)
-        {
-            if (resetProgress)
-            {
-                ResetProgress();
-            }
-            using var observer = new RunObserver(this);
-            return await AjiProcess.RunAsync(Paths, arguments, observer.Stdout, observer.Stderr, observer.Started);
-        }
 
         // aji_encode's output during a run: every line to error.log (in the state folder: the working
         // directory may be anywhere, including somewhere read-only) and the console, except PROGRESS
@@ -1298,14 +1289,42 @@ namespace VideoJaNai.ViewModels
                 return false;
             }
             ProgressPhase = _progress.Phase;
+            // the engine's pct=100 is not the encode's
+            if (_progress.PreparingEngine)
+            {
+                ProgressValue = 0;
+                if (_engineBuildText == null)
+                {
+                    ProgressText = string.Empty;
+                    return true;
+                }
+                if (!EngineBuilding)
+                {
+                    _engineBuildStart = Stopwatch.GetTimestamp();
+                    EngineBuilding = true;
+                }
+                ShowEngineBuildText();
+                return true;
+            }
+            EngineBuilding = false;
             ProgressValue = _progress.Percent;
             ProgressText = _progress.Text;
             return true;
         }
 
+        // "Building the TensorRT engine. ... (0:42)", once it has taken a second: a cached engine
+        // loads quicker than that, and then nothing is being built
+        private void ShowEngineBuildText()
+        {
+            var elapsed = Stopwatch.GetElapsedTime(_engineBuildStart);
+            ProgressText = elapsed < TimeSpan.FromSeconds(1) ? string.Empty
+                : string.Create(CultureInfo.InvariantCulture, $"{_engineBuildText} ({(int)elapsed.TotalMinutes}:{elapsed.Seconds:00})");
+        }
+
         private void ResetProgress()
         {
             _progress.Reset();
+            EngineBuilding = false;
             ProgressValue = 0;
             ProgressText = string.Empty;
             ProgressPhase = string.Empty;
