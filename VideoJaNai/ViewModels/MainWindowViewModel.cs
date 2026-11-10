@@ -1148,7 +1148,7 @@ namespace VideoJaNai.ViewModels
             }
             if (damaged.Count > 0 && attempted > 1)
             {
-                ConsoleQueueEnqueue($"{damaged.Count} of {attempted} videos finished with damaged frames:");
+                ConsoleQueueEnqueue($"{damaged.Count} of {attempted} videos finished with damage:");
                 foreach (var line in damaged)
                 {
                     ConsoleQueueEnqueue($"  {line}");
@@ -1209,9 +1209,9 @@ namespace VideoJaNai.ViewModels
         }
 
         // One video, by one aji_encode (which prepares the engine first). Failure: null when the
-        // output was written, else why not (StoppedOnDamage: at a damaged frame); a failed or stopped
+        // output was written, else why not (StoppedOnDamage: at damage); a failed or stopped
         // encode leaves no output (and an output that was there stays as it was).
-        // FinishedWithDamage: written, with the damaged frames listed.
+        // FinishedWithDamage: written, with the damaged places listed.
         private async Task<(string? Failure, bool StoppedOnDamage, string? FinishedWithDamage)> UpscaleVideo(PlannedVideo video, CancellationToken ct)
         {
             try

@@ -12,8 +12,8 @@ namespace VideoJaNai.Cli
     // A planned run: the conf once, then per video the encode (which prepares the engines first),
     // into a temporary file next to the output that becomes the output when aji_encode succeeds
     // (PartialOutput), so a stopped or failed encode never leaves a file that skip-existing would keep.
-    // A video with damaged frames fails at the first (where it is, in the error), or with
-    // --keep-damaged is finished with a note listing them.
+    // A video with damaged frames fails at the first damage (where it is, in the error), or with
+    // --keep-damaged is finished with a note listing the damaged places.
     public static class Run
     {
         public static async Task<int> ExecuteAsync(RunPlan plan, Report report, CancellationToken ct)

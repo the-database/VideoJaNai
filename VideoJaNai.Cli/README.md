@@ -63,7 +63,7 @@ encode never leaves a file that a later run would skip. Ctrl+C stops at once and
 TV recordings and incomplete downloads can have damaged frames. Such a video fails, and the error
 says where the damage is (`damaged video at 12:34.5 (frame 18093)`). `--keep-damaged` (or
 `keep_damaged = yes` in the settings file) finishes it instead, with a note listing the damaged
-spots (`Finished with 3 damaged frames (12:34, 12:35, 41:02)`).
+places (`Finished with damage in 3 places (12:34, 12:35, 41:02)`).
 
 ### Settings file
 
@@ -144,7 +144,7 @@ engines are kept next to the models.
 | `VIDEO_SKIP <n> <of> <output>` | the output exists |
 | `VIDEO_DONE <n> <of> <output>` | the video is written |
 | `VIDEO_ERROR <n> <of> <message>` | the video failed; the run goes on |
-| `NOTE <text>` / `BACKEND_FALLBACK <text>` | worth showing: no chain for the size, a video finished with damaged frames (`<input>: Finished with ...`), TensorRT-RTX -> TensorRT |
+| `NOTE <text>` / `BACKEND_FALLBACK <text>` | worth showing: no chain for the size, a video finished with damage (`<input>: Finished with damage in ...`), TensorRT-RTX -> TensorRT |
 | `DONE <written> <skipped> <failed>` | the end |
 
 `videojanai setup --progress lines` reports with mangajanai setup's lines: `SETUP_PLAN <pack>

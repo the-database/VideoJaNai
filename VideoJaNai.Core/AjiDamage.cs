@@ -6,11 +6,13 @@ using System.Text.RegularExpressions;
 
 namespace VideoJaNai.Core
 {
-    // A damaged spot in the source video, from aji_encode's "DAMAGE t=<seconds> frame=<index>" line
-    // (stdout, next to the PROGRESS lines): the time since the video stream's start, and the source
-    // frame (null when aji_encode has none, frame=-1). aji_encode prints one per spot. With
-    // --on-damage fail (its default) it stops at the first one and exits nonzero; with
-    // --on-damage continue it finishes the file. An aji_encode without the option prints none.
+    // A damaged place in the source video, from aji_encode's "DAMAGE t=<seconds> frame=<index>" line
+    // (stdout, next to the PROGRESS lines): the time since the video stream's start, and the place's
+    // first source frame (null when aji_encode has none, frame=-1). aji_encode prints one per place:
+    // damage found less than a second apart is one place, which can cover many frames (a damaged
+    // HEVC stream can lose 100+). With --on-damage fail (its default) it stops at the first one
+    // (exit 3); with --on-damage continue it finishes the file. An aji_encode without the option
+    // prints none.
     public readonly record struct DamageSpot(decimal Seconds, long? Frame)
     {
         private static readonly CultureInfo English = CultureInfo.InvariantCulture;
@@ -34,10 +36,11 @@ namespace VideoJaNai.Core
             return new DamageSpot(seconds, frame);
         }
 
-        // 12:34 or 1:02:03 (rounded down to the second); with tenths, 12:34.5
+        // 12:34 or 1:02:03; with tenths, 12:34.5. Rounded to the tenth as aji_encode's own message
+        // does ("damaged video at 0:10.0" for t=9.993), then cut to the second.
         public string Time(bool tenths = false)
         {
-            var totalTenths = (long)decimal.Floor(Math.Max(0, Seconds) * 10);
+            var totalTenths = (long)decimal.Floor(Math.Max(0, Seconds) * 10 + 0.5M);
             var s = totalTenths / 10;
             var text = s >= 3600
                 ? string.Create(English, $"{s / 3600}:{s / 60 % 60:00}:{s % 60:00}")
@@ -54,14 +57,13 @@ namespace VideoJaNai.Core
         // how many times are listed before "and N more"
         public const int Listed = 5;
 
-        // "Finished with 3 damaged frames (12:34, 12:35, 41:02)": the distinct times (to the second),
-        // the first few of them
+        // "Finished with damage in 3 places (12:34, 12:35, 41:02)": the first few places' times (they
+        // are at least a second apart, so no two read the same)
         public static string Finished(IReadOnlyList<DamageSpot> spots)
         {
-            var times = spots.Select(s => s.Time()).Distinct().ToList();
-            var listed = string.Join(", ", times.Take(Listed));
-            var more = times.Count > Listed ? $" and {times.Count - Listed} more" : "";
-            return $"Finished with {spots.Count} damaged frame{(spots.Count == 1 ? "" : "s")} ({listed}{more})";
+            var listed = string.Join(", ", spots.Take(Listed).Select(s => s.Time()));
+            var more = spots.Count > Listed ? $" and {spots.Count - Listed} more" : "";
+            return $"Finished with damage in {spots.Count} place{(spots.Count == 1 ? "" : "s")} ({listed}{more})";
         }
     }
 }

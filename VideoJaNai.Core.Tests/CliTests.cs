@@ -305,7 +305,7 @@ namespace VideoJaNai.Core.Tests
             Assert.Equal(0, rc);
             Assert.Contains("--on-damage continue", FakeAjiEncode.Args(t));
             Assert.Equal(["PLAN 1 1 0", "VIDEO_START 1 1", "VIDEO_DONE 1 1",
-                          $"NOTE {Path.Join(t.Path, "in.mkv")}: Finished with 2 damaged frames (12:34, 12:35)", "DONE 1 0 0 1"], events);
+                          $"NOTE {Path.Join(t.Path, "in.mkv")}: Finished with damage in 2 places (12:34, 12:35)", "DONE 1 0 0 1"], events);
         }
 
         [Fact]

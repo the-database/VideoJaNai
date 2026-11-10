@@ -97,7 +97,7 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to TV recordings and incomplete downloads can have damaged frames. Unchecked: the video fails, and the error says where the damage is. Checked: it is finished, and the damaged spots are listed..
+        ///   Looks up a localized string similar to TV recordings and incomplete downloads can have damaged frames. Unchecked: the video fails, and the error says where the damage is. Checked: it is finished, and the damaged places are listed..
         /// </summary>
         public static string FinishDamagedVideosDescription {
             get {
