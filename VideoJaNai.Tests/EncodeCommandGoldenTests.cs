@@ -166,6 +166,7 @@ namespace VideoJaNai.Tests
             wf.UpscaleSettings[0].OnnxModelPath = Model(Sd);
             wf.SelectPreset(EncoderPresets.NvencAv1);
             wf.OverwriteExistingVideos = true;
+            wf.FinishDamagedVideos = true;
             wf.FinalResizeFactor = 150;
             wf.TrtEngineSettings = "--builderOptimizationLevel=3 --minShapes=input:1x3x8x8 --optShapes=input:1x3x1080x1920 --maxShapes=input:1x3x1080x1920 --skipInference";
             Check("probed-gpu-tensorrt", Render(vm, "C:/in/ep01.mkv", "C:/out/ep01.mkv"));

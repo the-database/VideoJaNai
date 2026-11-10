@@ -126,6 +126,12 @@
   <data name="AllowOverwriteLabel" xml:space="preserve">
     <value>Allow Videos in Output Path to be Overwritten</value>
   </data>
+  <data name="FinishDamagedVideosLabel" xml:space="preserve">
+    <value>破損したフレームがある動画も最後まで処理する</value>
+  </data>
+  <data name="FinishDamagedVideosDescription" xml:space="preserve">
+    <value>テレビの録画や途中までしかダウンロードされていない動画には、破損したフレームが含まれることがあります。オフ：その動画は失敗となり、エラーに破損の位置が表示されます。オン：最後まで処理し、破損した箇所を一覧表示します。</value>
+  </data>
   <data name="AppNotInstalledText" xml:space="preserve">
     <value>App is not installed; auto update settings unavailable.</value>
   </data>

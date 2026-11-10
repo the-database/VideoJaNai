@@ -17,10 +17,11 @@ namespace VideoJaNai.Cli
     //     PROGRESS phase=... frame=... ...     aji_encode's own line, passed through as is
     //     VIDEO_DONE <n> <of> <output>
     //     VIDEO_ERROR <n> <of> <message>
-    //     NOTE <text>                          worth showing (no chain for the size, a fallback)
+    //     NOTE <text>                          worth showing (no chain for the size, a video
+    //                                          finished with damaged frames: "<input>: Finished with ...")
     //     BACKEND_FALLBACK <message>           libaji's TensorRT-RTX -> TensorRT fallback
     //     DONE <written> <skipped> <failed>
-    //   aji_encode's log goes to stderr in this mode.
+    //   aji_encode's log goes to stderr in this mode (its DAMAGE lines too).
     public abstract class Report
     {
         public abstract void Info(string text);
@@ -33,7 +34,8 @@ namespace VideoJaNai.Cli
         public abstract void Note(string text);
         public abstract void Fallback(string message);
         public abstract void AjiLog(string line);
-        public abstract void Done(int written, int skipped, int failed, TimeSpan took);
+        // damaged: of the written videos, those finished with damaged frames
+        public abstract void Done(int written, int skipped, int failed, int damaged, TimeSpan took);
 
         public static string Duration(TimeSpan d)
         {
@@ -71,7 +73,7 @@ namespace VideoJaNai.Cli
         public override void Note(string text) => Line($"NOTE {text}");
         public override void Fallback(string message) => Line($"BACKEND_FALLBACK {message}");
         public override void AjiLog(string line) => Console.Error.WriteLine(line);
-        public override void Done(int written, int skipped, int failed, TimeSpan took) => Line($"DONE {written} {skipped} {failed}");
+        public override void Done(int written, int skipped, int failed, int damaged, TimeSpan took) => Line($"DONE {written} {skipped} {failed}");
     }
 
     public sealed class HumanReport(bool verbose) : Report
@@ -215,9 +217,13 @@ namespace VideoJaNai.Cli
             }
         }
 
-        public override void Done(int written, int skipped, int failed, TimeSpan took)
+        public override void Done(int written, int skipped, int failed, int damaged, TimeSpan took)
         {
             var msg = $"Done: {written} written in {Duration(took)}";
+            if (damaged > 0)
+            {
+                msg += $" ({damaged} with damaged frames, see the notes above)";
+            }
             if (skipped > 0)
             {
                 msg += $", {skipped} skipped (already there)";

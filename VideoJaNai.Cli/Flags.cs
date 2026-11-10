@@ -26,6 +26,7 @@ namespace VideoJaNai.Cli
         static readonly HashSet<string> Switches =
         [
             "--no-config", "--no-upscale", "--upscale", "--skip-existing", "--overwrite",
+            "--stop-on-damage", "--keep-damaged",
             "--temporal-fix-before-upscale", "--rife", "--rife-ensemble", "--rife-after-upscale",
             "-v", "--verbose", "--check", "--no-rife", "-h", "--help", "-V", "--version",
         ];
@@ -98,6 +99,8 @@ namespace VideoJaNai.Cli
                     case "--suffix": o.Suffix = Value(); break;
                     case "--skip-existing": o.SkipExisting = true; break;
                     case "--overwrite": o.SkipExisting = false; break;
+                    case "--stop-on-damage": o.KeepDamaged = false; break;
+                    case "--keep-damaged": o.KeepDamaged = true; break;
 
                     case "--preset": o.Preset = Choice(Options.Presets); break;
                     case "--model": o.Models.Add(Value()); break;

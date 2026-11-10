@@ -187,6 +187,12 @@ namespace VideoJaNai.Core
                 {
                     sb.Append("--overwrite ");
                 }
+                // only when on: an aji_encode from before the option doesn't know it (and stops at
+                // damage anyway, without saying where)
+                if (job.ContinueOnDamage)
+                {
+                    sb.Append("--on-damage continue ");
+                }
                 if (previewPath != null)
                 {
                     sb.Append(English, $"--preview \"{previewPath}\" ");

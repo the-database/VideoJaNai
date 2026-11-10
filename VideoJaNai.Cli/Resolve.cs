@@ -153,12 +153,14 @@ namespace VideoJaNai.Cli
                 throw new RunException($"the output file name '{filename}' has no {BatchPlan.FilenameToken}, so every video would write the same file");
             }
             var skipExisting = o.SkipExisting ?? file.SkipExisting ?? !wf.OverwriteExistingVideos;
+            var keepDamaged = KeepDamaged(o, file, wf);
             var videos = PlanVideos(inputs.Select(i => PathText.Relative(inputBase, i)).ToList(), outputFolder, filename, skipExisting);
 
             var plan = new RunPlan
             {
                 Install = install,
-                Job = job with { Overwrite = true },   // each video is written to a temporary file first
+                // each video is written to a temporary file first
+                Job = job with { Overwrite = true, ContinueOnDamage = keepDamaged },
                 Videos = videos,
                 Heading = Heading(job, preset, wf, workflowLabel, gpu, probe, install),
             };
@@ -168,6 +170,11 @@ namespace VideoJaNai.Cli
             }
             return plan;
         }
+
+        // --keep-damaged / --stop-on-damage, else videojanai.ini's keep_damaged, else the workflow's
+        // "Finish videos with damaged frames" (off by default)
+        public static bool KeepDamaged(Options flags, Options file, WorkflowSettings wf) =>
+            flags.KeepDamaged ?? file.KeepDamaged ?? wf.FinishDamagedVideos;
 
         static T Load<T>(string path, Func<string, T> load)
         {

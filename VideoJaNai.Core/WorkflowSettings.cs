@@ -19,6 +19,9 @@ namespace VideoJaNai.Core
         public string OutputFilename { get; set; } = "%filename%-animejanai.mkv";
         public string OutputFolderPath { get; set; } = string.Empty;
         public bool OverwriteExistingVideos { get; set; }
+        // finish a video with damaged frames (TV recordings, incomplete downloads), listing them,
+        // instead of failing it at the first
+        public bool FinishDamagedVideos { get; set; }
 
         // empty (or the legacy bundled default): this PC's default encoder
         public string FfmpegVideoSettings { get; set; } = string.Empty;

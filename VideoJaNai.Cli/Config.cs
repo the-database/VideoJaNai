@@ -37,6 +37,10 @@ filename =
 suffix =
 ; Keep results that already exist instead of redoing them (yes or no; default yes).
 skip_existing =
+; TV recordings and incomplete downloads can have damaged frames. no (default): such a video
+; fails, and the error says where the damage is. yes: it is finished, and the damaged spots are
+; listed.
+keep_damaged =
 
 [upscale]
 ; Which models run. Pick one of these three (default: preset balanced):
@@ -165,7 +169,8 @@ aji_folder =
                         o.Filename = r.String("filename");
                         o.Suffix = r.String("suffix");
                         o.SkipExisting = r.Switch("skip_existing");
-                        r.Finish(["folder", "filename", "suffix", "skip_existing"]);
+                        o.KeepDamaged = r.Switch("keep_damaged");
+                        r.Finish(["folder", "filename", "suffix", "skip_existing", "keep_damaged"]);
                         break;
                     case "upscale":
                         o.Preset = r.Choice("preset", Options.Presets);
