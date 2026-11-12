@@ -111,6 +111,13 @@ limit for real-time playback. Sources above 1080p keep their size. Also: `--pres
 (`animejanai/onnx`). Repeat it to run models one after another. `--no-upscale` runs no model, for
 deinterlacing, temporal fix or interpolation alone.
 
+Frames that don't change (anime holds a drawing for 2-3 frames; still shots and slides repeat
+frames) reuse the previous frame's upscale instead of being upscaled again. That's faster on most
+GPUs, roughly by the share of frames reused, and the output looks the same. Each video's result
+says how much was reused (`Reused the upscale for 31% of frames (1,055 of 3,412)`). It isn't used
+with RIFE or the temporal fix. `--no-reuse-held-frames` (or `reuse_held_frames = no` in the
+settings file) upscales every frame.
+
 ### VideoJaNai's workflows
 
 - `--workflow "My workflow.awf"` imports a workflow exported from VideoJaNai: its models, source,

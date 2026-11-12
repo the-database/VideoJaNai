@@ -26,6 +26,7 @@ namespace VideoJaNai.Cli
         static readonly HashSet<string> Switches =
         [
             "--no-config", "--no-upscale", "--upscale", "--skip-existing", "--overwrite",
+            "--reuse-held-frames", "--no-reuse-held-frames",
             "--stop-on-damage", "--keep-damaged",
             "--temporal-fix-before-upscale", "--rife", "--rife-ensemble", "--rife-after-upscale",
             "-v", "--verbose", "--check", "--no-rife", "-h", "--help", "-V", "--version",
@@ -107,6 +108,8 @@ namespace VideoJaNai.Cli
                     case "--workflow": o.Workflow = Value(); break;
                     case "--no-upscale": o.Upscale = false; break;
                     case "--upscale": o.Upscale = true; break;
+                    case "--reuse-held-frames": o.ReuseHeldFrames = true; break;
+                    case "--no-reuse-held-frames": o.ReuseHeldFrames = false; break;
 
                     case "--deinterlace": o.Deinterlace = Choice(Options.Deinterlaces); break;
                     case "--square-pixels": o.SquarePixels = Choice(Options.SquarePixelModes); break;

@@ -24,7 +24,8 @@ namespace VideoJaNai.Core
     // before the first frame (TensorRT builds one on first use for a model and size, which can take
     // minutes, and loads it from its cache after that), reporting it as PROGRESS phase=build_engine
     // lines (pct=0, then pct=100) ahead of the encode's own. Damaged spots in the source come as
-    // DAMAGE lines (see DamageSpot), collected into the result.
+    // DAMAGE lines (see DamageSpot), collected into the result, as is the held-frame reuse it
+    // reports at the end (see HeldFrameReuse).
     public sealed class EncodeRunner(AjiPaths paths)
     {
         public AjiPaths Paths { get; } = paths;
@@ -65,6 +66,10 @@ namespace VideoJaNai.Core
             {
                 result = result with { ReadError = readError };
             }
+            if (result.Written && watch.HeldFrames is HeldFrameReuse held)
+            {
+                result = result with { HeldFrames = held };
+            }
             return result;
         }
 
@@ -72,13 +77,15 @@ namespace VideoJaNai.Core
             AjiProcess.RunAsync(Paths, args, observer.Stdout, observer.Stderr, observer.Started, ct);
 
         // The observer, with its own read of the output lines: whether aji_encode stopped while it
-        // was still preparing the engines, the damaged places it reported, and a failed read of the
-        // input ("reading the input failed after 0:09.5: I/O error", which fails in both modes).
+        // was still preparing the engines, the damaged places it reported, a failed read of the
+        // input ("reading the input failed after 0:09.5: I/O error", which fails in both modes) and
+        // the held-frame reuse it reported.
         private sealed class RunWatch(IEncodeObserver inner) : IEncodeObserver
         {
             private const string ReadFailed = "reading the input failed";
             private readonly List<DamageSpot> _damage = [];
             private string? _readError;
+            private HeldFrameReuse? _heldFrames;
 
             public AjiProgress Progress { get; } = new();
 
@@ -106,6 +113,17 @@ namespace VideoJaNai.Core
                 }
             }
 
+            public HeldFrameReuse? HeldFrames
+            {
+                get
+                {
+                    lock (_damage)
+                    {
+                        return _heldFrames;
+                    }
+                }
+            }
+
             public void Started(Process process) => inner.Started(process);
 
             public void Stderr(string line)
@@ -115,6 +133,13 @@ namespace VideoJaNai.Core
                     lock (_damage)
                     {
                         _readError ??= line.TrimEnd('.');
+                    }
+                }
+                else if (HeldFrameReuse.Parse(line) is HeldFrameReuse held)
+                {
+                    lock (_damage)
+                    {
+                        _heldFrames = held;
                     }
                 }
                 inner.Stderr(line);
@@ -137,8 +162,8 @@ namespace VideoJaNai.Core
 
     // An encode's exit code, whether its output was written, whether aji_encode stopped while
     // preparing the engines (a failed TensorRT engine build, say), the damaged places it reported
-    // in the source (StoppedOnDamage: it stopped at one, --on-damage fail), and its message when it
-    // failed reading the input.
+    // in the source (StoppedOnDamage: it stopped at one, --on-damage fail), its message when it
+    // failed reading the input, and, for a written video, its held-frame reuse when it reported one.
     public readonly record struct EncodeResult(int ExitCode, bool Written, bool EngineFailed = false)
     {
         private readonly IReadOnlyList<DamageSpot>? _damage;
@@ -153,6 +178,10 @@ namespace VideoJaNai.Core
 
         // "reading the input failed after 0:09.5: I/O error"
         public string? ReadError { get; init; }
+
+        // "held frames: reused 1055 of 3412 (30.9%)"; null when aji_encode didn't reuse frames (off,
+        // or not for this chain: its log says why)
+        public HeldFrameReuse? HeldFrames { get; init; }
 
         // why the output wasn't written
         public string Failure => ExitCode == 0 ? "aji_encode wrote no output"

@@ -132,6 +132,21 @@
   <data name="FinishDamagedVideosDescription" xml:space="preserve">
     <value>TV recordings and incomplete downloads can have damaged frames. Unchecked: the video fails, and the error says where the damage is. Checked: it is finished, and the damaged places are listed.</value>
   </data>
+  <data name="ReuseHeldFramesLabel" xml:space="preserve">
+    <value>Reuse upscales of unchanged frames</value>
+  </data>
+  <data name="ReuseHeldFramesDescription" xml:space="preserve">
+    <value>Frames that don't change (held drawings, still shots) reuse the previous frame's upscale instead of being upscaled again. Faster on most GPUs, with the same-looking output. After each video, the log says how many frames were reused. Not used with interpolation, temporal fix or temporal models.</value>
+  </data>
+  <data name="ReuseHeldFramesNotWithRifeText" xml:space="preserve">
+    <value>Not used with interpolation.</value>
+  </data>
+  <data name="ReuseHeldFramesNotWithTemporalFixText" xml:space="preserve">
+    <value>Not used with temporal fix.</value>
+  </data>
+  <data name="ReuseHeldFramesNotWithTemporalModelText" xml:space="preserve">
+    <value>Not used with temporal models.</value>
+  </data>
   <data name="AppNotInstalledText" xml:space="preserve">
     <value>App is not installed; auto update settings unavailable.</value>
   </data>

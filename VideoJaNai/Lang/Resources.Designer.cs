@@ -106,6 +106,51 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Reuse upscales of unchanged frames.
+        /// </summary>
+        public static string ReuseHeldFramesLabel {
+            get {
+                return ResourceManager.GetString("ReuseHeldFramesLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Frames that don't change (held drawings, still shots) reuse the previous frame's upscale[rest of string was truncated].
+        /// </summary>
+        public static string ReuseHeldFramesDescription {
+            get {
+                return ResourceManager.GetString("ReuseHeldFramesDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not used with interpolation..
+        /// </summary>
+        public static string ReuseHeldFramesNotWithRifeText {
+            get {
+                return ResourceManager.GetString("ReuseHeldFramesNotWithRifeText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not used with temporal fix..
+        /// </summary>
+        public static string ReuseHeldFramesNotWithTemporalFixText {
+            get {
+                return ResourceManager.GetString("ReuseHeldFramesNotWithTemporalFixText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not used with temporal models..
+        /// </summary>
+        public static string ReuseHeldFramesNotWithTemporalModelText {
+            get {
+                return ResourceManager.GetString("ReuseHeldFramesNotWithTemporalModelText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to App is not installed; auto update settings unavailable..
         /// </summary>
         public static string AppNotInstalledText {
