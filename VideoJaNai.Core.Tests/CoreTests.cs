@@ -144,6 +144,30 @@ namespace VideoJaNai.Core.Tests
         }
 
         [Fact]
+        public void NoReuseHeldFramesIsPassedOnlyWhenOffAndOnlyToAnEncode()
+        {
+            var paths = AjiPaths.ForAnimeJaNaiFolder("/x/animejanai", "/tmp/c.conf");
+            var on = new EncodeJob { Overwrite = true };
+            Assert.True(on.ReuseHeldFrames);
+            var off = on with { ReuseHeldFrames = false };
+            Assert.DoesNotContain("reuse-held", AjiArgs.Build(on, paths, "/in/a.mkv", "/out/a.mkv", AjiMode.Encode));
+            Assert.DoesNotContain("reuse-held", AjiArgs.Build(on, paths, "/in/a.mkv", null, AjiMode.Preview));
+            Assert.Contains("--overwrite --no-reuse-held-frames --progress line", AjiArgs.Build(off, paths, "/in/a.mkv", "/out/a.mkv", AjiMode.Encode));
+            // the preview session never reuses frames
+            Assert.DoesNotContain("reuse-held", AjiArgs.Build(off, paths, "/in/a.mkv", null, AjiMode.Preview));
+        }
+
+        [Fact]
+        public void TheWorkflowSaysWhetherHeldFramesAreReused()
+        {
+            Assert.True(new WorkflowSettings().ReuseHeldFrames);
+            Assert.True(EncodeJob.FromWorkflow(new WorkflowSettings(), Backend.TensorRt, null, EncoderPresets.NvencHevc, "").ReuseHeldFrames);
+            var wf = new WorkflowSettings { ReuseHeldFrames = false };
+            Assert.False(EncodeJob.FromWorkflow(wf, Backend.TensorRt, null, EncoderPresets.NvencHevc, "").ReuseHeldFrames);
+            Assert.False(Presets.Job("balanced", wf, Backend.TensorRt, null, EncoderPresets.NvencHevc, "").ReuseHeldFrames);
+        }
+
+        [Fact]
         public void TheWorkflowSaysWhetherDamagedVideosAreFinished()
         {
             Assert.False(EncodeJob.FromWorkflow(new WorkflowSettings(), Backend.TensorRt, null, EncoderPresets.NvencHevc, "").ContinueOnDamage);
@@ -518,6 +542,42 @@ namespace VideoJaNai.Core.Tests
             }
         }
 
+        // aji_encode's own line (src/encode.c): the result at the end of an encode, on stderr
+        const string Reused = "held frames: reused 1055 of 3412 (30.9%)";
+
+        [Fact]
+        public async Task AWrittenEncodeReportsItsHeldFrameReuse()
+        {
+            using var t = new TempDir();
+            var output = Path.Join(t.Path, "out.mkv");
+            var paths = FakeAjiEncode.Create(t, 0, PartialOutput.PathFor(output),
+                stderr: ["held frames: reusing the last upscale for unchanged frames (tile threshold 2.50, fade threshold 0.150, at most 24 in a row; --no-reuse-held-frames turns it off)", Reused],
+                lines: ["PROGRESS phase=encode frame=3412 total=3412 fps=0.00 pct=100"]);
+            var result = await new EncodeRunner(paths).EncodeToOutputAsync(new EncodeJob { Backend = Backend.TensorRt },
+                Path.Join(t.Path, "in.mkv"), output, new Lines(), ct: TestContext.Current.CancellationToken);
+            Assert.DoesNotContain("reuse-held", FakeAjiEncode.Args(t));
+            Assert.True(result.Written);
+            Assert.Equal(new HeldFrameReuse(1055, 3412), result.HeldFrames);
+            Assert.Equal("Reused the upscale for 31% of frames (1,055 of 3,412)", result.HeldFrames!.Value.Text);
+        }
+
+        [Fact]
+        public async Task NoReuseReportedIsNone()
+        {
+            foreach (var (exitCode, stderr) in new[] { (0, "held frames: not reused (RIFE interpolates the frames)"), (1, Reused) })
+            {
+                using var t = new TempDir();
+                var output = Path.Join(t.Path, "out.mkv");
+                var paths = FakeAjiEncode.Create(t, exitCode, exitCode == 0 ? PartialOutput.PathFor(output) : null, stderr: [stderr],
+                                                 lines: ["PROGRESS phase=encode frame=10 total=10 fps=0.00 pct=100"]);
+                var result = await new EncodeRunner(paths).EncodeToOutputAsync(new EncodeJob { Backend = Backend.TensorRt, ReuseHeldFrames = false },
+                    Path.Join(t.Path, "in.mkv"), output, new Lines(), ct: TestContext.Current.CancellationToken);
+                Assert.Contains("--no-reuse-held-frames", FakeAjiEncode.Args(t));
+                Assert.Equal(exitCode == 0, result.Written);
+                Assert.Null(result.HeldFrames);
+            }
+        }
+
         [Fact]
         public async Task AnEncodeWithoutDamageReportsNone()
         {
@@ -652,6 +712,42 @@ namespace VideoJaNai.Core.Tests
             var ok = BatchPlanning.Plan([file], t.Path, BatchPlan.DefaultFilename, skipExisting: false);
             Assert.Null(ok.Problem);
             Assert.Equal(Path.Join(t.Path, "ep-animejanai.mkv"), ok.Videos.Single().Output);
+        }
+    }
+
+    // aji_encode's "held frames: reused N of M (P%)" line, and the text VideoJaNai shows for it.
+    public class HeldFrameReuseTests
+    {
+        [Theory]
+        [InlineData("held frames: reused 1055 of 3412 (30.9%)", 1055, 3412)]
+        [InlineData("held frames: reused 0 of 2000 (0.0%)", 0, 2000)]
+        // a .cmd echo drops the lone %
+        [InlineData("held frames: reused 12 of 24 (50.0)", 12, 24)]
+        public void TheResultLineParses(string line, long reused, long frames) =>
+            Assert.Equal(new HeldFrameReuse(reused, frames), HeldFrameReuse.Parse(line));
+
+        [Theory]
+        [InlineData("held frames: not reused (RIFE interpolates the frames)")]
+        [InlineData("held frames: not reused (the chain is temporal)")]
+        [InlineData("held frames: reusing the last upscale for unchanged frames (tile threshold 2.50, fade threshold 0.150, at most 24 in a row; --no-reuse-held-frames turns it off)")]
+        [InlineData("held frames: reused 5 of 0 (nan%)")]
+        [InlineData("PROGRESS phase=encode frame=10 total=10 fps=0.00 pct=100")]
+        [InlineData("[aji:1] held frames: reused 1 of 2 (50.0%)")]
+        public void OtherLinesAreNotAResult(string line) => Assert.Null(HeldFrameReuse.Parse(line));
+
+        [Theory]
+        [InlineData(1055, 3412, "Reused the upscale for 31% of frames (1,055 of 3,412)")]
+        [InlineData(0, 3412, "Reused the upscale for 0% of frames (0 of 3,412)")]
+        [InlineData(1, 1000, "Reused the upscale for <1% of frames (1 of 1,000)")]
+        [InlineData(24, 24, "Reused the upscale for 100% of frames (24 of 24)")]
+        public void TheTextGivesThePercentAndTheFrames(long reused, long frames, string text) =>
+            Assert.Equal(text, new HeldFrameReuse(reused, frames).Text);
+
+        [Fact]
+        public void VideosAddUp()
+        {
+            Assert.Equal(new HeldFrameReuse(30, 300), HeldFrameReuse.Sum([new(10, 100), new(20, 200)]));
+            Assert.Null(HeldFrameReuse.Sum([]));
         }
     }
 }

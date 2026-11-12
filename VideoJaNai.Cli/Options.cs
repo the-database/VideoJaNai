@@ -21,6 +21,7 @@ namespace VideoJaNai.Cli
         public List<string> Models { get; } = [];
         public string? Workflow;
         public bool? Upscale;
+        public bool? ReuseHeldFrames;         // reuse the upscale of frames that repeat the last one
 
         public string? Deinterlace;
         public string? SquarePixels;

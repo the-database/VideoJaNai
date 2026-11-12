@@ -57,6 +57,10 @@ namespace VideoJaNai.Cli
                         {
                             written++;
                             report.VideoDone(n, plan.Videos.Count, v, took.Elapsed);
+                            if (result.HeldFrames is HeldFrameReuse held)
+                            {
+                                report.Info(held.Text);
+                            }
                             if (result.FinishedWithDamage is string damage)
                             {
                                 damaged++;

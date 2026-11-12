@@ -193,6 +193,12 @@ namespace VideoJaNai.Core
                 {
                     sb.Append("--on-damage continue ");
                 }
+                // only when off: on is aji_encode's default (an aji_encode from before the option
+                // doesn't know it). The preview session never reuses frames, so it isn't told.
+                if (!job.ReuseHeldFrames)
+                {
+                    sb.Append("--no-reuse-held-frames ");
+                }
                 if (previewPath != null)
                 {
                     sb.Append(English, $"--preview \"{previewPath}\" ");

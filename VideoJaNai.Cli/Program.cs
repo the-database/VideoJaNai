@@ -54,6 +54,9 @@ Upscaling (one of; default: --preset balanced):
                             repeat it to run models one after another
   --workflow <file.awf>     a workflow exported from VideoJaNai (all of its settings)
   --no-upscale              no models: only the steps below
+  --no-reuse-held-frames    upscale every frame. By default a frame that doesn't change (a held
+                            drawing, a still shot) reuses the previous frame's upscale: faster,
+                            the same-looking output (not with RIFE or the temporal fix)
 Source:
   --deinterlace <d>         off (default) | ivtc (telecined film) | bwdif (interlaced video)
   --square-pixels <s>       off (default) | before | after the upscale (DVD, DV)
