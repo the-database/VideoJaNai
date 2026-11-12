@@ -132,6 +132,21 @@
   <data name="FinishDamagedVideosDescription" xml:space="preserve">
     <value>テレビの録画や途中までしかダウンロードされていない動画には、破損したフレームが含まれることがあります。オフ：その動画は失敗となり、エラーに破損の位置が表示されます。オン：最後まで処理し、破損した箇所を一覧表示します。</value>
   </data>
+  <data name="ReuseHeldFramesLabel" xml:space="preserve">
+    <value>変化のないフレームはアップスケール結果を再利用する</value>
+  </data>
+  <data name="ReuseHeldFramesDescription" xml:space="preserve">
+    <value>変化のないフレーム（2コマ・3コマ打ちの止まった絵や静止したシーンなど）は、もう一度アップスケールせずに直前のフレームのアップスケール結果を再利用します。ほとんどのGPUで速くなり、見た目は変わりません。動画ごとに、再利用したフレームの割合がログに表示されます。補間、テンポラルフィックス、テンポラルモデルを使う場合は使われません。</value>
+  </data>
+  <data name="ReuseHeldFramesNotWithRifeText" xml:space="preserve">
+    <value>補間を使う場合は使われません。</value>
+  </data>
+  <data name="ReuseHeldFramesNotWithTemporalFixText" xml:space="preserve">
+    <value>テンポラルフィックスを使う場合は使われません。</value>
+  </data>
+  <data name="ReuseHeldFramesNotWithTemporalModelText" xml:space="preserve">
+    <value>テンポラルモデルを使う場合は使われません。</value>
+  </data>
   <data name="AppNotInstalledText" xml:space="preserve">
     <value>App is not installed; auto update settings unavailable.</value>
   </data>

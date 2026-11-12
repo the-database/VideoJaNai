@@ -56,6 +56,10 @@ model =
 workflow =
 ; Turn upscaling off to only deinterlace, fix shimmer or interpolate (yes or no; default yes).
 upscale =
+; Frames that don't change (held drawings, still shots) reuse the previous frame's upscale
+; instead of being upscaled again: faster on most GPUs, the same-looking output. Not used with
+; RIFE or the temporal fix. no: upscale every frame (yes or no; default yes).
+reuse_held_frames =
 
 [source]
 ; Deinterlacing: off (default), ivtc (telecined film, e.g. NTSC anime DVDs: back to 23.976 fps) or bwdif
@@ -177,7 +181,8 @@ aji_folder =
                         o.Models.AddRange(r.All("model").Select(m => m.Value));
                         o.Workflow = r.String("workflow");
                         o.Upscale = r.Switch("upscale");
-                        r.Finish(["preset", "model", "workflow", "upscale"]);
+                        o.ReuseHeldFrames = r.Switch("reuse_held_frames");
+                        r.Finish(["preset", "model", "workflow", "upscale", "reuse_held_frames"]);
                         var sources = (o.Preset != null ? 1 : 0) + (o.Models.Count > 0 ? 1 : 0) + (o.Workflow != null ? 1 : 0);
                         if (sources > 1)
                         {
