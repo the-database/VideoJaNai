@@ -110,14 +110,14 @@ var trtDebSha256 = new Dictionary<string, string>
 // libaji.so, or the file AJI_RUNTIME_JSON names), with that pack's trtexec and builder kernels.
 // A libaji release opens the PR that moves AjiVersion and ajiSha256 (.github/workflows/bump-pins.yml,
 // scripts/bump_pins.py libaji <tag>); add its line above by hand.
-const string AjiVersion        = "v0.27.0";
+const string AjiVersion        = "v0.28.0";
 // The aji release publishes no checksums; recorded from the release assets (both platforms').
 var ajiSha256 = new Dictionary<string, string>
 {
-    ["aji-windows-x64.zip"]          = "1ae2a0d16be2a660d8197fe4f64e8be7cf7637d7842b19994636e42309ab17b2",
-    ["aji-trtrtx-windows-x64.zip"]   = "acdf52d9c63f34b1353f08b0511985ddb755bd61793e9a1ae65cbc3c5ba18625",
-    ["aji-linux-x64.tar.zst"]        = "044a9cc652fa7660218597c1faa01b7c0abdd97f10a644b0250a0a42321ac0f5",
-    ["aji-encode-linux-x64.tar.zst"] = "aaae0b9b8965e832c2526df1f5178e18b9604f5bd11f76ea994c5376d867fe3e",
+    ["aji-windows-x64.zip"]          = "cf5c8e9ba2fa31fb2ac486e261578ae0f94912e50ec0326d20dda25fdfbb818c",
+    ["aji-trtrtx-windows-x64.zip"]   = "4e35677dee83610b85764b87b1d178064d34f417f7ac9b1d73623855f5cf0d0b",
+    ["aji-linux-x64.tar.zst"]        = "f00aeca5702a43cb519b6b7049444506651b839729e684f8959b7bf15687aed9",
+    ["aji-encode-linux-x64.tar.zst"] = "1aed927481c2a578bea717cd6796962f139c5457f0f50be9234dcf5386a4b4f1",
 };
 // The shared runtime packs every libaji app pins (animejanai-inference runtime-<n>): TensorRT, the
 // per-GPU builder packs and TensorRT-RTX's runtime, installed once per user into the shared pack store
