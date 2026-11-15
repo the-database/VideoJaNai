@@ -6,6 +6,8 @@ VideoJaNai (previously called AnimeJaNaiConverterGui) provides a Windows and Lin
 
 On Windows, NVIDIA GeForce RTX 20 / GTX 16 series and newer GPUs upscale with **TensorRT-RTX** by default, which builds its engines in seconds instead of minutes. Its component (about 230 MB installed) is installed automatically for those GPUs; on other NVIDIA GPUs it's optional, from App Settings > Components. TensorRT stays installed alongside it: TensorRT-RTX output is equivalent to TensorRT's but not bit-identical, and if it can't start or can't build an engine, VideoJaNai falls back to TensorRT automatically and shows a warning in the status bar (and in the preview). To choose a backend yourself, pick TensorRT, TensorRT-RTX or DirectML under Backend in App Settings.
 
+The portable Windows package keeps the TensorRT runtime inside its own folder, so you can move the folder or copy it to another PC and it keeps working. The installed version keeps it in a folder shared with the other JaNai apps. You can change where it goes in App Settings > Storage.
+
 On a PC with more than one GPU the backend can use, App Settings also has a GPU choice. Auto runs DirectML on the GPU Windows ranks for high performance and TensorRT on the NVIDIA GPU CUDA lists first (usually the most powerful); pick a GPU there if Auto chooses the wrong one. Integrated graphics are listed last and marked, and picking them shows a warning, since they upscale much slower than a graphics card. On Auto, the TensorRT components are installed for every NVIDIA GPU in the PC; with a GPU picked, only that GPU's are recommended (none on DirectML), and components you remove for other GPUs stay removed.
 
 ### Linux

@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -161,6 +163,59 @@ namespace AnimeJaNaiConverterGui.Services
                 throw;
             }
             return process.ExitCode;
+        }
+
+        public async Task<(int ExitCode, string Output)> RunUpdaterAsync(IReadOnlyList<string> arguments, Action<string>? onLine = null, CancellationToken ct = default)
+        {
+            if (!IsInstalled)
+            {
+                return (-1, "");
+            }
+            var psi = new ProcessStartInfo(UpdaterPath)
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = InstallDir,
+            };
+            foreach (var a in arguments)
+            {
+                psi.ArgumentList.Add(a);
+            }
+            using var process = new Process { StartInfo = psi };
+            var stdout = new StringBuilder();
+            process.OutputDataReceived += (_, e) =>
+            {
+                if (e.Data is null)
+                {
+                    return;
+                }
+                lock (stdout)
+                {
+                    stdout.AppendLine(e.Data);
+                }
+                onLine?.Invoke(e.Data);
+            };
+            process.ErrorDataReceived += (_, e) => { if (e.Data != null) onLine?.Invoke(e.Data); };
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            try
+            {
+                await process.WaitForExitAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                try { process.Kill(true); } catch { /* already exited */ }
+                throw;
+            }
+            lock (stdout)
+            {
+                return (process.ExitCode, stdout.ToString());
+            }
         }
 
         private async Task<string> RunUpdaterAsync(string arguments)
