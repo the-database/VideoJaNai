@@ -108,6 +108,9 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.22.2: --probe-encoders marks integrated GPUs (integrated=), which the GPU choice labels and warns about.
 // v0.23.1: loads TensorRT and TensorRT-RTX from the shared pack store (aji-runtime.json beside aji.dll /
 // libaji.so, or the file AJI_RUNTIME_JSON names), with that pack's trtexec and builder kernels.
+// v0.28.0: aji_encode reuses held frames' upscales (on by default, --no-reuse-held-frames turns it off) and
+// prints a final "held frames" line. v0.29.0: native tensor-core kernels instead of TensorRT engines for
+// SPAN/Compact, RIFE and TemporalFix on RTX 30 and newer (no engine build; [global] native=off disables).
 // A libaji release opens the PR that moves AjiVersion and ajiSha256 (.github/workflows/bump-pins.yml,
 // scripts/bump_pins.py libaji <tag>); add its line above by hand.
 const string AjiVersion        = "v0.29.0";
