@@ -39,6 +39,10 @@ namespace VideoJaNai.Core
         // and in workflows saved before the setting existed; aji_encode itself turns it off where it
         // doesn't apply (RIFE, a temporal chain).
         public bool ReuseHeldFrames { get; set; } = true;
+        // libaji's native GPU kernels (RTX 30 and newer) for the models that have them, instead of
+        // TensorRT engines. On by default, and in workflows saved before the setting existed; off
+        // writes [global] native=off into the conf. DirectML ignores it.
+        public bool UseNativeKernels { get; set; } = true;
 
         public bool EnableTemporalFix { get; set; }
         public int? TemporalFixStrength { get; set; } = 2;

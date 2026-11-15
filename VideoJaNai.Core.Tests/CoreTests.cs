@@ -158,6 +158,21 @@ namespace VideoJaNai.Core.Tests
         }
 
         [Fact]
+        public void NativeOffIsWrittenOnlyWhenOffAndNotForDirectMl()
+        {
+            Assert.True(new WorkflowSettings().UseNativeKernels);
+            var on = new EncodeJob { Backend = Backend.TensorRt };
+            Assert.True(on.UseNativeKernels);
+            Assert.DoesNotContain("native", AjiConf.Build(on));
+            Assert.Contains("\nnative=off", AjiConf.Build(on with { UseNativeKernels = false }).Replace("\r", ""));
+            Assert.Contains("\nnative=off", AjiConf.Build(on with { Backend = Backend.TensorRtRtx, UseNativeKernels = false }).Replace("\r", ""));
+            Assert.DoesNotContain("native", AjiConf.Build(on with { Backend = Backend.DirectMl, UseNativeKernels = false }));
+            var wf = new WorkflowSettings { UseNativeKernels = false };
+            Assert.False(EncodeJob.FromWorkflow(wf, Backend.TensorRt, null, EncoderPresets.NvencHevc, "").UseNativeKernels);
+            Assert.False(Presets.Job("balanced", wf, Backend.TensorRt, null, EncoderPresets.NvencHevc, "").UseNativeKernels);
+        }
+
+        [Fact]
         public void TheWorkflowSaysWhetherHeldFramesAreReused()
         {
             Assert.True(new WorkflowSettings().ReuseHeldFrames);

@@ -2190,6 +2190,7 @@ namespace VideoJaNai.ViewModels
             })],
             EnableUpscale = EnableUpscale,
             ReuseHeldFrames = ReuseHeldFrames,
+            UseNativeKernels = UseNativeKernels,
             EnableTemporalFix = EnableTemporalFix,
             TemporalFixStrength = TemporalFixStrength,
             TemporalFixSceneThreshold = TemporalFixSceneThreshold,
@@ -2710,6 +2711,17 @@ namespace VideoJaNai.ViewModels
         {
             get => _reuseHeldFrames;
             set => this.RaiseAndSetIfChanged(ref _reuseHeldFrames, value);
+        }
+
+        // libaji's native GPU kernels (RTX 30 and newer) instead of TensorRT engines for the models
+        // that have them. On by default, and in states saved before it existed; off writes
+        // [global] native=off into the conf. TensorRT backends only.
+        private bool _useNativeKernels = true;
+        [DataMember]
+        public bool UseNativeKernels
+        {
+            get => _useNativeKernels;
+            set => this.RaiseAndSetIfChanged(ref _useNativeKernels, value);
         }
 
         // Why held-frame reuse doesn't apply to this workflow's chain (aji_encode turns it off for
