@@ -1533,13 +1533,15 @@ namespace VideoJaNai.ViewModels
             BackendChanged();
         }
 
-        // ---- Storage: where the shared pack store is (App Settings > Storage) -----------------------
-        // The TensorRT runtime, its GPU kernels and TensorRT-RTX's runtime are in the per-user pack
-        // store that every JaNai app shares; aji-runtime (StoreLocation) moves it to another drive,
-        // back, or resets it when that drive is gone for good. Installed copies that use the store
-        // (aji-runtime.json) only: the AppImage has no updater to reinstall with, and a copy from
-        // before the store keeps its packs in the install folder. The models and the TensorRT
-        // engines stay in the install folder.
+        // ---- Storage: where this copy keeps TensorRT (App Settings > Storage) ---------------------
+        // The TensorRT runtime, its GPU kernels and TensorRT-RTX's runtime are in a pack store. The
+        // updater owns the choice (`--storage --json`, `--storage inside|shared|<folder>`): inside this
+        // copy's folder (a portable copy's default), the per-user store every JaNai app shares (the
+        // installed copy's default), or a folder the user picks. aji-runtime (StoreLocation) moves the
+        // shared store itself to another drive, back, or resets it when that drive is gone for good. An
+        // updater from before the choice gets the old section: the shared store only, and only once
+        // TensorRT is in it (aji-runtime.json). The models and the TensorRT engines stay in the install
+        // folder.
 
         public string AjiRuntimePath => StoreLocation.ExePath(_updateManagerService.InstallDir);
 
@@ -1554,32 +1556,75 @@ namespace VideoJaNai.ViewModels
             set
             {
                 this.RaiseAndSetIfChanged(ref _storage, value);
-                this.RaisePropertyChanged(nameof(ShowStorage));
-                this.RaisePropertyChanged(nameof(StorageFolderText));
-                this.RaisePropertyChanged(nameof(StorageMoved));
-                this.RaisePropertyChanged(nameof(StorageMissing));
-                this.RaisePropertyChanged(nameof(StorageText));
+                RaiseStorage();
             }
         }
 
-        public bool ShowStorage => _updateManagerService.IsInstalled && Storage is not null;
+        private static readonly string[] StorageProperties =
+        [
+            nameof(ShowStorage), nameof(StorageFolderText), nameof(StorageMoved), nameof(StorageMissing),
+            nameof(StorageUnavailable), nameof(StorageText), nameof(HasStorageChoice), nameof(NoStorageChoice),
+            nameof(StorageIsInside), nameof(StorageIsShared), nameof(StorageIsCustom), nameof(StorageInsideFolder),
+            nameof(StorageSharedFolder), nameof(StorageCustomFolder), nameof(StorageSharedMissing),
+            nameof(StorageCustomMissing), nameof(AllowSharedStorageChanges), nameof(StorageMissingText),
+        ];
+
+        // Also after a switch was cancelled, so the options show the current one again.
+        public void RaiseStorage()
+        {
+            foreach (var p in StorageProperties)
+            {
+                this.RaisePropertyChanged(p);
+            }
+        }
+
+        // Whether this PC has an NVIDIA GPU TensorRT runs on (null until the components were read).
+        private bool? _gpuNvidia;
+
+        // This copy has TensorRT in its store (the updater says so, or libaji was set up to load it from
+        // there).
+        public bool StorageHasTrt =>
+            Storage is { Installed: true } || File.Exists(RuntimePacks.FilePath(_pythonService.InferenceDirectory));
+
+        // Where the app uses a store and TensorRT is, or can be, installed (StoreLocation.Shows).
+        public bool ShowStorage => _updateManagerService.IsInstalled &&
+            StoreLocation.Shows(Storage, Storage is not null && StorageHasTrt, _gpuNvidia);
         public string StorageFolderText => Storage?.Folder ?? "";
-        public bool StorageMoved => Storage is { Moved: true, Available: true };
-        public bool StorageMissing => Storage is { Missing: true };
+        public bool StorageMoved => Storage?.MovedHere == true;
+
+        // The folder is unavailable and this copy's TensorRT is in it: TensorRT can't run.
+        public bool StorageMissing => Storage?.Missing == true && StorageHasTrt;
+        public bool StorageUnavailable => Storage?.Missing == true;
 
         // A run needs the store for TensorRT and TensorRT-RTX (DirectML ships with the app).
         public bool StorageNeededButMissing => StorageMissing && CurrentWorkflow?.DirectMlSelected != true;
 
         public string StorageMissingText =>
-            $"{StoreLocation.MissingText(StorageFolderText)} Reconnect it, or reset the location in App Settings > Storage.";
+            $"{StoreLocation.MissingText(StorageFolderText)} Reconnect it, or " +
+            (StorageIsShared ? "reset the location" : "choose another place") + " in App Settings > Storage.";
 
         public string StorageText => Storage switch
         {
             null => "",
-            { Moved: false } => "In the default folder. All your JaNai apps share it.",
-            { Available: true } => $"Moved from {Storage.Root}, which now links here. All your JaNai apps share it.",
-            _ => "This folder isn't available. Is its drive connected? Until it is, upscaling with TensorRT can't start.",
+            { Missing: true } => "This folder isn't available. Is its drive connected? Until it is, upscaling with TensorRT can't start.",
+            { Choice: null, Moved: false } => "In the default folder. All your JaNai apps share it.",
+            { Choice: null } => $"Moved from {Storage.Root}, which now links here. All your JaNai apps share it.",
+            { MovedHere: true } => $"Moved from {Storage.Shared ?? Storage.Root}, which now links here.",
+            { Installed: false } => "TensorRT isn't installed yet. When you install it, it goes in the folder selected above.",
+            _ => "",
         };
+
+        // The three options (an updater from before them only has the shared folder).
+        public bool HasStorageChoice => Storage?.Choice is not null;
+        public bool NoStorageChoice => !HasStorageChoice;
+        public bool StorageIsInside => Storage?.Choice == StoreLocation.StoreChoice.Inside;
+        public bool StorageIsShared => Storage?.IsShared == true;
+        public bool StorageIsCustom => Storage?.Choice == StoreLocation.StoreChoice.Custom;
+        public string StorageInsideFolder => Storage?.Inside ?? "";
+        public string StorageSharedFolder => Storage?.SharedFolder ?? "";
+        public string StorageCustomFolder => StorageIsCustom ? Storage!.Root : "No folder chosen";
+        public bool StorageSharedMissing => StorageIsShared && StorageUnavailable;
+        public bool StorageCustomMissing => StorageIsCustom && StorageUnavailable;
 
         private bool _storageBusy;
         [IgnoreDataMember]
@@ -1590,10 +1635,14 @@ namespace VideoJaNai.ViewModels
             {
                 this.RaiseAndSetIfChanged(ref _storageBusy, value);
                 this.RaisePropertyChanged(nameof(AllowStorageChanges));
+                this.RaisePropertyChanged(nameof(AllowSharedStorageChanges));
             }
         }
 
         public bool AllowStorageChanges => !StorageBusy && AllowReinstall;
+
+        // Move... and the others move the shared folder, so only while this copy uses it.
+        public bool AllowSharedStorageChanges => AllowStorageChanges && StorageIsShared;
 
         private string _storageStatusText = string.Empty;
         [IgnoreDataMember]
@@ -1605,20 +1654,40 @@ namespace VideoJaNai.ViewModels
 
         public async Task RefreshStorage()
         {
-            if (!UsesPackStore(_updateManagerService.IsInstalled, _pythonService.InferenceDirectory))
-            {
-                return;
-            }
             var wasMissing = StorageMissing;
-            Storage = await StoreLocation.GetAsync(AjiRuntimePath);
+            Storage = await ReadStorageChoiceAsync()
+                ?? (UsesPackStore(_updateManagerService.IsInstalled, _pythonService.InferenceDirectory)
+                    ? await StoreLocation.GetAsync(AjiRuntimePath) : null);
             if (wasMissing != StorageMissing)
             {
                 CurrentWorkflow?.Validate();
             }
         }
 
-        // The store's size, for the confirmations.
+        // `VideoJaNaiUpdater --storage --json`; null when the updater can't say (none, or an older one).
+        private async Task<StoreLocation.Info?> ReadStorageChoiceAsync()
+        {
+            if (!_updateManagerService.IsInstalled)
+            {
+                return null;
+            }
+            try
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                var (rc, output) = await _updateManagerService.RunUpdaterAsync(["--storage", "--json"], null, timeout.Token);
+                return rc == 0 && ComponentsOutput.Split(output).Json is string json ? StoreLocation.ParseChoice(json) : null;
+            }
+            catch (Exception e) when (e is IOException or InvalidOperationException or OperationCanceledException or System.ComponentModel.Win32Exception)
+            {
+                return null;
+            }
+        }
+
+        // The store's size, for the Move... / Move Back confirmations (they move the whole folder).
         public long StorageBytes() => Storage is { } s ? StoreLocation.Size(s.Folder) : 0;
+
+        // What a switch moves: this copy's TensorRT packs (the updater's "bytes"), else the folder's size.
+        public long SwitchBytes() => Storage?.Bytes ?? StorageBytes();
 
         public Task MoveStorage(string folder) => ChangeStorage(["move", StoreLocation.MoveTarget(folder)], "Moving the shared runtime");
 
@@ -1637,7 +1706,46 @@ namespace VideoJaNai.ViewModels
             }
         }
 
-        private async Task<bool> ChangeStorage(string[] args, string doing)
+        private Task<bool> ChangeStorage(string[] args, string doing) =>
+            RunStorageChange(progress => StoreLocation.ChangeAsync(AjiRuntimePath, args, progress), doing, refreshComponents: false);
+
+        // Switch this copy to another store ("inside", "shared" or a folder, StoreLocation.ChoiceArgument);
+        // the updater moves its TensorRT runtime along. Then the components are read again, from there.
+        public Task<bool> SwitchStorage(string target) =>
+            RunStorageChange(progress => SwitchStorageAsync(target, progress),
+                Storage?.Installed == true ? "Moving the TensorRT runtime" : "Changing the folder", refreshComponents: true);
+
+        // `VideoJaNaiUpdater --storage <target>`: null on success, else the updater's reason (its last line).
+        private async Task<string?> SwitchStorageAsync(string target, Action<long, long> progress)
+        {
+            var lines = new List<string>();
+            var (rc, _) = await _updateManagerService.RunUpdaterAsync(["--storage", target], line =>
+            {
+                if (StoreLocation.TryProgress(line, out var done, out var total))
+                {
+                    progress(done, total);
+                }
+                else if (line.Trim() is { Length: > 0 } text)
+                {
+                    lock (lines)
+                    {
+                        lines.Add(text);
+                    }
+                }
+            });
+            if (rc == 0)
+            {
+                return null;
+            }
+            lock (lines)
+            {
+                return lines.Count > 0 ? lines[^1] : $"{Path.GetFileName(_updateManagerService.UpdaterPath)} exited with {rc}";
+            }
+        }
+
+        // Runs a storage change (null on success, else the error) with its progress in the status line;
+        // no component changes meanwhile.
+        private async Task<bool> RunStorageChange(Func<Action<long, long>, Task<string?>> change, string doing, bool refreshComponents)
         {
             if (!AllowStorageChanges)
             {
@@ -1647,17 +1755,30 @@ namespace VideoJaNai.ViewModels
             ComponentsBusy = true; // no component installs meanwhile
             StorageStatusText = $"{doing}...";
             string? error;
+            bool finished = false;
             try
             {
-                error = await Task.Run(() => StoreLocation.ChangeAsync(AjiRuntimePath, args, (done, total) =>
-                    StorageStatusText = total > 0 ? $"{doing}: {done / 1e9:0.0} of {total / 1e9:0.0} GB" : $"{doing}..."));
+                error = await Task.Run(() => change((done, total) =>
+                {
+                    // a last progress line can arrive after the result
+                    if (!finished)
+                    {
+                        StorageStatusText = total > 0 ? $"{doing}: {done / 1e9:0.0} of {total / 1e9:0.0} GB" : $"{doing}...";
+                    }
+                }));
             }
             catch (Exception ex)
             {
                 error = ex.Message;
             }
+            finished = true;
             StorageStatusText = error ?? "Done.";
             ComponentsBusy = false;
+            if (refreshComponents)
+            {
+                // TensorRT is read from the new folder (still blocked: StorageBusy)
+                await RefreshComponents();
+            }
             StorageBusy = false;
             await RefreshStorage();
             return error is null;
@@ -1691,6 +1812,9 @@ namespace VideoJaNai.ViewModels
                 var gpuName = (string?)gpu?["name"] ?? "";
                 var sm = (string?)gpu?["sm"] ?? "";
                 var tooOld = (string?)root["nvidia_too_old"] ?? "";
+                // TensorRT can run here: on the GPU the packs are for, or (DirectML chosen) another one
+                _gpuNvidia = nvidia || (nvidiaPresent && tooOld == "");
+                this.RaisePropertyChanged(nameof(ShowStorage));
                 GpuStatusText = nvidia ? $"{gpuName} ({sm})"
                     : ChosenGpu is EncoderProbe.Gpu chosen && DirectMlBackendSelected ? $"{chosen.Name}, on DirectML: no components needed."
                     : tooOld != "" ? $"{tooOld}: {TensorRtGpus.NeedsText("TensorRT")}, so " +

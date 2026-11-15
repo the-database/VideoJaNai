@@ -32,11 +32,17 @@ All you need beforehand is a GPU driver. TensorRT needs an NVIDIA GeForce RTX 20
 newer GPU (compute capability 7.5+); older NVIDIA GPUs (GTX 10-series and earlier) run on DirectML,
 as other GPUs do. On Linux, videojanai runs on TensorRT only, so it needs such a GPU and its driver.
 
-The TensorRT runtime and the GPU kernels go into one folder that all your JaNai apps share
-(`%LOCALAPPDATA%\the-database\aji`; on Linux `~/.local/share/the-database/aji`). To put it on
-another drive, close the apps that use it and run `aji-runtime move <folder>` (aji-runtime is next
-to videojanai); `aji-runtime move --default` moves it back. If that drive is gone for good, run
-`aji-runtime reset`, then `videojanai setup`.
+On Windows the TensorRT runtime and the GPU kernels go inside the folder (`animejanai\runtime`), so
+it can be moved or copied to another PC. A folder that already had them in the shared folder from an
+older version keeps using that. To change it, run `VideoJaNaiUpdater --storage shared` (the folder
+all your JaNai apps share, `%LOCALAPPDATA%\the-database\aji`), `--storage inside`, or
+`--storage <folder>` (apps set to the same folder share one copy); the files move along, nothing is
+downloaded again. `VideoJaNaiUpdater --storage --json` says which one it uses. On Linux they go into
+the shared folder (`~/.local/share/the-database/aji`).
+
+To put the shared folder on another drive, close the apps that use it and run
+`aji-runtime move <folder>` (aji-runtime is next to videojanai); `aji-runtime move --default` moves
+it back. If that drive is gone for good, run `aji-runtime reset`, then `videojanai setup`.
 
 On Windows, if you skip setup and VideoJaNai is installed, videojanai uses VideoJaNai's components
 and models. `--aji-dir <folder>` runs another VideoJaNai's `animejanai` folder (or an `aji_encode`

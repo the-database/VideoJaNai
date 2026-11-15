@@ -104,7 +104,7 @@ namespace VideoJaNai.Cli
             var probeText = await install.ProbeAsync();
             var nvidia = Nvml.Gpus;
             var probe = EncoderProbe.Parse(probeText)?.WithNvidia(nvidia);
-            var storeMissing = await install.MissingStoreFolderAsync();
+            var storeMissing = await install.MissingStoreAsync();
             var backend = PickBackend(Pick(x => x.Backend), gui, install, probe, nvidia);
             var directMl = backend == Backend.DirectMl;
             // DirectML needs nothing from the store; without that choice, auto would pick it only
