@@ -57,6 +57,8 @@ Upscaling (one of; default: --preset balanced):
   --no-reuse-held-frames    upscale every frame. By default a frame that doesn't change (a held
                             drawing, a still shot) reuses the previous frame's upscale: faster,
                             the same-looking output (not with RIFE or the temporal fix)
+  --no-native               TensorRT engines for every model. By default models run on built-in
+                            GPU kernels on RTX 30 and newer (faster, nothing to build)
 Source:
   --deinterlace <d>         off (default) | ivtc (telecined film) | bwdif (interlaced video)
   --square-pixels <s>       off (default) | before | after the upscale (DVD, DV)

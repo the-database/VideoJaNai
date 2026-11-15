@@ -193,6 +193,7 @@ namespace VideoJaNai.Cli
         {
             if (x.Upscale is bool up) wf.EnableUpscale = up;
             if (x.ReuseHeldFrames is bool reuse) wf.ReuseHeldFrames = reuse;
+            if (x.Native is bool native) wf.UseNativeKernels = native;
             if (x.Deinterlace != null) wf.Deinterlace = x.Deinterlace;
             if (x.SquarePixels != null) wf.SquarePixels = x.SquarePixels;
             if (x.TemporalFix is int tf)
@@ -422,6 +423,7 @@ namespace VideoJaNai.Cli
             if (wf.EnableRife) parts.Add($"{wf.RifeModel} x{wf.RifeFactorNumerator}" + (wf.RifeFactorDenominator != 1 ? $"/{wf.RifeFactorDenominator}" : ""));
             if (job.Deinterlace != "off") parts.Add(job.Deinterlace == "ivtc" ? "IVTC" : "bwdif");
             if (!job.ReuseHeldFrames) parts.Add("upscaling every frame");
+            if (!job.UseNativeKernels && job.Backend != Backend.DirectMl) parts.Add("no native kernels");
             var preset_ = EncoderPresets.Find(job.FfmpegVideoSettings);
             parts.Add((preset_?.SummaryLabel ?? EncoderPresets.CodecOf(job.FfmpegVideoSettings)) + " " + job.PixFmt switch
             {

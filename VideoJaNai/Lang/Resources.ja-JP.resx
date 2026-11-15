@@ -138,6 +138,12 @@
   <data name="ReuseHeldFramesDescription" xml:space="preserve">
     <value>変化のないフレーム（2コマ・3コマ打ちの止まった絵や静止したシーンなど）は、もう一度アップスケールせずに直前のフレームのアップスケール結果を再利用します。ほとんどのGPUで速くなり、見た目は変わりません。動画ごとに、再利用したフレームの割合がログに表示されます。補間、テンポラルフィックス、テンポラルモデルを使う場合は使われません。</value>
   </data>
+  <data name="UseNativeKernelsLabel" xml:space="preserve">
+    <value>ネイティブGPUカーネルを使う</value>
+  </data>
+  <data name="UseNativeKernelsDescription" xml:space="preserve">
+    <value>RTX 30シリーズ以降のGPUでは、TensorRTエンジンの代わりに内蔵のGPUカーネルでモデルを実行します。より速く、最初の動画の前にエンジンを作る必要もありません。モデルの出力がおかしい場合や失敗する場合などは、オフにするとすべてのモデルでTensorRTエンジンを使います。初期設定はオンです。</value>
+  </data>
   <data name="ReuseHeldFramesNotWithRifeText" xml:space="preserve">
     <value>補間を使う場合は使われません。</value>
   </data>

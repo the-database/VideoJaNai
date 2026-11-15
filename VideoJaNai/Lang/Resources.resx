@@ -138,6 +138,12 @@
   <data name="ReuseHeldFramesDescription" xml:space="preserve">
     <value>Frames that don't change (held drawings, still shots) reuse the previous frame's upscale instead of being upscaled again. Faster on most GPUs, with the same-looking output. After each video, the log says how many frames were reused. Not used with interpolation, temporal fix or temporal models.</value>
   </data>
+  <data name="UseNativeKernelsLabel" xml:space="preserve">
+    <value>Use native GPU kernels</value>
+  </data>
+  <data name="UseNativeKernelsDescription" xml:space="preserve">
+    <value>On RTX 30 and newer GPUs, models run on built-in GPU kernels instead of TensorRT engines: faster, and nothing to build before the first video. Turn this off to use TensorRT engines for every model, for example if a model's output looks wrong or fails. On by default.</value>
+  </data>
   <data name="ReuseHeldFramesNotWithRifeText" xml:space="preserve">
     <value>Not used with interpolation.</value>
   </data>
