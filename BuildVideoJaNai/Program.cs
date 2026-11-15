@@ -111,6 +111,7 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.28.0: aji_encode reuses held frames' upscales (on by default, --no-reuse-held-frames turns it off) and
 // prints a final "held frames" line. v0.29.0: native tensor-core kernels instead of TensorRT engines for
 // SPAN/Compact, RIFE and TemporalFix on RTX 30 and newer (no engine build; [global] native=off disables).
+// v0.31.0: ESRGAN, FDAT, HAT-L and DAT-2 chain models run on the native kernels too (whole frames, when they fit).
 // A libaji release opens the PR that moves AjiVersion and ajiSha256 (.github/workflows/bump-pins.yml,
 // scripts/bump_pins.py libaji <tag>); add its line above by hand.
 const string AjiVersion        = "v0.31.0";
