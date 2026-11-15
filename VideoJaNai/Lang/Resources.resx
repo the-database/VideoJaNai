@@ -528,6 +528,18 @@
   <data name="BackendFallbackStatusText" xml:space="preserve">
     <value>TensorRT-RTX failed; using TensorRT</value>
   </data>
+  <data name="NativeKernelsStatusText" xml:space="preserve">
+    <value>Native kernels</value>
+  </data>
+  <data name="NativeKernelsPartlyStatusText" xml:space="preserve">
+    <value>Native kernels for {0} of {1} models — {2}: {3}</value>
+  </data>
+  <data name="NativeKernelsNotUsedStatusText" xml:space="preserve">
+    <value>Native kernels not used — {0}: {1}</value>
+  </data>
+  <data name="NativeKernelsOffStatusText" xml:space="preserve">
+    <value>Native kernels off (turn on in Upscaling &gt; Show More Settings)</value>
+  </data>
   <data name="PreviewBuildingEngineTextTensorRtRtx" xml:space="preserve">
     <value>Building the TensorRT-RTX engine. This is only needed the first time these settings are used and takes a few seconds.</value>
   </data>

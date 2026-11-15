@@ -267,7 +267,7 @@ namespace VideoJaNai.Core.Tests
     // events).
     public class RunDamageTests
     {
-        sealed class Events : Report
+        internal sealed class Events : Report
         {
             public readonly List<string> All = [];
             void Add(string s)
@@ -292,6 +292,7 @@ namespace VideoJaNai.Core.Tests
             public override void VideoError(int n, int of, PlannedVideo v, string message, IReadOnlyList<string> log) => Add($"VIDEO_ERROR {n} {of} {message}");
             public override void Note(string text) => Add($"NOTE {text}");
             public override void Fallback(string message) => Add($"BACKEND_FALLBACK {message}");
+            public override void NativeKernels(NativeKernelStep step) => Add($"NATIVE_KERNELS {step.Message}");
             public override void AjiLog(string line) { }
             public override void Done(int written, int skipped, int failed, int damaged, TimeSpan took) => Add($"DONE {written} {skipped} {failed} {damaged}");
         }

@@ -158,6 +158,7 @@ engines are kept next to the models.
 | `VIDEO_DONE <n> <of> <output>` | the video is written |
 | `VIDEO_ERROR <n> <of> <message>` | the video failed; the run goes on |
 | `NOTE <text>` / `BACKEND_FALLBACK <text>` | worth showing: no chain for the size, a video finished with damage (`<input>: Finished with damage in ...`), TensorRT-RTX -> TensorRT |
+| `NATIVE_KERNELS <text>` | once per model: `Native kernels: <model> (<what>)`, or `Native kernels not used for <model>: <why>; using TensorRT` |
 | `DONE <written> <skipped> <failed>` | the end |
 
 `videojanai setup --progress lines` reports with mangajanai setup's lines: `SETUP_PLAN <pack>

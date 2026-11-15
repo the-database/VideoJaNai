@@ -248,6 +248,21 @@
               <TextBlock FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource SystemFillColorCautionBrush}"
                          Text="{x:Static lang:Resources.BackendFallbackStatusText}" />
             </StackPanel>
+            <!-- whether the native GPU kernels ran this run's models (each model in the tooltip) -->
+            <StackPanel x:Name="NativeKernelsStatus" Margin="10,8,0,0" DockPanel.Dock="Left" Orientation="Horizontal" Spacing="4"
+                        IsVisible="{Binding ShowNativeKernels}" ToolTip.Tip="{Binding NativeKernelsTip}">
+              <materialIcons:MaterialIcon Kind="Chip" Width="12" Height="12" IsVisible="{Binding NativeKernelsOk}" />
+              <materialIcons:MaterialIcon Kind="Alert" Width="12" Height="12" IsVisible="{Binding NativeKernelsWarning}"
+                                          Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+              <TextBlock x:Name="NativeKernelsStatusText" FontSize="10" VerticalAlignment="Center" MaxWidth="480" TextTrimming="CharacterEllipsis"
+                         Classes.warning="{Binding NativeKernelsWarning}" Text="{Binding NativeKernelsText}">
+                <TextBlock.Styles>
+                  <Style Selector="TextBlock.warning">
+                    <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                  </Style>
+                </TextBlock.Styles>
+              </TextBlock>
+            </StackPanel>
             <TextBlock Margin="10,10,10,0" DockPanel.Dock="Left" FontSize="10" Text="{Binding LeftStatus}" />
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
               <ToggleButton IsChecked="{Binding ShowPreview}" FontSize="10" Margin="5,0,5,0">

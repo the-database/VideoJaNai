@@ -1294,6 +1294,42 @@ namespace VideoJaNai.Lang {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Native kernels.
+        /// </summary>
+        public static string NativeKernelsStatusText {
+            get {
+                return ResourceManager.GetString("NativeKernelsStatusText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Native kernels for {0} of {1} models — {2}: {3}.
+        /// </summary>
+        public static string NativeKernelsPartlyStatusText {
+            get {
+                return ResourceManager.GetString("NativeKernelsPartlyStatusText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Native kernels not used — {0}: {1}.
+        /// </summary>
+        public static string NativeKernelsNotUsedStatusText {
+            get {
+                return ResourceManager.GetString("NativeKernelsNotUsedStatusText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Native kernels off (turn on in Upscaling > Show More Settings).
+        /// </summary>
+        public static string NativeKernelsOffStatusText {
+            get {
+                return ResourceManager.GetString("NativeKernelsOffStatusText", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Building the TensorRT-RTX engine. This is only needed the first time these settings are used and tak....
         /// </summary>
         public static string PreviewBuildingEngineTextTensorRtRtx {
