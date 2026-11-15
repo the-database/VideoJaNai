@@ -76,6 +76,8 @@ namespace VideoJaNai.Core
         // aji_encode --on-damage continue: finish a video with damaged frames (listing them) instead
         // of stopping at the first. Passed only when on, so an aji_encode without the option still runs.
         public bool ContinueOnDamage { get; init; }
+        // aji_encode's held-frame reuse (its default); off passes --no-reuse-held-frames
+        public bool ReuseHeldFrames { get; init; } = true;
 
         public IEnumerable<ModelStep> AllModels => Chains.SelectMany(c => c.Models);
 
@@ -122,6 +124,7 @@ namespace VideoJaNai.Core
                 FinalResizeFactor = wf.FinalResizeFactor ?? 100,
                 Overwrite = wf.OverwriteExistingVideos,
                 ContinueOnDamage = wf.FinishDamagedVideos,
+                ReuseHeldFrames = wf.ReuseHeldFrames,
             };
         }
     }

@@ -448,6 +448,15 @@
                 </StackPanel>
               </Button>
 
+              <!-- Held-frame reuse: on by default; RIFE and temporal chains don't use it, which the
+                   note says (the setting is kept for when they're off again) -->
+              <StackPanel Classes="row" Margin="0,12,0,0">
+                <ContentControl Classes="hint" IsEnabled="{Binding CurrentWorkflow.ReuseHeldFramesApplies}" ToolTip.Tip="{x:Static lang:Resources.ReuseHeldFramesDescription}">
+                  <CheckBox IsChecked="{Binding CurrentWorkflow.ReuseHeldFrames}" Content="{x:Static lang:Resources.ReuseHeldFramesLabel}" />
+                </ContentControl>
+                <TextBlock Classes="help" Margin="4,0,0,0" Text="{Binding CurrentWorkflow.ReuseHeldFramesNote}" IsVisible="{Binding !CurrentWorkflow.ReuseHeldFramesApplies}" />
+              </StackPanel>
+
               <StackPanel Margin="0,15,0,0" IsVisible="{Binding CurrentWorkflow.ShowTrtEngineSettings}">
                 <TextBlock Margin="0,0,0,5" Text="TensorRT Engine Settings" />
                 <Border Classes="border">

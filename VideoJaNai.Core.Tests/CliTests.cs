@@ -23,6 +23,7 @@ namespace VideoJaNai.Core.Tests
             Assert.Null(o.Filename);
             Assert.Null(o.SkipExisting);
             Assert.Null(o.KeepDamaged);
+            Assert.Null(o.ReuseHeldFrames);
             Assert.Null(o.Encoder);
             Assert.Null(o.Backend);
             Assert.Null(o.TemporalFix);
@@ -46,6 +47,7 @@ namespace VideoJaNai.Core.Tests
                 [upscale]
                 model = a.onnx
                 model = b.onnx
+                reuse_held_frames = no
                 [encode]
                 encoder = X265
                 pixel_format = 8-bit
@@ -65,6 +67,7 @@ namespace VideoJaNai.Core.Tests
             Assert.False(o.SkipExisting);
             Assert.True(o.KeepDamaged);
             Assert.Equal(["a.onnx", "b.onnx"], o.Models);
+            Assert.False(o.ReuseHeldFrames);
             Assert.Equal("x265", o.Encoder);
             Assert.Equal("yuv420p", o.PixFmt);
             Assert.True(o.Rife);
@@ -141,6 +144,7 @@ namespace VideoJaNai.Core.Tests
         [InlineData(new[] { "--model" }, "--model needs a value")]
         [InlineData(new[] { "--overwrite=yes" }, "--overwrite takes no value")]
         [InlineData(new[] { "--keep-damaged=yes" }, "--keep-damaged takes no value")]
+        [InlineData(new[] { "--no-reuse-held-frames=yes" }, "--no-reuse-held-frames takes no value")]
         [InlineData(new[] { "--preset", "balanced", "--model", "x" }, "give only one of --preset, --model or --workflow")]
         [InlineData(new[] { "--height", "1080", "--resize-percent", "50" }, "give only one of --height and --resize-percent")]
         [InlineData(new[] { "--encoder", "h266" }, "--encoder should be one of auto, nvenc-hevc, nvenc-av1, nvenc-lossless, amf-hevc, amf-av1, qsv-hevc, qsv-av1, x265, x264, ffv1, not 'h266'")]
@@ -158,6 +162,14 @@ namespace VideoJaNai.Core.Tests
             Assert.False(Flags.Parse(["--stop-on-damage", "a.mkv"]).Options.KeepDamaged);
             // the last one wins, as --skip-existing / --overwrite
             Assert.False(Flags.Parse(["--keep-damaged", "--stop-on-damage"]).Options.KeepDamaged);
+        }
+
+        [Fact]
+        public void HeldFramesAreReusedUnlessTurnedOff()
+        {
+            Assert.Null(Flags.Parse(["a.mkv"]).Options.ReuseHeldFrames);
+            Assert.False(Flags.Parse(["--no-reuse-held-frames", "a.mkv"]).Options.ReuseHeldFrames);
+            Assert.True(Flags.Parse(["--no-reuse-held-frames", "--reuse-held-frames"]).Options.ReuseHeldFrames);
         }
 
         [Theory]
@@ -260,7 +272,13 @@ namespace VideoJaNai.Core.Tests
                     All.Add(s);
                 }
             }
-            public override void Info(string text) { }
+            public override void Info(string text)
+            {
+                if (!text.StartsWith("videojanai: ", StringComparison.Ordinal))
+                {
+                    Add($"INFO {text}");
+                }
+            }
             public override void Plan(int videos, int encode, int skip) => Add($"PLAN {videos} {encode} {skip}");
             public override void VideoStart(int n, int of, PlannedVideo v) => Add($"VIDEO_START {n} {of}");
             public override void VideoSkip(int n, int of, PlannedVideo v) => Add($"VIDEO_SKIP {n} {of}");
@@ -317,6 +335,28 @@ namespace VideoJaNai.Core.Tests
             Assert.DoesNotContain("--on-damage", FakeAjiEncode.Args(t));
             Assert.Equal(["PLAN 1 1 0", "VIDEO_START 1 1",
                           "VIDEO_ERROR 1 1 damaged video at 12:34.5 (frame 18093); --keep-damaged finishes it anyway", "DONE 0 0 1 0"], events);
+        }
+
+        // the held-frame reuse aji_encode reports for a written video follows VIDEO_DONE
+        [Fact]
+        public async Task HeldFrameReuseFollowsTheVideo()
+        {
+            using var t = new TempDir();
+            var input = t.File("in.mkv");
+            var output = Path.Join(t.Path, "out", "in-animejanai.mkv");
+            var paths = FakeAjiEncode.Create(t, 0, PartialOutput.PathFor(output), stderr: ["held frames: reused 1055 of 3412 (30.9%)"],
+                                             lines: ["PROGRESS phase=encode frame=3412 total=3412 fps=0.00 pct=100"]);
+            var plan = new RunPlan
+            {
+                Install = new Install(paths),
+                Job = new EncodeJob { Backend = Backend.TensorRt, Overwrite = true },
+                Videos = [new PlannedVideo(input, output, PlanAction.Encode)],
+                Heading = "test",
+            };
+            var events = new Events();
+            Assert.Equal(0, await Run.ExecuteAsync(plan, events, TestContext.Current.CancellationToken));
+            Assert.Equal(["PLAN 1 1 0", "VIDEO_START 1 1", "VIDEO_DONE 1 1",
+                          "INFO Reused the upscale for 31% of frames (1,055 of 3,412)", "DONE 1 0 0 0"], events.All);
         }
     }
 }

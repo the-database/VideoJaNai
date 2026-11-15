@@ -123,6 +123,67 @@ namespace VideoJaNai.Tests
             }
         }
 
+        // "Reuse upscales of unchanged frames" is saved with the workflow; a workflow saved before it
+        // existed loads with it on.
+        [Fact]
+        public void ReuseHeldFramesIsSavedAndOnInOlderWorkflows()
+        {
+            var vm = CreateVm();
+            Assert.True(vm.CurrentWorkflow!.ReuseHeldFrames);
+            Assert.True(vm.CurrentJob().ReuseHeldFrames);
+            vm.CurrentWorkflow.ReuseHeldFrames = false;
+            var path = Path.Combine(Path.GetTempPath(), $"vjn-test-{Path.GetRandomFileName()}.json");
+            try
+            {
+                vm.WriteCurrentWorkflowToFile(path);
+                var saved = File.ReadAllText(path);
+                Assert.Contains("\"ReuseHeldFrames\": false", saved);
+
+                vm.ResetCurrentWorkflow();
+                Assert.True(vm.CurrentWorkflow!.ReuseHeldFrames);
+                vm.ReadWorkflowFileToCurrentWorkflow(path);
+                Assert.False(vm.CurrentWorkflow!.ReuseHeldFrames);
+                Assert.False(vm.CurrentJob().ReuseHeldFrames);
+
+                File.WriteAllText(path, saved.Replace("\"ReuseHeldFrames\": false,", ""));
+                Assert.DoesNotContain("ReuseHeldFrames", File.ReadAllText(path));
+                vm.ReadWorkflowFileToCurrentWorkflow(path);
+                Assert.True(vm.CurrentWorkflow!.ReuseHeldFrames);
+                Assert.True(vm.CurrentJob().ReuseHeldFrames);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        // RIFE and the temporal fix don't use held-frame reuse: the checkbox says so, and the setting
+        // stays as it was for when they're off again.
+        [Fact]
+        public void ReuseHeldFramesSaysWhenItDoesNotApply()
+        {
+            var wf = CreateVm().CurrentWorkflow!;
+            var raised = new System.Collections.Generic.List<string?>();
+            wf.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+            Assert.True(wf.ReuseHeldFramesApplies);
+            Assert.Null(wf.ReuseHeldFramesNote);
+
+            wf.EnableRife = true;
+            Assert.Contains(nameof(UpscaleWorkflow.ReuseHeldFramesApplies), raised);
+            Assert.False(wf.ReuseHeldFramesApplies);
+            Assert.Equal(VideoJaNai.Lang.Resources.ReuseHeldFramesNotWithRifeText, wf.ReuseHeldFramesNote);
+            Assert.True(wf.ReuseHeldFrames);
+
+            wf.EnableRife = false;
+            wf.EnableTemporalFix = true;
+            Assert.Equal(VideoJaNai.Lang.Resources.ReuseHeldFramesNotWithTemporalFixText, wf.ReuseHeldFramesNote);
+            Assert.True(wf.ReuseHeldFrames);
+
+            wf.EnableTemporalFix = false;
+            Assert.True(wf.ReuseHeldFramesApplies);
+            Assert.True(wf.ReuseHeldFrames);
+        }
+
         [Fact]
         public void ExpandAndCollapseAllSections()
         {

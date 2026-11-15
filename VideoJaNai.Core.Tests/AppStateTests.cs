@@ -26,6 +26,7 @@ namespace VideoJaNai.Core.Tests
             // fields the file doesn't have keep the GUI's defaults
             Assert.True(wf.EnableUpscale);
             Assert.False(wf.FinishDamagedVideos);
+            Assert.True(wf.ReuseHeldFrames);
             Assert.Equal("yuv420p10", wf.OutputPixFmt);
             Assert.Equal(TrtEngine.DefaultSettings, wf.TrtEngineSettings);
             // the backend from before it was app-wide: the selected workflow's
@@ -96,7 +97,7 @@ namespace VideoJaNai.Core.Tests
             var path = Path.Join(Path.GetTempPath(), $"vj-{Guid.NewGuid():N}.awf");
             File.WriteAllText(path, """
                 {"$type":"VideoJaNai.ViewModels.UpscaleWorkflow, VideoJaNai","WorkflowName":"x","EnableRife":true,
-                 "RifeModel":"RIFE 4.25 Lite","FinishDamagedVideos":true,"UpscaleSettings":{"$values":[{"OnnxModelPath":"m.onnx"}]}}
+                 "RifeModel":"RIFE 4.25 Lite","FinishDamagedVideos":true,"ReuseHeldFrames":false,"UpscaleSettings":{"$values":[{"OnnxModelPath":"m.onnx"}]}}
                 """);
             try
             {
@@ -104,6 +105,7 @@ namespace VideoJaNai.Core.Tests
                 Assert.True(wf.EnableRife);
                 Assert.Equal("RIFE 4.25 Lite", wf.RifeModel);
                 Assert.True(wf.FinishDamagedVideos);
+                Assert.False(wf.ReuseHeldFrames);
                 Assert.Equal("m.onnx", wf.UpscaleSettings.Single().OnnxModelPath);
             }
             finally
