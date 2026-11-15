@@ -1668,12 +1668,19 @@ namespace VideoJaNai.ViewModels
             try
             {
                 var gpusArgument = ComponentGpusArgument;
-                var json = await _updateManagerService.GetComponentsJsonAsync(gpusArgument);
-                if (string.IsNullOrWhiteSpace(json))
+                var output = await _updateManagerService.GetComponentsJsonAsync(gpusArgument);
+                if (string.IsNullOrWhiteSpace(output))
                 {
                     return;
                 }
+                var (json, messages) = ComponentsOutput.Split(output);
+                if (json is null)
+                {
+                    ComponentStatusText = $"Could not read components: {(messages.Count > 0 ? messages[^1] : "no output")}";
+                    return;
+                }
                 var root = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var notes = ComponentsOutput.Notes((root["notes"] as Newtonsoft.Json.Linq.JArray)?.Select(x => (string?)x), messages);
                 // gpu: the NVIDIA GPUs the packs are for (every one, or the chosen one), only those
                 // TensorRT runs on; nvidia_present: whether this PC has one at all (older updaters:
                 // same as gpu.nvidia); nvidia_too_old: the NVIDIA GPUs too old for TensorRT, which
@@ -1712,6 +1719,10 @@ namespace VideoJaNai.ViewModels
                 }
                 Components = items;
                 ComponentsListedFor = gpusArgument;
+                if (notes.Count > 0)
+                {
+                    ComponentStatusText = string.Join(" ", notes);
+                }
             }
             catch (Exception ex)
             {
