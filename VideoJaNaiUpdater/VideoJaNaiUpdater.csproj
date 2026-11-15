@@ -15,6 +15,8 @@
   <ItemGroup>
     <!-- NVIDIA GPU detection and which GPUs TensorRT runs on, shared with the app and the CLI -->
     <Compile Include="..\VideoJaNai.Core\NvidiaGpus.cs" Link="NvidiaGpus.cs" />
+    <!-- which copy this is for the pack store (installed or zip copy, its own ref, its store) -->
+    <Compile Include="..\VideoJaNai.Core\StoreCopy.cs" Link="StoreCopy.cs" />
   </ItemGroup>
 
 </Project>

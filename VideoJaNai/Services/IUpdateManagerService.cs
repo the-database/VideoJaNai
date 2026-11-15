@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,5 +33,10 @@ namespace AnimeJaNaiConverterGui.Services
         // exit code.
         Task<string> GetComponentsJsonAsync(string extraArguments = "");
         Task<int> RunUpdaterStreamingAsync(string arguments, Action<string>? onLine, CancellationToken ct = default);
+
+        // App Settings > Storage: runs the updater with these arguments (each passed as is, so a folder
+        // may hold spaces), in UTF-8. Returns its exit code and stdout; onLine sees every stdout and
+        // stderr line as it comes. -1 and no output without an updater.
+        Task<(int ExitCode, string Output)> RunUpdaterAsync(IReadOnlyList<string> arguments, Action<string>? onLine = null, CancellationToken ct = default);
     }
 }

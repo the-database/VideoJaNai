@@ -26,6 +26,9 @@
 #define UpdaterExe "VideoJaNaiUpdater.exe"
 
 [Setup]
+; VideoJaNaiUpdater (StoreCopy.SetupInstallLocations in VideoJaNai.Core) reads this AppId's uninstall
+; entry (HKCU ...\Uninstall\<AppId>_is1) to tell this install from a copy of its folder; keep them in
+; sync (VideoJaNai.Core.Tests checks it).
 AppId={{B7E4D2A1-3C56-4F89-9A2B-1D3E5F7A9C04}
 AppName={#AppName}
 AppVersion={#AppVersion}
@@ -60,12 +63,17 @@ Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
-; First drop this install's ref in the shared pack store (%LOCALAPPDATA%\the-database\aji, shared
-; with other apps): the TensorRT runtime no other installed app uses is removed with it. An install
-; from before the store has no aji-runtime.exe; without it the folder's deletion below leaves a dead
-; ref that the store frees later anyway.
+; First drop this install's ref in its pack store: the per-user one (%LOCALAPPDATA%\the-database\aji,
+; shared with other apps), or the folder aji-runtime.conf beside aji-runtime.exe names (inside this
+; install or one the user chose in App Settings > Storage; aji-runtime reads it). The TensorRT runtime
+; no other installed app uses is removed with it. An install from before the store has no
+; aji-runtime.exe; without it, or with the store's drive unplugged, the folder's deletion below leaves
+; a dead ref that the store frees later anyway. A store inside the install goes with the folder.
+; --app-path: the plain ref is dropped only while it names this install's VideoJaNai.exe (the path the
+; updater writes it with); a ref another copy wrote is left alone (aji-runtime 0.3.0+, which this
+; package ships).
 [UninstallRun]
-Filename: "{app}\aji-runtime.exe"; Parameters: "unref --app-id videojanai"; Flags: runhidden skipifdoesntexist waituntilterminated; RunOnceId: "videojanai-unref"
+Filename: "{app}\aji-runtime.exe"; Parameters: "unref --app-id videojanai --app-path ""{app}\{#AppExe}"""; Flags: runhidden skipifdoesntexist waituntilterminated; RunOnceId: "videojanai-unref"
 
 ; Remove the whole per-user app folder on uninstall, including files created at runtime that the
 ; installer never tracked (built engines + timing caches in animejanai\onnx, downloaded component
@@ -196,6 +204,15 @@ var
 begin
   if CurStep <> ssPostInstall then
     Exit;
+
+  // Mark this copy as installed by setup before the updater first runs in it: the updater keeps the
+  // plain shared-store ref id (videojanai, which [UninstallRun] drops) for a copy with this marker or
+  // an unins???.exe whose folder this setup's uninstall entry (HKCU ...\Uninstall\<AppId>_is1,
+  // InstallLocation) names or that has no entry yet, and a per-copy id for any other copy (the
+  // portable package, or a copy of this folder elsewhere). The marker covers any point where the
+  // uninstaller isn't written yet. [UninstallDelete] removes it with the folder.
+  SaveStringToFile(ExpandConstant('{app}\installed-by-setup.txt'),
+    'Installed by the VideoJaNai setup. VideoJaNaiUpdater reads this file; keep it.' + #13#10, False);
 
   // Re-detect from the now-installed updater: network may be available now even if it wasn't at
   // wizard start, giving authoritative GPU-matched pack names.
