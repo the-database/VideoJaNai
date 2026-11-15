@@ -78,6 +78,8 @@ namespace VideoJaNai.Core
         public bool ContinueOnDamage { get; init; }
         // aji_encode's held-frame reuse (its default); off passes --no-reuse-held-frames
         public bool ReuseHeldFrames { get; init; } = true;
+        // libaji's native kernels (its default); off writes [global] native=off into the conf
+        public bool UseNativeKernels { get; init; } = true;
 
         public IEnumerable<ModelStep> AllModels => Chains.SelectMany(c => c.Models);
 
@@ -125,6 +127,7 @@ namespace VideoJaNai.Core
                 Overwrite = wf.OverwriteExistingVideos,
                 ContinueOnDamage = wf.FinishDamagedVideos,
                 ReuseHeldFrames = wf.ReuseHeldFrames,
+                UseNativeKernels = wf.UseNativeKernels,
             };
         }
     }

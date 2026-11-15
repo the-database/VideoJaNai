@@ -76,6 +76,7 @@ namespace VideoJaNai.Core
             UpscaleSettings = [.. wf.UpscaleSettings],
             EnableUpscale = wf.EnableUpscale,
             ReuseHeldFrames = wf.ReuseHeldFrames,
+            UseNativeKernels = wf.UseNativeKernels,
             EnableTemporalFix = wf.EnableTemporalFix,
             TemporalFixStrength = wf.TemporalFixStrength,
             TemporalFixSceneThreshold = wf.TemporalFixSceneThreshold,

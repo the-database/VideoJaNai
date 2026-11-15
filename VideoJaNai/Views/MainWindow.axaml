@@ -461,6 +461,9 @@
                 <TextBlock Margin="0,0,0,5" Text="TensorRT Engine Settings" />
                 <Border Classes="border">
                   <StackPanel Margin="10">
+                    <ContentControl Classes="hint" Margin="0,0,0,8" HorizontalAlignment="Left" ToolTip.Tip="{x:Static lang:Resources.UseNativeKernelsDescription}">
+                      <CheckBox IsChecked="{Binding CurrentWorkflow.UseNativeKernels}" Content="{x:Static lang:Resources.UseNativeKernelsLabel}" />
+                    </ContentControl>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                       <ContentControl Classes="hint" Content="Engine Type">
                         <ToolTip.Tip>

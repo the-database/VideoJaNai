@@ -22,6 +22,7 @@ namespace VideoJaNai.Cli
         public string? Workflow;
         public bool? Upscale;
         public bool? ReuseHeldFrames;         // reuse the upscale of frames that repeat the last one
+        public bool? Native;                  // libaji's native GPU kernels instead of TensorRT engines
 
         public string? Deinterlace;
         public string? SquarePixels;

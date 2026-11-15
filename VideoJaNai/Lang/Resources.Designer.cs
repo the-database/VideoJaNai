@@ -106,6 +106,24 @@ namespace VideoJaNai.Lang {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Use native GPU kernels.
+        /// </summary>
+        public static string UseNativeKernelsLabel {
+            get {
+                return ResourceManager.GetString("UseNativeKernelsLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to On RTX 30 and newer GPUs, models run on built-in GPU kernels instead of TensorRT engines[rest of string was truncated].
+        /// </summary>
+        public static string UseNativeKernelsDescription {
+            get {
+                return ResourceManager.GetString("UseNativeKernelsDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Reuse upscales of unchanged frames.
         /// </summary>
         public static string ReuseHeldFramesLabel {

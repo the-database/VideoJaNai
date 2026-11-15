@@ -44,6 +44,11 @@ namespace VideoJaNai.Core
             configText.AppendLine("config_version=2");
             configText.AppendLine("logging=yes");
             configText.AppendLine($"backend={BackendNames.Conf(job.Backend)}");
+            // Only when off: native is libaji's default on the TensorRT backends (DirectML has none).
+            if (!job.UseNativeKernels && job.Backend != Backend.DirectMl)
+            {
+                configText.AppendLine("native=off");
+            }
 
             // trt_engine_settings (TensorRT, and TensorRT-RTX: it builds in-process but reads the
             // shape / optimization-level / workspace flags, and its TensorRT fallback uses it all):

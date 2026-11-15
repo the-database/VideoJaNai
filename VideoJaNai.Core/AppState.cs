@@ -100,6 +100,7 @@ namespace VideoJaNai.Core
                 FinalResizeFactor = Int(w, "FinalResizeFactor") ?? d.FinalResizeFactor,
                 EnableUpscale = Bool(w, "EnableUpscale") ?? d.EnableUpscale,
                 ReuseHeldFrames = Bool(w, "ReuseHeldFrames") ?? d.ReuseHeldFrames,
+                UseNativeKernels = Bool(w, "UseNativeKernels") ?? d.UseNativeKernels,
                 EnableTemporalFix = Bool(w, "EnableTemporalFix") ?? d.EnableTemporalFix,
                 TemporalFixStrength = Int(w, "TemporalFixStrength") ?? d.TemporalFixStrength,
                 TemporalFixSceneThreshold = Dec(w, "TemporalFixSceneThreshold", d.TemporalFixSceneThreshold),

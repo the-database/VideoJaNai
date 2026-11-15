@@ -116,6 +116,9 @@ backend =
 device =
 ; TensorRT engine build flags (trtexec style). Empty: the default.
 engine_settings =
+; On RTX 30 and newer GPUs, models run on built-in GPU kernels instead of TensorRT engines.
+; no: TensorRT engines for every model (yes or no; default yes; not used with DirectML).
+native =
 ; Where aji_encode's animejanai folder is (empty: next to the program, else an installed
 ; VideoJaNai's).
 aji_folder =
@@ -236,8 +239,9 @@ aji_folder =
                         o.Backend = r.Choice("backend", Options.Backends);
                         o.Device = r.String("device");
                         o.EngineSettings = r.String("engine_settings");
+                        o.Native = r.Switch("native");
                         o.AjiDir = r.String("aji_folder");
-                        r.Finish(["backend", "device", "engine_settings", "aji_folder"]);
+                        r.Finish(["backend", "device", "engine_settings", "native", "aji_folder"]);
                         break;
                 }
             }
