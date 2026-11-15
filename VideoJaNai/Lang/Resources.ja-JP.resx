@@ -483,6 +483,18 @@
   <data name="BackendFallbackStatusText" xml:space="preserve">
     <value>TensorRT-RTXが失敗したため、TensorRTを使用しています</value>
   </data>
+  <data name="NativeKernelsStatusText" xml:space="preserve">
+    <value>ネイティブカーネル使用</value>
+  </data>
+  <data name="NativeKernelsPartlyStatusText" xml:space="preserve">
+    <value>ネイティブカーネル使用: {1}個中{0}個のモデル — {2}: {3}</value>
+  </data>
+  <data name="NativeKernelsNotUsedStatusText" xml:space="preserve">
+    <value>ネイティブカーネル未使用 — {0}: {1}</value>
+  </data>
+  <data name="NativeKernelsOffStatusText" xml:space="preserve">
+    <value>ネイティブカーネル: オフ（「アップスケール」の「その他の設定を表示」でオンにできます）</value>
+  </data>
   <data name="PreviewBuildingEngineTextTensorRtRtx" xml:space="preserve">
     <value>TensorRT-RTXエンジンを構築中です。この設定を初めて使うときだけ必要で、数秒で終わります。</value>
   </data>

@@ -33,6 +33,7 @@ namespace VideoJaNai.Cli
                 runner.Prepare(plan.Job);
             }
             int written = 0, skipped = 0, failed = 0, damaged = 0;
+            var native = new NativeKernelSummary();
             try
             {
                 for (var i = 0; i < plan.Videos.Count; i++)
@@ -48,7 +49,7 @@ namespace VideoJaNai.Cli
                     ct.ThrowIfCancellationRequested();
                     report.VideoStart(n, plan.Videos.Count, v);
                     var took = Stopwatch.StartNew();
-                    var observer = new Observer(report, plan.Job.AllModels.Any());
+                    var observer = new Observer(report, plan.Job.AllModels.Any(), native);
                     try
                     {
                         Directory.CreateDirectory(Path.GetDirectoryName(v.Output)!);
@@ -106,8 +107,10 @@ namespace VideoJaNai.Cli
         }
 
         // aji_encode's lines -> the report: PROGRESS to the bar (or passed through), the log kept
-        // (its last lines explain a failure), fallbacks and passthrough as notices.
-        private sealed class Observer(Report report, bool upscales) : IEncodeObserver
+        // (its last lines explain a failure), fallbacks and passthrough as notices, and whether each
+        // model ran on the native kernels (once per model for the run, again if a later video
+        // doesn't use them for a model that did before).
+        private sealed class Observer(Report report, bool upscales, NativeKernelSummary native) : IEncodeObserver
         {
             private readonly AjiProgress _progress = new();
             private readonly Queue<string> _tail = new();
@@ -146,6 +149,10 @@ namespace VideoJaNai.Cli
                 if (BackendFallback.FromAjiLog(line) is string fallback)
                 {
                     report.Fallback(fallback);
+                }
+                else if (native.Add(line) is NativeKernelStep step)
+                {
+                    report.NativeKernels(step);
                 }
                 else if (upscales && line.Contains("no chain active for", StringComparison.Ordinal))
                 {

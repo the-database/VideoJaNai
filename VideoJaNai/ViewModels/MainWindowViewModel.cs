@@ -786,6 +786,83 @@ namespace VideoJaNai.ViewModels
 
         public bool ShowBackendFallback => !string.IsNullOrEmpty(BackendFallbackText);
 
+        // Whether libaji's native GPU kernels ran this run's models (see NativeKernels), in the status
+        // bar until the next run starts: "Native kernels" when every model step used them, which ones
+        // didn't and why otherwise (a warning), "Native kernels off" when the setting is off. Nothing on
+        // DirectML, which has none. The tooltip lists each model.
+        private readonly NativeKernelSummary _nativeKernels = new();
+        private bool _nativeKernelsOff;
+
+        private string _nativeKernelsText = string.Empty;
+        public string NativeKernelsText
+        {
+            get => _nativeKernelsText;
+            private set
+            {
+                this.RaiseAndSetIfChanged(ref _nativeKernelsText, value);
+                this.RaisePropertyChanged(nameof(ShowNativeKernels));
+            }
+        }
+
+        private string _nativeKernelsTip = string.Empty;
+        public string NativeKernelsTip
+        {
+            get => _nativeKernelsTip;
+            private set => this.RaiseAndSetIfChanged(ref _nativeKernelsTip, value);
+        }
+
+        private bool _nativeKernelsWarning;
+        public bool NativeKernelsWarning
+        {
+            get => _nativeKernelsWarning;
+            private set
+            {
+                this.RaiseAndSetIfChanged(ref _nativeKernelsWarning, value);
+                this.RaisePropertyChanged(nameof(NativeKernelsOk));
+            }
+        }
+
+        public bool NativeKernelsOk => !NativeKernelsWarning;
+
+        public bool ShowNativeKernels => !string.IsNullOrEmpty(NativeKernelsText);
+
+        // A run starts: off (shown from the start) when the setting is off on a TensorRT backend, else
+        // empty until aji_encode logs its chain.
+        private void ResetNativeKernels(EncodeJob job)
+        {
+            _nativeKernels.Clear();
+            _nativeKernelsOff = !job.UseNativeKernels && job.Backend != Backend.DirectMl;
+            UpdateNativeKernels();
+        }
+
+        // An aji_encode stderr line (UI thread).
+        private void AddNativeKernelsLine(string line)
+        {
+            if (!_nativeKernelsOff && _nativeKernels.Add(line) != null)
+            {
+                UpdateNativeKernels();
+            }
+        }
+
+        private void UpdateNativeKernels()
+        {
+            if (_nativeKernelsOff)
+            {
+                NativeKernelsText = Resources.NativeKernelsOffStatusText;
+                NativeKernelsTip = Resources.UseNativeKernelsDescription;
+                NativeKernelsWarning = false;
+                return;
+            }
+            var n = _nativeKernels;
+            NativeKernelsWarning = n.Total > 0 && !n.AllUsed;
+            var first = n.FirstNotUsed;
+            NativeKernelsText = n.Total == 0 ? string.Empty
+                              : first is null ? Resources.NativeKernelsStatusText
+                              : n.Total == 1 ? string.Format(Resources.NativeKernelsNotUsedStatusText, first.Model, first.Detail)
+                              : string.Format(Resources.NativeKernelsPartlyStatusText, n.UsedCount, n.Total, first.Model, first.Detail);
+            NativeKernelsTip = string.Join(Environment.NewLine, n.Models.Select(m => m.Message));
+        }
+
         public string LeftStatus => !CurrentWorkflow.Valid ? ValidationText.Replace("\n", " ") : $"{InputStatusText} selected for upscaling.";
 
         private bool _componentsBusy = false;
@@ -1095,6 +1172,7 @@ namespace VideoJaNai.ViewModels
             //{
             ct.ThrowIfCancellationRequested();
             BackendFallbackText = string.Empty;
+            ResetNativeKernels(CurrentJob());
             _preview?.RequestClose();
             Upscaling = true;
             SetupAnimeJaNaiConfSlot1();
@@ -1250,8 +1328,8 @@ namespace VideoJaNai.ViewModels
 
         // aji_encode's output during a run: every line to error.log (in the state folder: the working
         // directory may be anywhere, including somewhere read-only) and the console, except PROGRESS
-        // lines (the progress bar) and PREVIEW lines (the preview); TensorRT-RTX fallbacks also go
-        // to the status bar.
+        // lines (the progress bar) and PREVIEW lines (the preview); TensorRT-RTX fallbacks and the
+        // native-kernel lines also go to the status bar.
         private sealed class RunObserver : IEncodeObserver, IDisposable
         {
             private readonly MainWindowViewModel _vm;
@@ -1282,6 +1360,10 @@ namespace VideoJaNai.ViewModels
                 if (BackendFallback.FromAjiLog(line) is string fallback)
                 {
                     _vm.BackendFallbackText = fallback;
+                }
+                if (NativeKernels.FromAjiLog(line) != null)
+                {
+                    Dispatcher.UIThread.Post(() => _vm.AddNativeKernelsLine(line));
                 }
             }
 

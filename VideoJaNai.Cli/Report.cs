@@ -20,6 +20,9 @@ namespace VideoJaNai.Cli
     //     NOTE <text>                          worth showing (no chain for the size, a video
     //                                          finished with damage: "<input>: Finished with damage in ...")
     //     BACKEND_FALLBACK <message>           libaji's TensorRT-RTX -> TensorRT fallback
+    //     NATIVE_KERNELS <message>             whether a model runs on the native kernels: "Native
+    //                                          kernels: <model> (<what>)" or "Native kernels not
+    //                                          used for <model>: <why>; using TensorRT"
     //     DONE <written> <skipped> <failed>
     //   aji_encode's log goes to stderr in this mode (its DAMAGE lines too).
     public abstract class Report
@@ -33,6 +36,7 @@ namespace VideoJaNai.Cli
         public abstract void VideoError(int n, int of, PlannedVideo v, string message, IReadOnlyList<string> log);
         public abstract void Note(string text);
         public abstract void Fallback(string message);
+        public abstract void NativeKernels(NativeKernelStep step);
         public abstract void AjiLog(string line);
         // damaged: of the written videos, those finished with damage
         public abstract void Done(int written, int skipped, int failed, int damaged, TimeSpan took);
@@ -72,6 +76,7 @@ namespace VideoJaNai.Cli
             Line($"VIDEO_ERROR {n} {of} {message.Replace('\n', ' ')}");
         public override void Note(string text) => Line($"NOTE {text}");
         public override void Fallback(string message) => Line($"BACKEND_FALLBACK {message}");
+        public override void NativeKernels(NativeKernelStep step) => Line($"NATIVE_KERNELS {step.Message}");
         public override void AjiLog(string line) => Console.Error.WriteLine(line);
         public override void Done(int written, int skipped, int failed, int damaged, TimeSpan took) => Line($"DONE {written} {skipped} {failed}");
     }
@@ -208,6 +213,18 @@ namespace VideoJaNai.Cli
 
         public override void Note(string text) => Say($"note: {text}");
         public override void Fallback(string message) => Say($"warning: {message}");
+
+        // "native kernels: <model> (<what>)", or a note when a model doesn't use them (with --verbose
+        // aji_encode's own line says it)
+        public override void NativeKernels(NativeKernelStep step)
+        {
+            if (verbose)
+            {
+                return;
+            }
+            var text = char.ToLowerInvariant(step.Message[0]) + step.Message[1..];
+            Say(step.Used ? text : $"note: {text}");
+        }
 
         public override void AjiLog(string line)
         {
