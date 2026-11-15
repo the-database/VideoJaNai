@@ -34,6 +34,11 @@ namespace VideoJaNai.Core
 
         public List<ModelSettings> UpscaleSettings { get; set; } = [];
         public bool EnableUpscale { get; set; } = true;
+        // aji_encode's held-frame reuse: a frame that is the same picture as the last upscaled one
+        // (a held drawing, a still shot) gets that upscale again instead of its own. On by default,
+        // and in workflows saved before the setting existed; aji_encode itself turns it off where it
+        // doesn't apply (RIFE, a temporal chain).
+        public bool ReuseHeldFrames { get; set; } = true;
 
         public bool EnableTemporalFix { get; set; }
         public int? TemporalFixStrength { get; set; } = 2;

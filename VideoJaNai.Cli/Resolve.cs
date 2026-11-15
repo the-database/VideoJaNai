@@ -192,6 +192,7 @@ namespace VideoJaNai.Cli
         static void Apply(Options x, WorkflowSettings wf)
         {
             if (x.Upscale is bool up) wf.EnableUpscale = up;
+            if (x.ReuseHeldFrames is bool reuse) wf.ReuseHeldFrames = reuse;
             if (x.Deinterlace != null) wf.Deinterlace = x.Deinterlace;
             if (x.SquarePixels != null) wf.SquarePixels = x.SquarePixels;
             if (x.TemporalFix is int tf)
@@ -420,6 +421,7 @@ namespace VideoJaNai.Cli
             if (wf.EnableTemporalFix) parts.Add($"temporal fix {wf.TemporalFixStrength}");
             if (wf.EnableRife) parts.Add($"{wf.RifeModel} x{wf.RifeFactorNumerator}" + (wf.RifeFactorDenominator != 1 ? $"/{wf.RifeFactorDenominator}" : ""));
             if (job.Deinterlace != "off") parts.Add(job.Deinterlace == "ivtc" ? "IVTC" : "bwdif");
+            if (!job.ReuseHeldFrames) parts.Add("upscaling every frame");
             var preset_ = EncoderPresets.Find(job.FfmpegVideoSettings);
             parts.Add((preset_?.SummaryLabel ?? EncoderPresets.CodecOf(job.FfmpegVideoSettings)) + " " + job.PixFmt switch
             {

@@ -1116,6 +1116,7 @@ namespace VideoJaNai.ViewModels
 
             int attempted = 0, failed = 0;
             var damaged = new List<string>();
+            var heldFrames = new List<HeldFrameReuse>();
             foreach (var video in plan.Videos)
             {
                 ct.ThrowIfCancellationRequested();
@@ -1125,7 +1126,7 @@ namespace VideoJaNai.ViewModels
                     continue;
                 }
                 attempted++;
-                var (failure, stoppedOnDamage, finishedWithDamage) = await UpscaleVideo(video, ct);
+                var (failure, stoppedOnDamage, finishedWithDamage, held) = await UpscaleVideo(video, ct);
                 if (failure != null)
                 {
                     failed++;
@@ -1140,11 +1141,20 @@ namespace VideoJaNai.ViewModels
                     damaged.Add($"{video.Input}: {finishedWithDamage}.");
                     ConsoleQueueEnqueue(damaged[^1]);
                 }
+                if (held is HeldFrameReuse h)
+                {
+                    heldFrames.Add(h);
+                    ConsoleQueueEnqueue($"{video.Input}: {h.Text}.");
+                }
                 ct.ThrowIfCancellationRequested();
             }
             if (failed > 0 && attempted > 1)
             {
                 ConsoleQueueEnqueue($"{failed} of {attempted} videos were not upscaled.");
+            }
+            if (heldFrames.Count > 1 && HeldFrameReuse.Sum(heldFrames) is HeldFrameReuse total)
+            {
+                ConsoleQueueEnqueue($"{heldFrames.Count} videos: {total.Text}.");
             }
             if (damaged.Count > 0 && attempted > 1)
             {
@@ -1211,18 +1221,19 @@ namespace VideoJaNai.ViewModels
         // One video, by one aji_encode (which prepares the engine first). Failure: null when the
         // output was written, else why not (StoppedOnDamage: at damage); a failed or stopped
         // encode leaves no output (and an output that was there stays as it was).
-        // FinishedWithDamage: written, with the damaged places listed.
-        private async Task<(string? Failure, bool StoppedOnDamage, string? FinishedWithDamage)> UpscaleVideo(PlannedVideo video, CancellationToken ct)
+        // FinishedWithDamage: written, with the damaged places listed. HeldFrames: written, with the
+        // held-frame reuse aji_encode reported (none when it didn't reuse frames).
+        private async Task<(string? Failure, bool StoppedOnDamage, string? FinishedWithDamage, HeldFrameReuse? HeldFrames)> UpscaleVideo(PlannedVideo video, CancellationToken ct)
         {
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(video.Output)!);
                 var result = await RunUpscaleSingle(video.Input, video.Output, ct);
-                return result.Written ? (null, false, result.FinishedWithDamage) : (result.Failure, result.StoppedOnDamage, null);
+                return result.Written ? (null, false, result.FinishedWithDamage, result.HeldFrames) : (result.Failure, result.StoppedOnDamage, null, null);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
             {
-                return (e.Message.TrimEnd('.'), false, null);
+                return (e.Message.TrimEnd('.'), false, null, null);
             }
         }
 
@@ -2024,7 +2035,8 @@ namespace VideoJaNai.ViewModels
             // The collapsed sections' summaries follow every setting (and the models' paths).
             PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName is not null && !e.PropertyName.EndsWith("Summary", StringComparison.Ordinal))
+                if (e.PropertyName is not null && !e.PropertyName.EndsWith("Summary", StringComparison.Ordinal) &&
+                    e.PropertyName is not (nameof(ReuseHeldFramesApplies) or nameof(ReuseHeldFramesNote)))
                 {
                     RaiseSummaries();
                 }
@@ -2177,6 +2189,7 @@ namespace VideoJaNai.ViewModels
                 TemporalSceneThreshold = m.TemporalSceneThreshold,
             })],
             EnableUpscale = EnableUpscale,
+            ReuseHeldFrames = ReuseHeldFrames,
             EnableTemporalFix = EnableTemporalFix,
             TemporalFixStrength = TemporalFixStrength,
             TemporalFixSceneThreshold = TemporalFixSceneThreshold,
@@ -2688,6 +2701,27 @@ namespace VideoJaNai.ViewModels
             }
         }
 
+        // aji_encode's held-frame reuse: a frame that is the same picture as the last upscaled one
+        // (a held drawing, a still shot) gets that upscale again instead of its own. On by default,
+        // and in states saved before it existed. Off passes --no-reuse-held-frames.
+        private bool _reuseHeldFrames = true;
+        [DataMember]
+        public bool ReuseHeldFrames
+        {
+            get => _reuseHeldFrames;
+            set => this.RaiseAndSetIfChanged(ref _reuseHeldFrames, value);
+        }
+
+        // Why held-frame reuse doesn't apply to this workflow's chain (aji_encode turns it off for
+        // interpolation and temporal chains; the setting itself is kept), or null when it does.
+        public string? ReuseHeldFramesNote =>
+            EnableRife ? VideoJaNai.Lang.Resources.ReuseHeldFramesNotWithRifeText
+            : EnableTemporalFix ? VideoJaNai.Lang.Resources.ReuseHeldFramesNotWithTemporalFixText
+            : EnableUpscale && UpscaleSettings.Any(m => m.IsTemporal) ? VideoJaNai.Lang.Resources.ReuseHeldFramesNotWithTemporalModelText
+            : null;
+
+        public bool ReuseHeldFramesApplies => ReuseHeldFramesNote == null;
+
         // vs_temporalfix, appended to the chain after the upscaling models (or on its own, at the source
         // resolution, when upscaling is off). Strength picks one of the bundled models.
         private bool _enableTemporalFix = false;
@@ -2888,6 +2922,9 @@ namespace VideoJaNai.ViewModels
             this.RaisePropertyChanged(nameof(InterpolationSummary));
             this.RaisePropertyChanged(nameof(PostProcessingSummary));
             this.RaisePropertyChanged(nameof(OutputSummary));
+            // RIFE, the temporal fix or a model being temporal turn held-frame reuse off
+            this.RaisePropertyChanged(nameof(ReuseHeldFramesApplies));
+            this.RaisePropertyChanged(nameof(ReuseHeldFramesNote));
         }
 
         public List<string> RifeModelList { get => Vm?.RifeModels; }
