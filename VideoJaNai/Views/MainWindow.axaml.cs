@@ -533,6 +533,117 @@ namespace VideoJaNai.Views
             }
         }
 
+        // One of the three options: switch to it (the folder picker for "A folder I choose").
+        private async void StorageChoiceClick(object? sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainWindowViewModel vm)
+            {
+                return;
+            }
+            try
+            {
+                if (vm.Storage is not { Choice: { } current } storage || sender is not Control { Tag: string option })
+                {
+                    return;
+                }
+                switch (option)
+                {
+                    case "inside" when current != StoreLocation.StoreChoice.Inside:
+                        await ConfirmStorageSwitch(vm, "inside", storage.Inside ?? "");
+                        break;
+                    case "shared" when current != StoreLocation.StoreChoice.Shared:
+                        await ConfirmStorageSwitch(vm, "shared", storage.SharedFolder);
+                        break;
+                    case "custom" when current != StoreLocation.StoreChoice.Custom:
+                        await ChooseStorageFolder(vm);
+                        break;
+                }
+            }
+            finally
+            {
+                ShowStorageChoice(vm);
+            }
+        }
+
+        private async void ChooseStorageFolderClick(object? sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainWindowViewModel vm)
+            {
+                return;
+            }
+            try
+            {
+                await ChooseStorageFolder(vm);
+            }
+            finally
+            {
+                ShowStorageChoice(vm);
+            }
+        }
+
+        // The option buttons show the current choice again (a click checked one before it was
+        // confirmed); SetCurrentValue keeps their bindings.
+        private void ShowStorageChoice(MainWindowViewModel vm)
+        {
+            vm.RaiseStorage();
+            this.FindControl<RadioButton>("StorageInsideOption")?.SetCurrentValue(RadioButton.IsCheckedProperty, vm.StorageIsInside);
+            this.FindControl<RadioButton>("StorageSharedOption")?.SetCurrentValue(RadioButton.IsCheckedProperty, vm.StorageIsShared);
+            this.FindControl<RadioButton>("StorageCustomOption")?.SetCurrentValue(RadioButton.IsCheckedProperty, vm.StorageIsCustom);
+        }
+
+        private async Task ChooseStorageFolder(MainWindowViewModel vm)
+        {
+            if (vm.Storage is not { } storage || !vm.AllowStorageChanges)
+            {
+                return;
+            }
+            var folders = await GetTopLevel(this)!.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Choose a folder for the TensorRT runtime",
+                AllowMultiple = false,
+            });
+            if (folders.Count < 1 || folders[0].TryGetLocalPath() is not string picked)
+            {
+                return;
+            }
+            string target;
+            try
+            {
+                target = StoreLocation.ChoiceTarget(picked);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                vm.StorageStatusText = ex.Message;
+                return;
+            }
+            if (StoreCopy.SamePath(target, storage.Root))
+            {
+                vm.StorageStatusText = "VideoJaNai already uses this folder.";
+                return;
+            }
+            await ConfirmStorageSwitch(vm, StoreLocation.ChoiceArgument(storage, target), target);
+        }
+
+        // Confirm, then have the updater switch this copy to target and move its TensorRT runtime.
+        private async Task ConfirmStorageSwitch(MainWindowViewModel vm, string target, string folder)
+        {
+            if (vm.Storage is not { } storage || !vm.AllowStorageChanges)
+            {
+                return;
+            }
+            string message = storage.Installed
+                ? $"Move the TensorRT runtime ({vm.SwitchBytes() / 1e9:0.0} GB) from {storage.Folder} to {folder}? Nothing is downloaded again. Stop any upscale and close the preview first."
+                : $"Use {folder} for the TensorRT runtime? It isn't installed yet. When you install it, it goes there.";
+            if (target is not ("inside" or "shared") && StoreLocation.IsStore(folder))
+            {
+                message += " JaNai apps already keep their runtime in this folder; apps set to it share one copy.";
+            }
+            if (await ShowConfirmationDialog("Change where TensorRT is kept?", message))
+            {
+                await vm.SwitchStorage(target);
+            }
+        }
+
         private async Task<bool> ShowConfirmationDialog(string title, string message)
         {
             var dialog = new Window

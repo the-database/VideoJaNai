@@ -49,6 +49,10 @@
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Padding" Value="10" />
     </Style>
+    <!-- App Settings > Storage: an option's folder and buttons, under its radio button -->
+    <Style Selector="StackPanel.storageOption">
+      <Setter Property="Margin" Value="28,0,0,0" />
+    </Style>
     <Style Selector="Button.active">
       <Setter Property="Background" Value="{DynamicResource SystemAccentColor }" />
       <Style Selector="^:pointerover">
@@ -771,26 +775,64 @@
             </StackPanel>
           </Border>
 
-          <!-- Storage: where the shared pack store is -->
+          <!-- Storage: where this copy keeps TensorRT. Three options with an updater that has them
+               (inside this copy, the shared folder, a folder the user picks); before that only the
+               shared folder. -->
           <StackPanel IsVisible="{Binding ShowStorage}">
             <DockPanel Margin="0,10,0,0">
               <TextBlock DockPanel.Dock="Left" FontWeight="Bold" Text="Storage" />
             </DockPanel>
             <Border Classes="border">
               <StackPanel Margin="10" Spacing="10">
-                <TextBlock TextWrapping="Wrap" Text="The TensorRT runtime and its GPU components (a few GB) live in one folder that all your JaNai apps share. Move it to put them on another drive. Close your other JaNai apps first." />
-                <TextBlock FontFamily="Consolas" TextWrapping="Wrap" Text="{Binding StorageFolderText}" />
-                <TextBlock Foreground="Gray" TextWrapping="Wrap" Text="{Binding StorageText}" />
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                  <Button Content="Move..." Click="MoveStorageButtonClick" IsEnabled="{Binding AllowStorageChanges}" IsVisible="{Binding !StorageMissing}"
-                          ToolTip.Tip="Move the shared folder to a new or empty folder on another drive. Nothing is downloaded again." />
-                  <Button Content="Move Back to Default" Click="MoveStorageBackButtonClick" IsEnabled="{Binding AllowStorageChanges}" IsVisible="{Binding StorageMoved}"
-                          ToolTip.Tip="Move the shared folder back to its default place. Nothing is downloaded again." />
-                  <Button Content="Try Again" Command="{Binding RefreshStorage}" IsEnabled="{Binding AllowStorageChanges}" IsVisible="{Binding StorageMissing}"
-                          ToolTip.Tip="Check the folder again, for example after connecting its drive." />
-                  <Button Content="Reset to Default" Click="ResetStorageButtonClick" IsEnabled="{Binding AllowStorageChanges}" IsVisible="{Binding StorageMissing}"
-                          ToolTip.Tip="Stop using the missing folder: start an empty one in the default place and download this app's components again." />
+                <TextBlock TextWrapping="Wrap" IsVisible="{Binding HasStorageChoice}"
+                           Text="Where VideoJaNai keeps the TensorRT runtime and its GPU components (a few GB). Changing it moves them there; nothing is downloaded again." />
+                <TextBlock TextWrapping="Wrap" IsVisible="{Binding NoStorageChoice}"
+                           Text="The TensorRT runtime and its GPU components (a few GB) live in one folder that all your JaNai apps share. Move it to put them on another drive. Close your other JaNai apps first." />
+
+                <StackPanel Spacing="2" IsVisible="{Binding HasStorageChoice}">
+                  <RadioButton x:Name="StorageInsideOption" GroupName="storage" Tag="inside" Content="Inside this copy of VideoJaNai"
+                               IsChecked="{Binding StorageIsInside, Mode=OneWay}" IsEnabled="{Binding AllowStorageChanges}" Click="StorageChoiceClick" />
+                  <StackPanel Margin="28,0,0,0" Spacing="2">
+                    <TextBlock FontFamily="Consolas" TextWrapping="Wrap" Foreground="Gray" Text="{Binding StorageInsideFolder}" />
+                    <TextBlock Foreground="Gray" TextWrapping="Wrap" Text="Everything stays in this folder, so it can be moved or copied to another PC." />
+                  </StackPanel>
                 </StackPanel>
+
+                <StackPanel Spacing="2">
+                  <RadioButton x:Name="StorageSharedOption" GroupName="storage" Tag="shared" Content="Shared with my other JaNai apps" IsVisible="{Binding HasStorageChoice}"
+                               IsChecked="{Binding StorageIsShared, Mode=OneWay}" IsEnabled="{Binding AllowStorageChanges}" Click="StorageChoiceClick" />
+                  <!-- under its option, or on its own with an updater from before the options -->
+                  <StackPanel Spacing="6" Classes.storageOption="{Binding HasStorageChoice}">
+                    <TextBlock FontFamily="Consolas" TextWrapping="Wrap" Text="{Binding StorageSharedFolder}" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                      <Button Content="Move..." Click="MoveStorageButtonClick" IsEnabled="{Binding AllowSharedStorageChanges}" IsVisible="{Binding !StorageSharedMissing}"
+                              ToolTip.Tip="Move the shared folder to a new or empty folder on another drive. Nothing is downloaded again. Close your other JaNai apps first." ToolTip.ShowOnDisabled="True" />
+                      <Button Content="Move Back to Default" Click="MoveStorageBackButtonClick" IsEnabled="{Binding AllowSharedStorageChanges}" IsVisible="{Binding StorageMoved}"
+                              ToolTip.Tip="Move the shared folder back to its default place. Nothing is downloaded again." />
+                      <Button Content="Try Again" Command="{Binding RefreshStorage}" IsEnabled="{Binding AllowSharedStorageChanges}" IsVisible="{Binding StorageSharedMissing}"
+                              ToolTip.Tip="Check the folder again, for example after connecting its drive." />
+                      <Button Content="Reset to Default" Click="ResetStorageButtonClick" IsEnabled="{Binding AllowSharedStorageChanges}" IsVisible="{Binding StorageSharedMissing}"
+                              ToolTip.Tip="Stop using the missing folder: start an empty one in the default place and download this app's components again." />
+                    </StackPanel>
+                  </StackPanel>
+                </StackPanel>
+
+                <StackPanel Spacing="2" IsVisible="{Binding HasStorageChoice}">
+                  <RadioButton x:Name="StorageCustomOption" GroupName="storage" Tag="custom" Content="A folder I choose"
+                               IsChecked="{Binding StorageIsCustom, Mode=OneWay}" IsEnabled="{Binding AllowStorageChanges}" Click="StorageChoiceClick" />
+                  <StackPanel Margin="28,0,0,0" Spacing="6">
+                    <TextBlock FontFamily="Consolas" TextWrapping="Wrap" Foreground="Gray" Text="{Binding StorageCustomFolder}" />
+                    <TextBlock Foreground="Gray" TextWrapping="Wrap" Text="JaNai apps set to the same folder share one copy." />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                      <Button Content="Choose Folder..." Click="ChooseStorageFolderClick" IsEnabled="{Binding AllowStorageChanges}" />
+                      <Button Content="Try Again" Command="{Binding RefreshStorage}" IsEnabled="{Binding AllowStorageChanges}" IsVisible="{Binding StorageCustomMissing}"
+                              ToolTip.Tip="Check the folder again, for example after connecting its drive." />
+                    </StackPanel>
+                  </StackPanel>
+                </StackPanel>
+
+                <TextBlock Foreground="Gray" TextWrapping="Wrap" Text="{Binding StorageText}"
+                           IsVisible="{Binding StorageText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 <TextBlock Foreground="Gray" FontFamily="Consolas" TextWrapping="Wrap" Text="{Binding StorageStatusText}" />
               </StackPanel>
             </Border>

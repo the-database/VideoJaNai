@@ -132,6 +132,8 @@ const string RuntimeTag        = "runtime-2";
 const string RuntimeIndexSha256Win   = "5b6f0450ba4eed34d6e25dde072ce1298f083d91d142fd858495483e7711aea1";
 const string RuntimeIndexSha256Linux = "d441210f7747b255f17483f7c8b921817ad3f997abab5a1ba5d348b51511ab61";
 // aji-runtime, the store's tool, from its release (the binary in aji-runtime-<platform>.zip/.tar.gz).
+// 0.3.0+: the settings file aji-runtime.conf (which store a copy uses), --per-copy refs and `use`
+// (App Settings > Storage); the updater needs them.
 const string AjiRuntimeRepo    = "the-database/aji-runtime";
 const string AjiRuntimeVersion = "v0.3.0";
 const string AjiRuntimeSha256Win   = "f25b32c9f02e8227a7c33b63e55c88d43de7ec8d1b876f9199169050f17b85b4";
@@ -704,6 +706,10 @@ async Task InstallAjiRuntime()
 // stays local for user_preserve during that copy.
 void WriteVersionAndManifest()
 {
+    // Each copy's own (user_preserve below): a shipped one would point every copy at one store.
+    if (File.Exists(Path.Combine(installDirectory, "aji-runtime.conf")) ||
+        Directory.Exists(Path.Combine(installDirectory, "animejanai", "runtime")))
+        throw new InvalidDataException("The package must not ship aji-runtime.conf or animejanai/runtime.");
     File.WriteAllText(Path.Combine(installDirectory, "version.txt"), version);
 
     var manifest = new
@@ -741,6 +747,10 @@ void WriteVersionAndManifest()
             "animejanai/animejanai.conf",
             "components.json",
             "animejanai/inference/aji-runtime.json",
+            // which pack store this copy uses (aji-runtime use; the package never ships it), and the
+            // store a portable copy keeps inside its folder
+            "aji-runtime.conf",
+            "animejanai/runtime",
         },
     };
 

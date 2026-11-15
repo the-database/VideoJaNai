@@ -76,23 +76,29 @@ namespace VideoJaNai.Cli
             return new Install(Path.Join(own, "animejanai"), conf);
         }
 
-        // The shared pack store's folder while it's missing (moved to a drive that isn't connected),
-        // for a tree that uses the store; else null. Nothing in the store loads meanwhile, so a run
-        // stops with StoreMissingText instead of a missing-runtime error (or, on auto, DirectML).
-        public async Task<string?> MissingStoreFolderAsync() =>
+        // The pack store while its folder is missing (the shared store moved to a drive that isn't
+        // connected, or a folder this copy was set to with `VideoJaNaiUpdater --storage`), for a tree
+        // that uses the store; else null. Nothing in the store loads meanwhile, so a run stops with
+        // StoreMissingText instead of a missing-runtime error (or, on auto, DirectML).
+        public async Task<StoreLocation.Info?> MissingStoreAsync() =>
             RuntimePacks.Read(Paths.InferenceDirectory) is null ? null
-            : await MissingStoreFolderAsync(Path.GetDirectoryName(AnimeJaNaiDirectory), ExeDir);
+            : await MissingStoreAsync(Path.GetDirectoryName(AnimeJaNaiDirectory), ExeDir);
 
-        // aji-runtime: at a tree's root, and next to videojanai.
-        public static async Task<string?> MissingStoreFolderAsync(params string?[] folders) =>
+        // aji-runtime: at a tree's root, and next to videojanai (each reads the aji-runtime.conf beside it).
+        public static async Task<StoreLocation.Info?> MissingStoreAsync(params string?[] folders) =>
             folders.OfType<string>().Select(StoreLocation.ExePath).FirstOrDefault(File.Exists) is string exe
-                ? await StoreLocation.MissingFolderAsync(exe)
+                ? await StoreLocation.MissingAsync(exe)
                 : null;
 
-        public static string StoreMissingText(string folder)
+        // The shared store moved to a missing drive is reset with aji-runtime; any other store's folder
+        // is replaced by choosing another place.
+        public static string StoreMissingText(StoreLocation.Info store)
         {
-            var text = StoreLocation.MissingText(folder);
-            return $"{char.ToLowerInvariant(text[0])}{text[1..]} Reconnect it, or reset the location: run `aji-runtime reset` (next to videojanai), then `videojanai setup`";
+            var text = StoreLocation.MissingText(store.Folder);
+            var fix = store.Moved
+                ? "reset the location: run `aji-runtime reset` (next to videojanai)"
+                : "choose another place: run `VideoJaNaiUpdater --storage inside` (or `shared`, or a folder; next to videojanai)";
+            return $"{char.ToLowerInvariant(text[0])}{text[1..]} Reconnect it, or {fix}, then `videojanai setup`";
         }
 
         public bool AjiEncodeExists => File.Exists(Paths.AjiEncodePath);
