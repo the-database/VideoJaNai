@@ -111,16 +111,17 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.28.0: aji_encode reuses held frames' upscales (on by default, --no-reuse-held-frames turns it off) and
 // prints a final "held frames" line. v0.29.0: native tensor-core kernels instead of TensorRT engines for
 // SPAN/Compact, RIFE and TemporalFix on RTX 30 and newer (no engine build; [global] native=off disables).
+// v0.31.0: ESRGAN, FDAT, HAT-L and DAT-2 chain models run on the native kernels too (whole frames, when they fit).
 // A libaji release opens the PR that moves AjiVersion and ajiSha256 (.github/workflows/bump-pins.yml,
 // scripts/bump_pins.py libaji <tag>); add its line above by hand.
-const string AjiVersion        = "v0.29.0";
+const string AjiVersion        = "v0.31.0";
 // The aji release publishes no checksums; recorded from the release assets (both platforms').
 var ajiSha256 = new Dictionary<string, string>
 {
-    ["aji-windows-x64.zip"]          = "3e13cb8a9493a3d25becec0324ff421f3b329d60a9bf745e43aa5997685c83da",
-    ["aji-trtrtx-windows-x64.zip"]   = "8137b0df7385f6f67626fcea8b783a67f6cd607268680c196fac825cde4b5873",
-    ["aji-linux-x64.tar.zst"]        = "543b800cf4f78e9cc8279efac161db94e99436efd676c5d482475735703ed931",
-    ["aji-encode-linux-x64.tar.zst"] = "27b4d2dd51a7123b6080ad12804bb45f8de1f3d4e76d120eeaa8fc9b8d0f004d",
+    ["aji-windows-x64.zip"]          = "eee4db1eafb08ae958e2d9b9ce6460ade2d914d082cf0ff017ebab8e0faa8b9d",
+    ["aji-trtrtx-windows-x64.zip"]   = "ae120c9f27929fa1a866df420b50606fac4e9b41d69e4d4b08ca737f0c414085",
+    ["aji-linux-x64.tar.zst"]        = "32e081303019a6e9dd8a1a33416c21b515c7fbf4689da3b7793a61d0f97bb603",
+    ["aji-encode-linux-x64.tar.zst"] = "5328ade3149212b37e5e268deeb0464a657a7d74755122b41861b3344b254222",
 };
 // The shared runtime packs every libaji app pins (animejanai-inference runtime-<n>): TensorRT, the
 // per-GPU builder packs and TensorRT-RTX's runtime, installed once per user into the shared pack store
