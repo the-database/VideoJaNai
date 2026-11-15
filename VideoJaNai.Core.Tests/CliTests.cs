@@ -61,6 +61,7 @@ namespace VideoJaNai.Core.Tests
                 height = 1440px
                 [gpu]
                 backend = TensorRT
+                native = no
                 """);
             Assert.Equal([@"D:\Anime\Show #1", @"D:\more; stuff"], o.Inputs);
             Assert.Equal(@"D:\out", o.OutputFolder);
@@ -68,6 +69,7 @@ namespace VideoJaNai.Core.Tests
             Assert.True(o.KeepDamaged);
             Assert.Equal(["a.onnx", "b.onnx"], o.Models);
             Assert.False(o.ReuseHeldFrames);
+            Assert.False(o.Native);
             Assert.Equal("x265", o.Encoder);
             Assert.Equal("yuv420p", o.PixFmt);
             Assert.True(o.Rife);
@@ -169,6 +171,9 @@ namespace VideoJaNai.Core.Tests
         {
             Assert.Null(Flags.Parse(["a.mkv"]).Options.ReuseHeldFrames);
             Assert.False(Flags.Parse(["--no-reuse-held-frames", "a.mkv"]).Options.ReuseHeldFrames);
+            Assert.Null(Flags.Parse(["a.mkv"]).Options.Native);
+            Assert.False(Flags.Parse(["--no-native", "a.mkv"]).Options.Native);
+            Assert.True(Flags.Parse(["--no-native", "--native", "a.mkv"]).Options.Native);
             Assert.True(Flags.Parse(["--no-reuse-held-frames", "--reuse-held-frames"]).Options.ReuseHeldFrames);
         }
 
