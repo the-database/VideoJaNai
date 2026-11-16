@@ -114,14 +114,14 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.31.0: ESRGAN, FDAT, HAT-L and DAT-2 chain models run on the native kernels too (whole frames, when they fit).
 // A libaji release opens the PR that moves AjiVersion and ajiSha256 (.github/workflows/bump-pins.yml,
 // scripts/bump_pins.py libaji <tag>); add its line above by hand.
-const string AjiVersion        = "v0.31.0";
+const string AjiVersion        = "v0.31.1";
 // The aji release publishes no checksums; recorded from the release assets (both platforms').
 var ajiSha256 = new Dictionary<string, string>
 {
-    ["aji-windows-x64.zip"]          = "eee4db1eafb08ae958e2d9b9ce6460ade2d914d082cf0ff017ebab8e0faa8b9d",
-    ["aji-trtrtx-windows-x64.zip"]   = "ae120c9f27929fa1a866df420b50606fac4e9b41d69e4d4b08ca737f0c414085",
-    ["aji-linux-x64.tar.zst"]        = "32e081303019a6e9dd8a1a33416c21b515c7fbf4689da3b7793a61d0f97bb603",
-    ["aji-encode-linux-x64.tar.zst"] = "5328ade3149212b37e5e268deeb0464a657a7d74755122b41861b3344b254222",
+    ["aji-windows-x64.zip"]          = "a57d434159cf607b086c89bf9d0d2ea115d7730a54168a800238e5ded184be22",
+    ["aji-trtrtx-windows-x64.zip"]   = "874e321370467fec64fd6b7a801911b4feb5e22ec2ebc6bb6bdfc5f93feec486",
+    ["aji-linux-x64.tar.zst"]        = "c57fd50594ae305e0774cfdd64d32335629e1c1995b7eb219aeef433931278b6",
+    ["aji-encode-linux-x64.tar.zst"] = "663ecc2ab654537de1be8f38f5a1199b438a48eab7e19e5dc3890fca5a49874d",
 };
 // The shared runtime packs every libaji app pins (animejanai-inference runtime-<n>): TensorRT, the
 // per-GPU builder packs and TensorRT-RTX's runtime, installed once per user into the shared pack store
